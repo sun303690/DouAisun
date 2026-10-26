@@ -168,7 +168,8 @@ public final class AutoCommentHook implements Application.ActivityLifecycleCallb
                 "auto_comment_text", AutomationCommentMedia.RECOGNIZE_IMAGES,
                 AutomationCommentMedia.RECOGNIZE_VIDEO, "comment_scope_mode", "comment_scope_relations",
                 "comment_scope_fields", "comment_scope_keywords", "comment_scope_users", "comment_filter_mode",
-                "comment_filter_keywords", "comment_filter_fields", AiModelSettings.KEY, LocalOptions.COMMENT_VOICE, "tts_"}) {
+                "comment_filter_keywords", "comment_filter_fields", AiModelSettings.COMMENT_MODEL_ID,
+                AiModelSettings.KEY, LocalOptions.COMMENT_VOICE, "tts_"}) {
             boolean defaultEnabled = AutomationCommentMedia.RECOGNIZE_IMAGES.equals(key);
             if (("tts_".equals(key) && !before.samePrefix(next, "tts_"))
                     || before.enabled(key, defaultEnabled) != next.enabled(key, defaultEnabled)
@@ -328,7 +329,7 @@ public final class AutoCommentHook implements Application.ActivityLifecycleCallb
                 String text = task.text;
                 if (text == null) {
                     if ("ai".equals(task.options.text("comment_mode", "ai"))) {
-                        AiModelSettings models = AiModelSettings.read(task.options);
+                        AiModelSettings models = AiModelSettings.readForAutomation(task.options, AutomationHistoryStore.COMMENT);
                         task.model = models.selected().modelName;
                         task.stage = AutomationHistoryStore.Stage.MEDIA;
                         task.trace.stage("media", "recognize_images=" + task.options.enabled(AutomationCommentMedia.RECOGNIZE_IMAGES, true) + ";recognize_video=" + task.options.enabled(AutomationCommentMedia.RECOGNIZE_VIDEO));

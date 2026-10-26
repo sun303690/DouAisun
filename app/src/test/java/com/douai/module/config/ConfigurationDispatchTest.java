@@ -130,6 +130,14 @@ public final class ConfigurationDispatchTest {
         assertAutomationLimitDispatch("comment_user_cooldown_minutes");
     }
 
+    @Test public void changingOnlyReplyModelUpdatesReplyAndDispatcherButKeepsCommentSnapshot() throws Exception {
+        assertAutomationSettingDispatch(AiModelSettings.REPLY_MODEL_ID, "selected-reply-profile");
+    }
+
+    @Test public void changingOnlyCommentModelUpdatesCommentAndDispatcherButKeepsReplySnapshot() throws Exception {
+        assertAutomationSettingDispatch(AiModelSettings.COMMENT_MODEL_ID, "selected-comment-profile");
+    }
+
     @Test public void voiceProviderConfigurationUpdatesBothAutomationSnapshots() throws Exception {
         DouAiModule module = module();
         Map<String, Object> values = new HashMap<>();
@@ -162,6 +170,10 @@ public final class ConfigurationDispatchTest {
     }
 
     private static void assertAutomationLimitDispatch(String key) throws Exception {
+        assertAutomationSettingDispatch(key, "12");
+    }
+
+    private static void assertAutomationSettingDispatch(String key, String value) throws Exception {
         DouAiModule module = module();
         Map<String, Object> values = new HashMap<>();
         values.put("reply_daily_limit", "0");
@@ -183,7 +195,7 @@ public final class ConfigurationDispatchTest {
             assertSame(previous, options(reply));
             assertSame(previous, options(comment));
 
-            values.put(key, "12");
+            values.put(key, value);
             update(module, values);
             LocalOptions updated = (LocalOptions) field(module, "localOptions");
             Object selected = key.startsWith("reply_") ? reply : comment;
@@ -192,8 +204,8 @@ public final class ConfigurationDispatchTest {
             assertSame(key, updated, options(selected));
             assertSame(key, updated, options(dispatcher));
             assertSame(key, previous, options(other));
-            assertEquals(12, options(selected).integer(key, -1));
-            assertEquals(12, options(dispatcher).integer(key, -1));
+            assertEquals(value, options(selected).text(key, ""));
+            assertEquals(value, options(dispatcher).text(key, ""));
             assertEquals("reply", options(selected).text("auto_message_text", ""));
             assertEquals("comment", options(selected).text("auto_comment_text", ""));
 

@@ -18,6 +18,55 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 35)
 public final class ConfigTransferTest {
+    @Test public void localAnalysisModelAndSecondaryPromptRoundTripIndependentlyFromAutomation() throws Exception {
+        for (boolean includeSecrets : new boolean[]{false, true}) {
+            MemoryStore source = new MemoryStore(), target = new MemoryStore();
+            AiModelConfig global = AiModelConfig.fromJson(new JSONObject().put("id", "global").put("name", "全局供应商")
+                    .put("apiEndpoint", "https://global.example.test/v1").put("modelName", "global-model"));
+            AiModelConfig analysis = AiModelConfig.fromJson(new JSONObject().put("id", "analysis").put("name", "分析供应商")
+                    .put("apiEndpoint", "https://analysis.example.test/v1").put("modelName", "analysis-model")
+                    .put("systemPrompt", "分析模型一级提示").put("responseMode", AiModelConfig.RESPONSE_STREAM));
+            source.values.put(AiModelSettings.KEY, new AiModelSettings(java.util.List.of(global, analysis), global.id).serialize());
+            source.values.put(AiModelSettings.REPLY_MODEL_ID, global.id);
+            source.values.put(AiModelSettings.COMMENT_MODEL_ID, global.id);
+            source.values.put("reply_prompt", "独立回复提示");
+            source.values.put("comment_prompt", "独立评论提示");
+            source.values.put(AnalyticsAiSettings.MODEL_ID, analysis.id);
+            source.values.put(AnalyticsAiSettings.SECONDARY_PROMPT, "独立分析提示\n重点比较工作日与周末");
+            ConfigTransfer.apply(target, ConfigTransfer.inspect(target, ConfigTransfer.export(source, includeSecrets)));
+            assertEquals(analysis.id, AnalyticsAiSettings.models(target).selected().id);
+            assertTrue(AnalyticsAiSettings.models(target).selected().streaming());
+            assertEquals("分析模型一级提示", AnalyticsAiSettings.models(target).selected().systemPrompt);
+            assertEquals(source.getString(AnalyticsAiSettings.SECONDARY_PROMPT, ""), AnalyticsAiSettings.secondaryPrompt(target));
+            assertEquals(global.id, AiModelSettings.read(target).activeId);
+            assertEquals(global.id, target.getString(AiModelSettings.REPLY_MODEL_ID, ""));
+            assertEquals(global.id, target.getString(AiModelSettings.COMMENT_MODEL_ID, ""));
+            assertEquals("独立回复提示", target.getString("reply_prompt", ""));
+            assertEquals("独立评论提示", target.getString("comment_prompt", ""));
+        }
+    }
+
+    @Test public void automationModelBindingsRoundTripWithTheExistingProfileCollection() throws Exception {
+        for (boolean includeSecrets : new boolean[]{false, true}) {
+            MemoryStore source = new MemoryStore(), target = new MemoryStore();
+            AiModelConfig first = AiModelConfig.fromJson(new JSONObject().put("id", "first").put("name", "回复供应商")
+                    .put("apiEndpoint", "https://first.example.test/v1").put("modelName", "reply-model")
+                    .put("responseMode", AiModelConfig.RESPONSE_STREAM));
+            AiModelConfig second = AiModelConfig.fromJson(new JSONObject().put("id", "second").put("name", "评论供应商")
+                    .put("apiEndpoint", "https://second.example.test/v1").put("modelName", "comment-model")
+                    .put("responseMode", AiModelConfig.RESPONSE_SYNC));
+            source.values.put(AiModelSettings.KEY, new AiModelSettings(java.util.List.of(first, second), first.id).serialize());
+            source.values.put(AiModelSettings.REPLY_MODEL_ID, first.id);
+            source.values.put(AiModelSettings.COMMENT_MODEL_ID, second.id);
+            ConfigTransfer.apply(target, ConfigTransfer.inspect(target, ConfigTransfer.export(source, includeSecrets)));
+            assertEquals(first.id, target.getString(AiModelSettings.REPLY_MODEL_ID, ""));
+            assertEquals(second.id, target.getString(AiModelSettings.COMMENT_MODEL_ID, ""));
+            assertTrue(AiModelSettings.readForAutomation(target, "reply").selected().streaming());
+            assertFalse(AiModelSettings.readForAutomation(target, "comment").selected().streaming());
+            assertEquals(first.id, AiModelSettings.read(target).activeId);
+        }
+    }
+
     @Test public void independentCardFiltersSurviveBackupAndRestore() {
         MemoryStore source = new MemoryStore(), target = new MemoryStore();
         source.values.put("feed_filter_enabled", true);

@@ -11,6 +11,32 @@ import static com.douai.module.config.ConfigurationCatalog.Feature.*;
 import static org.junit.Assert.*;
 
 public final class ConfigurationCatalogTest {
+    @Test public void explicitAnalyticsSettingsTransferWithoutRestartingAutomaticFeatures() {
+        for (String key : new String[]{AnalyticsAiSettings.MODEL_ID, AnalyticsAiSettings.SECONDARY_PROMPT}) {
+            assertEquals("string", ConfigKeys.TYPES.get(key));
+            assertEquals("", ConfigurationCatalog.settings().get(key).defaultValue);
+            assertConsumers(key, Collections.emptySet());
+            ConfigurationChanges changed = ConfigurationChanges.between(Collections.emptyMap(), Map.of(key, "selected"));
+            for (ConfigurationCatalog.Feature feature : ConfigurationCatalog.Feature.values()) {
+                assertFalse(key + " must not restart " + feature, changed.affects(feature));
+            }
+        }
+    }
+
+    @Test public void automationModelBindingsTransferWithGlobalDefaultsAndRefreshOnlyTheirConsumers() {
+        for (String key : new String[]{AiModelSettings.REPLY_MODEL_ID, AiModelSettings.COMMENT_MODEL_ID}) {
+            assertEquals("string", ConfigKeys.TYPES.get(key));
+            assertEquals("", ConfigurationCatalog.settings().get(key).defaultValue);
+        }
+        assertConsumers(AiModelSettings.REPLY_MODEL_ID, EnumSet.of(REPLY, COMMENT_REPLY, AUTOMATION_DISPATCH));
+        assertConsumers(AiModelSettings.COMMENT_MODEL_ID, EnumSet.of(COMMENT_AUTOMATION, AUTOMATION_DISPATCH));
+        ConfigurationChanges removed = ConfigurationChanges.between(
+                Map.of(AiModelSettings.REPLY_MODEL_ID, "profile"), Collections.emptyMap());
+        assertTrue(removed.affects(REPLY));
+        assertTrue(removed.affects(COMMENT_REPLY));
+        assertFalse(removed.affects(COMMENT_AUTOMATION));
+    }
+
     @Test public void cardFiltersTransferWithFalseDefaultsAndOnlyRefreshFeedFiltering() {
         for (String key : new String[]{"hide_product_cards", "hide_hotspot_rank_cards"}) {
             assertEquals("boolean", ConfigKeys.TYPES.get(key));

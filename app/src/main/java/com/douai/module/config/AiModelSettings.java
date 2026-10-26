@@ -11,6 +11,8 @@ import java.util.List;
 /** Versioned model-profile collection stored under a dedicated preference key. */
 public final class AiModelSettings {
     public static final String KEY = "ai_model_settings_v2";
+    public static final String REPLY_MODEL_ID = "reply_model_id";
+    public static final String COMMENT_MODEL_ID = "comment_model_id";
     public final List<AiModelConfig> configs;
     public final String activeId;
 
@@ -29,6 +31,32 @@ public final class AiModelSettings {
 
     public static AiModelSettings read(SettingsStore store) { return parse(store.getString(KEY, "")); }
     public static AiModelSettings read(LocalOptions options) { return parse(options.text(KEY, "")); }
+
+    public static String automationModelKey(String kind) {
+        if ("reply".equals(kind) || "comment_reply".equals(kind)) return REPLY_MODEL_ID;
+        if ("comment".equals(kind)) return COMMENT_MODEL_ID;
+        throw new IllegalArgumentException("未知自动化类型");
+    }
+
+    /** Each automation selects an existing profile without changing the global active profile. */
+    public static AiModelSettings readForAutomation(SettingsStore store, String kind) {
+        String key = automationModelKey(kind);
+        return read(store).forAutomation(kind, store.getString(key, ""));
+    }
+
+    public static AiModelSettings readForAutomation(LocalOptions options, String kind) {
+        String key = automationModelKey(kind);
+        return read(options).forAutomation(kind, options.text(key, ""));
+    }
+
+    private AiModelSettings forAutomation(String kind, String modelId) {
+        if (modelId == null || modelId.isEmpty()) return this;
+        for (AiModelConfig config : configs) if (config.id.equals(modelId)) {
+            return new AiModelSettings(configs, modelId);
+        }
+        throw new IllegalStateException(("comment".equals(kind) ? "自动评论" : "自动回复")
+                + "所选模型配置已不存在，请重新选择");
+    }
 
     public static AiModelSettings parse(String serialized) {
         if (serialized == null || serialized.trim().isEmpty()) return new AiModelSettings(Collections.emptyList(), "");

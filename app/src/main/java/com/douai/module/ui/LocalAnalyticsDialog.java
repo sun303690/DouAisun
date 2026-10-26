@@ -43,6 +43,9 @@ import com.douai.module.analytics.AnalyticsSnapshot.Recent;
 import com.douai.module.analytics.LocalAnalytics;
 import com.douai.module.analytics.AnalyticsAiAnalysis;
 import com.douai.module.analytics.LocalPortraitContext;
+import com.douai.module.config.AiModelConfig;
+import com.douai.module.config.AiModelSettings;
+import com.douai.module.config.AnalyticsAiSettings;
 import com.douai.module.config.SettingsStore;
 import com.douai.module.ui.miuix.MiuixDialogBuilder;
 import com.douai.module.ui.miuix.MiuixFormControls;
@@ -110,6 +113,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
     private final Executor worker;
     private final AnalysisService analysisService;
     private final Executor analysisWorker;
+    private final SettingsStore analysisSettings;
     private final Consumer<String> diagnostics;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final CompoundButton recording;
@@ -144,6 +148,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
     private TextView imageShareNote;
     private ImageOperation imageOperation;
     private AlertDialog exportChoiceDialog;
+    private Dialog analysisSettingsDialog;
 
     public LocalAnalyticsDialog(Context context) {
         this(context, source(context), executor("DouAi-analytics-report"));
@@ -160,7 +165,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
     public LocalAnalyticsDialog(Context context, SettingsStore settings, boolean miuix,
                                 Consumer<String> diagnostics) {
         this(context, source(context), executor("DouAi-analytics-report"),
-                analysisService(settings, diagnostics), executor("DouAi-analytics-analysis"), miuix, diagnostics);
+                analysisService(settings, diagnostics), executor("DouAi-analytics-analysis"), miuix, diagnostics, settings);
     }
 
     private static ExecutorService executor(String name) {
@@ -221,6 +226,12 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
     LocalAnalyticsDialog(Context base, Source source, Executor worker,
                          AnalysisService analysisService, Executor analysisWorker, boolean miuix,
                          Consumer<String> diagnostics) {
+        this(base, source, worker, analysisService, analysisWorker, miuix, diagnostics, null);
+    }
+
+    LocalAnalyticsDialog(Context base, Source source, Executor worker,
+                         AnalysisService analysisService, Executor analysisWorker, boolean miuix,
+                         Consumer<String> diagnostics, SettingsStore analysisSettings) {
         this.context = ModuleTheme.themedContext(base);
         this.activity = activity(base);
         this.miuix = miuix && activity != null;
@@ -228,6 +239,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
         this.worker = worker;
         this.analysisService = analysisService;
         this.analysisWorker = analysisWorker;
+        this.analysisSettings = analysisSettings;
         this.diagnostics = diagnosticSink(diagnostics);
         root = column();
         root.setTag("analytics.root");
@@ -666,6 +678,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
     private void renderAnalysis() {
         if (closed || analysisBody == null) return;
         analysisBody.removeAllViews();
+        renderAnalysisSettings();
         if (analysisResult != null) {
             caption(analysisBody, rangeLabel(analyzedDays) + " · " + analyzedModel + " · "
                     + formatDate(analyzedAt, "MM-dd HH:mm")
@@ -716,7 +729,7 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
                 }
                 boolean hasData = currentSnapshot != null
                         && (currentSnapshot.totalViews > 0 || currentSnapshot.totalFeatureUses > 0);
-                if (!configured) caption(analysisBody, "请先配置并启用 AI 模型，再刷新本页。");
+                if (!configured) caption(analysisBody, "请选择可用的 AI 模型配置；跟随全局时需先启用全局模型。");
                 else if (!hasData) caption(analysisBody, "当前范围暂无可分析数据，产生记录后即可分析。");
                 Button request = button(analysisError == null ? "请求 AI 分析" : "重新请求 AI 分析",
                         "analytics.analysis.request", this::requestAnalysis);
@@ -734,6 +747,100 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
         imageShare.setEnabled(currentSnapshot != null && analysisOperation == null && imageOperation == null);
         analysisBody.addView(controlView(imageShare), new LinearLayout.LayoutParams(-1, dp(52)));
         ModuleTheme.bind(root);
+    }
+
+    private boolean canEditAnalysisSettings() {
+        return !closed && analysisSettings != null && analysisOperation == null;
+    }
+
+    private void renderAnalysisSettings() {
+        if (analysisSettings == null) return;
+        Button model = button("模型配置 · " + analysisModelPreview(), "analytics.analysis.model", this::chooseAnalysisModel);
+        model.setEnabled(canEditAnalysisSettings());
+        analysisBody.addView(controlView(model), matchWrap());
+        String savedPrompt = analysisSettings.getString(AnalyticsAiSettings.SECONDARY_PROMPT, "");
+        boolean custom = savedPrompt != null && !savedPrompt.trim().isEmpty();
+        Button prompt = button("二级提示词 · " + (custom ? "已自定义" : "默认"),
+                "analytics.analysis.prompt", this::editAnalysisPrompt);
+        prompt.setEnabled(canEditAnalysisSettings());
+        analysisBody.addView(controlView(prompt), matchWrap());
+        Button reset = button("恢复默认二级提示词", "analytics.analysis.prompt.reset", () -> {
+            if (!canEditAnalysisSettings()) return;
+            analysisSettings.putString(AnalyticsAiSettings.SECONDARY_PROMPT, "");
+            analysisSettingsChanged();
+        });
+        reset.setEnabled(canEditAnalysisSettings() && custom);
+        analysisBody.addView(controlView(reset), matchWrap());
+        caption(analysisBody, "所选模型和二级提示词单独用于本地数据分析。留空使用默认提示词，报告结构和统计口径保留。");
+    }
+
+    private String analysisModelPreview() {
+        String selected = analysisSettings.getString(AnalyticsAiSettings.MODEL_ID, "");
+        try {
+            AiModelConfig config = AnalyticsAiSettings.models(analysisSettings).selected();
+            return (selected == null || selected.isEmpty() ? "跟随全局 · " : "") + analysisModelLabel(config);
+        } catch (RuntimeException ignored) {
+            return selected == null || selected.isEmpty() ? "跟随全局（未启用模型）" : "所选配置不可用，请重新选择";
+        }
+    }
+
+    private static String analysisModelLabel(AiModelConfig config) {
+        return config.name + " · " + config.modelName + " · " + (config.streaming() ? "流式" : "非流式");
+    }
+
+    private void chooseAnalysisModel() {
+        if (!canEditAnalysisSettings() || analysisSettingsDialog != null) return;
+        AiModelSettings settings;
+        try { settings = AiModelSettings.read(analysisSettings); }
+        catch (RuntimeException ignored) {
+            analysisError = "模型配置无法读取，请在 AI 模型设置中检查。";
+            renderAnalysis();
+            return;
+        }
+        List<String> ids = new ArrayList<>(), labels = new ArrayList<>();
+        ids.add(""); labels.add("跟随全局模型");
+        for (AiModelConfig config : settings.configs) {
+            ids.add(config.id); labels.add(analysisModelLabel(config));
+        }
+        int selected = ids.indexOf(analysisSettings.getString(AnalyticsAiSettings.MODEL_ID, ""));
+        Dialog chooser = new MiuixDialogBuilder(context, miuix).setTitle("本地数据分析使用的模型")
+                .setSingleChoiceItems(labels.toArray(new String[0]), selected, (shown, which) -> {
+                    if (canEditAnalysisSettings()) {
+                        analysisSettings.putString(AnalyticsAiSettings.MODEL_ID, ids.get(which));
+                        analysisSettingsChanged();
+                    }
+                    shown.dismiss();
+                }).setNegativeButton("取消", null).create();
+        showAnalysisSettingsDialog(chooser);
+    }
+
+    private void editAnalysisPrompt() {
+        if (!canEditAnalysisSettings() || analysisSettingsDialog != null) return;
+        PromptEditorDialog editor = new PromptEditorDialog(context, "本地数据分析二级提示词",
+                AnalyticsAiSettings.secondaryPrompt(analysisSettings), value -> {
+                    if (!canEditAnalysisSettings()) return;
+                    analysisSettings.putString(AnalyticsAiSettings.SECONDARY_PROMPT, value);
+                    analysisSettingsChanged();
+                }, miuix);
+        showAnalysisSettingsDialog(editor);
+    }
+
+    private void showAnalysisSettingsDialog(Dialog shown) {
+        analysisSettingsDialog = shown;
+        shown.setOnDismissListener(ignored -> {
+            if (analysisSettingsDialog == shown) analysisSettingsDialog = null;
+        });
+        if (shown instanceof AlertDialog) shown.setOnShowListener(ignored -> {
+            if (!miuix && activity != null) HostDialogBounds.install(activity, shown, true);
+            if (shown.getWindow() != null) ModuleTheme.bind(shown.getWindow().getDecorView());
+        });
+        shown.show();
+    }
+
+    private void analysisSettingsChanged() {
+        cancelImageExport();
+        resetAnalysis();
+        showChartAnalyses();
     }
 
     private void attachAnalysis(LinearLayout chartCard, String key) {
@@ -1301,6 +1408,8 @@ public final class LocalAnalyticsDialog implements AutoCloseable {
         clearConfirmation = null;
         if (contextDialog != null) contextDialog.dismiss();
         contextDialog = null;
+        if (analysisSettingsDialog != null) analysisSettingsDialog.dismiss();
+        analysisSettingsDialog = null;
     }
 
     private abstract static class Chart extends View {

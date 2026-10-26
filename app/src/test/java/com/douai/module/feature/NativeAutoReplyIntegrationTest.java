@@ -517,6 +517,72 @@ public final class NativeAutoReplyIntegrationTest {
         }
     }
 
+    @Test public void automaticReplyUsesItsBoundStreamingSupplierWithoutChangingTheGlobalModel() throws Throwable {
+        try (okhttp3.mockwebserver.MockWebServer global = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer replies = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer comments = new okhttp3.mockwebserver.MockWebServer();
+             LimitedReplies fixture = new LimitedReplies("reply_mode", "ai")) {
+            AiModelSettings models = AutomationModelFixtures.profiles(global, replies, comments);
+            fixture.values.put(AiModelSettings.KEY, models.serialize());
+            fixture.values.put(AiModelSettings.REPLY_MODEL_ID, "reply");
+            fixture.values.put(AiModelSettings.COMMENT_MODEL_ID, "comment");
+            fixture.applyOptions();
+            replies.enqueue(AutomationModelFixtures.streamed("独立供应商回复"));
+            Runnable queued = fixture.enqueue(200, "thread", false);
+            assertNotNull(queued);
+            queued.run(); fixture.flush();
+            okhttp3.mockwebserver.RecordedRequest request = replies.takeRequest(2, TimeUnit.SECONDS);
+            assertNotNull(request);
+            org.json.JSONObject body = new org.json.JSONObject(request.getBody().readUtf8());
+            assertEquals("reply-model", body.getString("model"));
+            assertTrue(body.getBoolean("stream"));
+            assertEquals("Bearer reply-key", request.getHeader("Authorization"));
+            assertEquals("text/event-stream", request.getHeader("Accept"));
+            assertEquals(1, fixture.database.imSdkContext.sends);
+            assertEquals("reply-model", fixture.history().get(0).modelName);
+            assertEquals("sent", fixture.history().get(0).status);
+            assertEquals(0, global.getRequestCount()); assertEquals(0, comments.getRequestCount());
+            assertEquals("global", AiModelSettings.read(new LocalOptions(fixture.values)).activeId);
+        }
+    }
+
+    @Test public void changingReplySupplierCancelsTheOldQueuedReplyAndRoutesTheNextOne() throws Throwable {
+        try (okhttp3.mockwebserver.MockWebServer global = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer replies = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer comments = new okhttp3.mockwebserver.MockWebServer();
+             LimitedReplies fixture = new LimitedReplies("reply_mode", "ai")) {
+            fixture.values.put(AiModelSettings.KEY, AutomationModelFixtures.profiles(global, replies, comments).serialize());
+            fixture.applyOptions();
+            Runnable old = fixture.enqueue(200, "thread", false);
+            assertNotNull(old);
+            fixture.values.put(AiModelSettings.REPLY_MODEL_ID, "reply"); fixture.applyOptions();
+            old.run(); fixture.flush();
+            assertEquals(0, fixture.database.imSdkContext.sends); assertEquals(0, global.getRequestCount());
+            replies.enqueue(AutomationModelFixtures.streamed("新供应商回复"));
+            Runnable next = fixture.enqueue(200, "thread", false);
+            assertNotNull(next); next.run(); fixture.flush();
+            assertEquals(1, fixture.database.imSdkContext.sends); assertEquals(1, replies.getRequestCount());
+            assertEquals(0, global.getRequestCount()); assertEquals(0, comments.getRequestCount());
+        }
+    }
+
+    @Test public void changingCommentSupplierDoesNotCancelAPreparedPrivateReply() throws Throwable {
+        try (okhttp3.mockwebserver.MockWebServer global = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer replies = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer comments = new okhttp3.mockwebserver.MockWebServer();
+             LimitedReplies fixture = new LimitedReplies("reply_mode", "ai")) {
+            fixture.values.put(AiModelSettings.KEY, AutomationModelFixtures.profiles(global, replies, comments).serialize());
+            fixture.values.put(AiModelSettings.REPLY_MODEL_ID, "reply"); fixture.applyOptions();
+            Runnable queued = fixture.enqueue(200, "thread", false);
+            assertNotNull(queued);
+            fixture.values.put(AiModelSettings.COMMENT_MODEL_ID, "comment"); fixture.applyOptions();
+            replies.enqueue(AutomationModelFixtures.streamed("私信继续回复"));
+            queued.run(); fixture.flush();
+            assertEquals(1, fixture.database.imSdkContext.sends); assertEquals(1, replies.getRequestCount());
+            assertEquals(0, global.getRequestCount()); assertEquals(0, comments.getRequestCount());
+        }
+    }
+
     @Test public void imageCaptionWithRecognitionDisabledUsesTextOnlyAiAndRecordsItsActualRequest() throws Throwable {
         try (okhttp3.mockwebserver.MockWebServer server = new okhttp3.mockwebserver.MockWebServer();
              LimitedReplies fixture = new LimitedReplies("reply_mode", "ai", LocalOptions.REPLY_RECOGNIZE_IMAGES, "false")) {

@@ -96,6 +96,8 @@ public final class ConfigurationCatalog {
                 + "tts_selected_voice tts_selected_voice_name component_hide_custom_views "
                 + "tts_minimax_api_key tts_minimax_base_url tts_minimax_model tts_minimax_voice_id tts_minimax_voice_name "
                 + "tts_minimax_speed tts_minimax_volume tts_minimax_pitch");
+        add(keys, "string", AiModelSettings.REPLY_MODEL_ID + " " + AiModelSettings.COMMENT_MODEL_ID);
+        add(keys, "string", AnalyticsAiSettings.MODEL_ID + " " + AnalyticsAiSettings.SECONDARY_PROMPT);
         for (String key : MiniMaxSpeechOptions.KEYS) keys.put(key, "string");
         for (String prefix : Arrays.asList("reply", "comment")) add(keys, "string", prefix + "_daily_limit "
                 + prefix + "_user_cooldown_minutes " + prefix + "_delay_seconds " + prefix + "_notice_seconds "
@@ -116,8 +118,8 @@ public final class ConfigurationCatalog {
         // These groups replace updateConfiguration's inline lists. Prefixes retain future/legacy keys.
         depend(Feature.FEED_FILTER, "feed_filter_enabled hide_ads hide_lives hide_image_posts hide_recommendation_cards hide_recommendation_merchants keyword_filter_enabled keyword minimum_duration_enabled minimum_duration_seconds minimum_likes_enabled minimum_like_count filter_interrupt hide_mini_games hide_long_videos hide_product_cards hide_hotspot_rank_cards maximum_duration_seconds", "");
         depend(Feature.DOWNLOAD, "download_enabled remove_watermark download_custom_name download_name_template remove_download_limits download_method download_directory_uri", "third_party_");
-        depend(Feature.REPLY, "automation_enabled native_auto_reply reply_global reply_targets reply_mode reply_prompt reply_delay_seconds auto_message_text reply_daily_limit reply_user_cooldown_minutes reply_recognize_images reply_recognize_video reply_keywords reply_scope_mode reply_scope_relations reply_scope_fields reply_scope_keywords reply_scope_users reply_filter_mode reply_filter_keywords reply_filter_fields reply_private_chats reply_group_chats reply_group_scope_mode reply_group_targets reply_group_mode reply_group_members reply_random ai_model_settings_v2 streak_enabled streak_targets streak_content streak_content_api streak_start streak_end streak_tip streak_reset_token streak_retry_unknown_token reply_voice", "tts_");
-        depend(Feature.COMMENT_AUTOMATION, "automation_enabled native_auto_comment comment_mode comment_prompt comment_delay_seconds auto_comment_text comment_daily_limit comment_user_cooldown_minutes comment_recognize_images comment_recognize_video comment_scope_mode comment_scope_relations comment_scope_fields comment_scope_keywords comment_scope_users comment_filter_mode comment_filter_keywords comment_filter_fields ai_model_settings_v2 comment_voice", "tts_");
+        depend(Feature.REPLY, "automation_enabled native_auto_reply reply_global reply_targets reply_mode reply_prompt reply_model_id reply_delay_seconds auto_message_text reply_daily_limit reply_user_cooldown_minutes reply_recognize_images reply_recognize_video reply_keywords reply_scope_mode reply_scope_relations reply_scope_fields reply_scope_keywords reply_scope_users reply_filter_mode reply_filter_keywords reply_filter_fields reply_private_chats reply_group_chats reply_group_scope_mode reply_group_targets reply_group_mode reply_group_members reply_random ai_model_settings_v2 streak_enabled streak_targets streak_content streak_content_api streak_start streak_end streak_tip streak_reset_token streak_retry_unknown_token reply_voice", "tts_");
+        depend(Feature.COMMENT_AUTOMATION, "automation_enabled native_auto_comment comment_mode comment_prompt comment_model_id comment_delay_seconds auto_comment_text comment_daily_limit comment_user_cooldown_minutes comment_recognize_images comment_recognize_video comment_scope_mode comment_scope_relations comment_scope_fields comment_scope_keywords comment_scope_users comment_filter_mode comment_filter_keywords comment_filter_fields ai_model_settings_v2 comment_voice", "tts_");
         depend(Feature.COMMENT_REPLY, "native_comment_reply", "");
         depend(Feature.FEED_UI, "hide_interface video_right_alpha component_hide_enabled component_hide_uniform_enabled component_hide_uniform_alpha component_hide_on_switch component_hide_open_comments_on_show component_hide_show_on_pause component_hide_custom_views", "component_alpha_");
         depend(Feature.PLAYBACK, "auto_speed playback_speed", "");
@@ -154,6 +156,10 @@ public final class ConfigurationCatalog {
         defaults.put("download_directory_uri", "");
         defaults.put("minimum_duration_seconds", 0);
         defaults.put("minimum_like_count", 0);
+        defaults.put(AiModelSettings.REPLY_MODEL_ID, "");
+        defaults.put(AiModelSettings.COMMENT_MODEL_ID, "");
+        defaults.put(AnalyticsAiSettings.MODEL_ID, "");
+        defaults.put(AnalyticsAiSettings.SECONDARY_PROMPT, "");
         Map<String, Setting> definitions = new LinkedHashMap<>();
         for (String key : keys.keySet()) definitions.put(key, setting(key, keys.get(key), defaults.get(key)));
         for (Dependencies group : DEPENDENCIES.values()) {

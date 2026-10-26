@@ -968,6 +968,44 @@ public final class AutoCommentHookTest {
         }
     }
 
+    @Test public void automaticCommentUsesItsBoundStreamingSupplierWithoutChangingTheGlobalModel() throws Throwable {
+        try (MockWebServer global = new MockWebServer(); MockWebServer replies = new MockWebServer();
+             MockWebServer comments = new MockWebServer()) {
+            Map<String, Object> values = baseOptions(false);
+            values.put("comment_mode", "ai");
+            values.put(AiModelSettings.KEY, AutomationModelFixtures.profiles(global, replies, comments).serialize());
+            values.put(AiModelSettings.REPLY_MODEL_ID, "reply");
+            values.put(AiModelSettings.COMMENT_MODEL_ID, "comment");
+            comments.enqueue(AutomationModelFixtures.streamed("{\"comment\":\"独立供应商评论\"}"));
+            setOptions(new LocalOptions(values)); generate(); flushDispatch();
+            RecordedRequest request = comments.takeRequest(2, TimeUnit.SECONDS);
+            assertNotNull(request);
+            JSONObject body = new JSONObject(request.getBody().readUtf8());
+            assertEquals("comment-model", body.getString("model")); assertTrue(body.getBoolean("stream"));
+            assertEquals("Bearer comment-key", request.getHeader("Authorization"));
+            assertEquals("text/event-stream", request.getHeader("Accept"));
+            assertEquals("独立供应商评论", Request.models.get(0).a);
+            assertEquals("comment-model", entry("work").modelName); assertEquals("sent", entry("work").status);
+            assertEquals(0, global.getRequestCount()); assertEquals(0, replies.getRequestCount());
+            assertEquals("global", AiModelSettings.read(new LocalOptions(values)).activeId);
+        }
+    }
+
+    @Test public void onlyTheCommentSupplierBindingInvalidatesTheCommentQueue() throws Exception {
+        try (MockWebServer global = new MockWebServer(); MockWebServer replies = new MockWebServer();
+             MockWebServer comments = new MockWebServer()) {
+            Map<String, Object> values = aiOptions(global, false);
+            values.put(AiModelSettings.KEY, AutomationModelFixtures.profiles(global, replies, comments).serialize());
+            setOptions(new LocalOptions(values));
+            java.util.concurrent.atomic.AtomicLong epoch = (java.util.concurrent.atomic.AtomicLong) HostTargets.read(hook, "generation");
+            long before = epoch.get();
+            values.put(AiModelSettings.REPLY_MODEL_ID, "reply"); setOptions(new LocalOptions(values));
+            assertEquals("Reply supplier changes must leave comment generation valid", before, epoch.get());
+            values.put(AiModelSettings.COMMENT_MODEL_ID, "comment"); setOptions(new LocalOptions(values));
+            assertTrue("Comment supplier changes must invalidate earlier comment tasks", epoch.get() > before);
+        }
+    }
+
     @Test public void automaticCommentsNeverUseOrRememberPreviousComments() throws Throwable {
         try (MockWebServer server = new MockWebServer()) {
             server.enqueue(modelResponse("{\"comment\":\"当前作品评论\"}"));

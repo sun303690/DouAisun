@@ -84,7 +84,7 @@ public final class SpeechSynthesis implements AutoCloseable {
     private void generate(Context context, String text, SpeechSettings settings) {
         try {
             File cache = new File(context.getCacheDir(), "douai-tts");
-            if (!cache.isDirectory() && !cache.mkdirs()) throw new IllegalArgumentException("无法创建语音缓存");
+            ensureCacheDirectory(cache);
             cleanOldFiles(cache);
             output = new File(cache, UUID.randomUUID() + ".audio");
             operation.stage("provider_request", "provider=" + (settings.minimax ? "minimax" : "third_party"));
@@ -133,6 +133,13 @@ public final class SpeechSynthesis implements AutoCloseable {
             complete(null, message);
         } finally {
             if (finished.get()) deleteFailedOutput();
+        }
+    }
+
+    static void ensureCacheDirectory(File cache) {
+        // Another synthesis worker may create the directory after our first check.
+        if (!cache.isDirectory() && !cache.mkdirs() && !cache.isDirectory()) {
+            throw new IllegalArgumentException("无法创建语音缓存");
         }
     }
 

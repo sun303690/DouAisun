@@ -750,7 +750,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
             if (!"ai".equals(options.text("reply_mode", "fixed"))) {
                 return new Generated(ReplyPolicy.reply(event.text, options, random), "");
             }
-            AiModelSettings models = AiModelSettings.read(options);
+            AiModelSettings models = AiModelSettings.readForAutomation(options, KIND);
             String model = models.selected().modelName;
             String text = ai.reply("comment_reply:" + account + ':' + event.aid + ':' + event.rootId, prompt,
                     images, models, options.text("reply_prompt", "自然简洁地回复对方，只输出回复正文。"), false, "", requestSent);
@@ -763,7 +763,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
                                             List<ChatImage> images, String prompt) throws Exception {
             if (options == null || !"ai".equals(options.text("reply_mode", "fixed"))) return;
             ai.rememberReply("comment_reply:" + account + ':' + event.aid + ':' + event.rootId, prompt,
-                    images, AiModelSettings.read(options),
+                    images, AiModelSettings.readForAutomation(options, KIND),
                     options.text("reply_prompt", "自然简洁地回复对方，只输出回复正文。"), text);
         }
         @Override public void cancel() { ai.cancelCurrentRequest(); ai.clearHistory(); }

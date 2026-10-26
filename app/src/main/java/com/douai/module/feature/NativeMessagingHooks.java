@@ -438,7 +438,7 @@ public final class NativeMessagingHooks implements AutoCloseable {
                 "reply_filter_mode", "reply_filter_keywords", "reply_filter_fields",
                 "reply_private_chats", "reply_group_chats",
                 "reply_group_scope_mode", "reply_group_targets", "reply_group_mode", "reply_group_members",
-                "reply_random", AiModelSettings.KEY, "streak_enabled", "streak_targets", "streak_content",
+                "reply_random", AiModelSettings.REPLY_MODEL_ID, AiModelSettings.KEY, "streak_enabled", "streak_targets", "streak_content",
                 "streak_content_api", "streak_start", "streak_end"}) {
             boolean defaultEnabled = "reply_private_chats".equals(key) || LocalOptions.REPLY_RECOGNIZE_IMAGES.equals(key);
             if (previous.enabled(key, defaultEnabled) != next.enabled(key, defaultEnabled)
@@ -803,7 +803,8 @@ public final class NativeMessagingHooks implements AutoCloseable {
                     && rateLimiter.canSend(AutomationHistoryStore.REPLY, account, recipient, options);
             operation.preparation("waiting", valid);
             String modelName = "";
-            AiModelSettings models = "ai".equals(current.text("reply_mode", "fixed")) ? AiModelSettings.read(current) : null;
+            AiModelSettings models = "ai".equals(current.text("reply_mode", "fixed"))
+                    ? AiModelSettings.readForAutomation(current, AutomationHistoryStore.REPLY) : null;
             operation.stage = Stage.MEDIA;
             operation.preparation("media", valid);
             long mediaStarted = SystemClock.elapsedRealtime();

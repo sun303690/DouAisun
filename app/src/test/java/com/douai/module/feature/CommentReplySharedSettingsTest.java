@@ -27,6 +27,39 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 35, packageName = "com.douai.module")
 public final class CommentReplySharedSettingsTest {
+    @Test public void commentRepliesUseTheReplySupplierForGenerationAndAcknowledgedHistory() throws Exception {
+        try (MockWebServer global = new MockWebServer(); MockWebServer replies = new MockWebServer();
+             MockWebServer comments = new MockWebServer();
+             CommentReplyHook.SharedReplyGenerator generator = new CommentReplyHook.SharedReplyGenerator()) {
+            Map<String, Object> values = new HashMap<>();
+            values.put("reply_mode", "ai");
+            values.put(AiModelSettings.KEY, AutomationModelFixtures.profiles(global, replies, comments).serialize());
+            values.put(AiModelSettings.REPLY_MODEL_ID, "reply"); values.put(AiModelSettings.COMMENT_MODEL_ID, "comment");
+            LocalOptions options = new LocalOptions(values);
+            CommentReplyEvent first = event("first", "第一条来评", "自己的原评");
+            replies.enqueue(AutomationModelFixtures.streamed("独立供应商回复"));
+            CommentReplyHook.Generated generated = generator.generate(100, first, options);
+            assertEquals("独立供应商回复", generated.text); assertEquals("reply-model", generated.model);
+            RecordedRequest request = replies.takeRequest(2, TimeUnit.SECONDS);
+            assertNotNull(request);
+            JSONObject body = new JSONObject(request.getBody().readUtf8());
+            assertEquals("reply-model", body.getString("model")); assertTrue(body.getBoolean("stream"));
+            assertEquals("Bearer reply-key", request.getHeader("Authorization"));
+            generator.acknowledged(100, first, options, generated.text);
+            replies.enqueue(AutomationModelFixtures.streamed("下一条回复"));
+            generator.generate(100, event("second", "第二条来评", "自己的原评"), options);
+            JSONArray remembered = messages(replies);
+            List<String> rememberedReplies = new ArrayList<>();
+            for (int i = 0; i < remembered.length(); i++) {
+                JSONObject message = remembered.getJSONObject(i);
+                if ("assistant".equals(message.getString("role"))) rememberedReplies.add(message.getString("content"));
+            }
+            assertEquals(Collections.singletonList("独立供应商回复"), rememberedReplies);
+            assertEquals(0, global.getRequestCount()); assertEquals(0, comments.getRequestCount());
+            assertEquals("global", AiModelSettings.read(options).activeId);
+        }
+    }
+
     @Test public void mediaRequestsUseRealImagesAndRememberThemOnlyAfterNativeAcknowledgement() throws Exception {
         try (MockWebServer server = new MockWebServer();
              CommentReplyHook.SharedReplyGenerator generator = new CommentReplyHook.SharedReplyGenerator()) {

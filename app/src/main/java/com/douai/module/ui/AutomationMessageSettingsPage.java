@@ -17,6 +17,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
+import com.douai.module.config.AiModelConfig;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.AutomationHistoryStore;
 import com.douai.module.config.AutomationMessageSettings;
@@ -195,9 +196,7 @@ final class AutomationMessageSettingsPage implements AutoCloseable {
         LinearLayout panel = form();
         showAutomationPanel("回复内容", panel, () -> {
             if ("ai".equals(mode)) {
-                String selected = "未启用模型";
-                try { selected = AiModelSettings.read(repository).selected().name; } catch (RuntimeException ignored) { }
-                addOption(panel, "模型配置", "", selected, true, showModels);
+                addAutomationModelOption(panel, "reply");
                 addPromptOption(panel, "二级提示词", repository.getString("reply_prompt", "自然简洁地回复对方，只输出回复正文。"),
                         value -> repository.putString("reply_prompt", value));
             } else {
@@ -404,9 +403,7 @@ final class AutomationMessageSettingsPage implements AutoCloseable {
         LinearLayout panel = form();
         showAutomationPanel("评论内容", panel, () -> {
             if (ai) {
-                String selected = "未启用模型";
-                try { selected = AiModelSettings.read(repository).selected().name; } catch (RuntimeException ignored) { }
-                addOption(panel, "模型配置", "", selected, true, showModels);
+                addAutomationModelOption(panel, "comment");
                 addPromptOption(panel, "二级提示词", repository.getString("comment_prompt", "根据当前作品自然地写一条简短评论，只输出评论正文。"),
                         value -> repository.putString("comment_prompt", value));
             } else {
@@ -626,6 +623,51 @@ final class AutomationMessageSettingsPage implements AutoCloseable {
 
     private void addChoiceOption(LinearLayout panel, String title, String key, String[] labels, String[] values, String fallback) {
         addChoiceOption(panel, title, key, labels, values, fallback, null);
+    }
+
+    private void addAutomationModelOption(LinearLayout panel, String kind) {
+        OptionRow[] preview = new OptionRow[1];
+        preview[0] = addOption(panel, "模型配置", "", automationModelPreview(kind), true, () -> {
+            AiModelSettings settings;
+            try { settings = AiModelSettings.read(repository); }
+            catch (RuntimeException failure) { toast(safeError(failure)); return; }
+            String key = AiModelSettings.automationModelKey(kind);
+            List<String> ids = new ArrayList<>(), labels = new ArrayList<>();
+            ids.add("");
+            labels.add("跟随全局模型");
+            for (AiModelConfig config : settings.configs) {
+                ids.add(config.id);
+                labels.add(automationModelLabel(config));
+            }
+            int selected = ids.indexOf(repository.getString(key, ""));
+            showOptionDialog(new MiuixDialogBuilder(context, useMiuix)
+                    .setTitle("reply".equals(kind) ? "自动回复使用的模型" : "自动评论使用的模型")
+                    .setSingleChoiceItems(labels.toArray(new String[0]), selected, (dialog, which) -> {
+                        if (isActive(panel)) {
+                            repository.putString(key, ids.get(which));
+                            preview[0].setValue(automationModelPreview(kind));
+                        }
+                        dialog.dismiss();
+                    }).setNeutralButton("管理模型", (dialog, which) ->
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                if (isActive(panel)) showModels.run();
+                            }))
+                    .setNegativeButton("取消", null).create());
+        });
+    }
+
+    private String automationModelPreview(String kind) {
+        String id = repository.getString(AiModelSettings.automationModelKey(kind), "");
+        try {
+            AiModelConfig selected = AiModelSettings.readForAutomation(repository, kind).selected();
+            return (id.isEmpty() ? "跟随全局 · " : "") + automationModelLabel(selected);
+        } catch (RuntimeException ignored) {
+            return id.isEmpty() ? "跟随全局（未启用模型）" : "所选配置不可用，请重新选择";
+        }
+    }
+
+    private static String automationModelLabel(AiModelConfig config) {
+        return config.name + " · " + config.modelName + " · " + (config.streaming() ? "流式" : "非流式");
     }
 
     private void addChoiceOption(LinearLayout panel, String title, String key, String[] labels, String[] values, String fallback, Runnable changed) {

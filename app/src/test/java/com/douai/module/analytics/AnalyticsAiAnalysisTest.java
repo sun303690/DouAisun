@@ -2,6 +2,7 @@ package com.douai.module.analytics;
 
 import com.douai.module.config.AiModelConfig;
 import com.douai.module.config.AiModelSettings;
+import com.douai.module.config.AnalyticsAiSettings;
 import com.douai.module.config.SettingsRepository;
 import com.douai.module.feature.ChatMediaLoader;
 
@@ -34,6 +35,102 @@ import static org.junit.Assert.*;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 35)
 public final class AnalyticsAiAnalysisTest {
+    @Test public void analysisUsesItsOwnStreamingSupplierAndFreezesItsSecondaryPrompt() throws Exception {
+        try (MockWebServer global = new MockWebServer(); MockWebServer selected = new MockWebServer();
+             MockWebServer other = new MockWebServer()) {
+            SettingsRepository store = settings(global);
+            AiModelConfig globalProfile = AiModelSettings.read(store).selected();
+            AiModelConfig analysisProfile = AiModelConfig.fromJson(globalProfile.toJson().put("id", "analysis-only")
+                    .put("name", "独立分析供应商").put("modelName", "analysis-stream-model")
+                    .put("apiEndpoint", selected.url("/v1").toString()).put("apiKey", "analysis-private-key")
+                    .put("systemPrompt", "ANALYSIS_PRIMARY_KEPT").put("responseMode", AiModelConfig.RESPONSE_STREAM));
+            AiModelConfig automaticProfile = AiModelConfig.fromJson(globalProfile.toJson().put("id", "automatic-only")
+                    .put("apiEndpoint", other.url("/v1").toString()).put("modelName", "automatic-model"));
+            new AiModelSettings(List.of(globalProfile, analysisProfile, automaticProfile), globalProfile.id).save(store);
+            String savedProfiles = store.getString(AiModelSettings.KEY, "");
+            store.putString(AiModelSettings.REPLY_MODEL_ID, automaticProfile.id);
+            store.putString(AiModelSettings.COMMENT_MODEL_ID, automaticProfile.id);
+            store.putString("reply_prompt", "PRIVATE_REPLY_TASK");
+            store.putString("comment_prompt", "PRIVATE_COMMENT_TASK");
+            store.putString(AnalyticsAiSettings.MODEL_ID, analysisProfile.id);
+            store.putString(AnalyticsAiSettings.SECONDARY_PROMPT, "PRIVATE_ANALYSIS_TASK：重点说明一周内的时段变化。");
+            List<String> diagnostics = new ArrayList<>();
+            AnalyticsAiAnalysis.AnalysisRequest prepared = AnalyticsAiAnalysis.prepare(store, snapshot(), 7, "", diagnostics::add);
+            assertEquals("独立分析供应商 · analysis-stream-model", prepared.modelLabel());
+            assertEquals(0, selected.getRequestCount());
+            store.putString(AnalyticsAiSettings.MODEL_ID, automaticProfile.id);
+            store.putString(AnalyticsAiSettings.SECONDARY_PROMPT, "CHANGED_AFTER_PREPARATION");
+            JSONObject event = new JSONObject().put("choices", new JSONArray().put(new JSONObject().put("index", 0)
+                    .put("delta", new JSONObject().put("content", result("独立分析完成"))).put("finish_reason", "stop")));
+            selected.enqueue(new MockResponse().setHeader("Content-Type", "text/event-stream")
+                    .setBody("data: " + event + "\n\ndata: [DONE]\n\n"));
+            assertEquals("独立分析完成", AnalyticsAiAnalysis.parseResult(prepared.run()).overview);
+            RecordedRequest sent = selected.takeRequest(3, TimeUnit.SECONDS);
+            assertNotNull(sent);
+            JSONObject payload = new JSONObject(sent.getBody().readUtf8());
+            assertEquals("analysis-stream-model", payload.getString("model")); assertTrue(payload.getBoolean("stream"));
+            assertEquals("Bearer analysis-private-key", sent.getHeader("Authorization"));
+            JSONArray messages = payload.getJSONArray("messages");
+            assertEquals("ANALYSIS_PRIMARY_KEPT", messages.getJSONObject(0).getString("content"));
+            String task = messages.getJSONObject(1).getString("content");
+            assertTrue(task.contains("PRIVATE_ANALYSIS_TASK")); assertTrue(task.contains("必须恰好包含十一个字符串字段"));
+            assertEquals(7, document(task).getJSONObject("range").getInt("days"));
+            assertFalse(task.contains("CHANGED_AFTER_PREPARATION"));
+            assertFalse(task.contains("PRIVATE_REPLY_TASK")); assertFalse(task.contains("PRIVATE_COMMENT_TASK"));
+            assertEquals(0, global.getRequestCount()); assertEquals(0, other.getRequestCount());
+            assertEquals(savedProfiles, store.getString(AiModelSettings.KEY, ""));
+            String logs = String.join("\n", diagnostics);
+            assertFalse(logs.contains("PRIVATE_ANALYSIS_TASK")); assertFalse(logs.contains("analysis-private-key"));
+        }
+    }
+
+    @Test public void blankAnalysisPromptKeepsTheDefaultTaskAndDoesNotReadOtherFeaturePrompts() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            SettingsRepository store = settings(server);
+            store.putString("reply_prompt", "REPLY_TASK_MUST_STAY_SEPARATE");
+            store.putString("comment_prompt", "COMMENT_TASK_MUST_STAY_SEPARATE");
+            for (String prompt : List.of("", " \n\t ")) {
+                store.putString(AnalyticsAiSettings.SECONDARY_PROMPT, prompt);
+                server.enqueue(reply("默认分析"));
+                AnalyticsAiAnalysis.prepare(store, snapshot(), 7).run();
+                String sent = body(server).getJSONArray("messages").getJSONObject(1).getString("content");
+                assertTrue(sent.contains(AnalyticsAiSettings.DEFAULT_SECONDARY_PROMPT));
+                assertTrue(sent.contains("必须恰好包含十一个字符串字段"));
+                assertFalse(sent.contains("REPLY_TASK_MUST_STAY_SEPARATE"));
+                assertFalse(sent.contains("COMMENT_TASK_MUST_STAY_SEPARATE"));
+            }
+        }
+    }
+
+    @Test public void longSecondaryPromptIsSentInFullWithoutUsingTheIncomingMessageLimit() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            SettingsRepository store = settings(server);
+            String custom = "PRIVATE_ANALYSIS_FOCUS_" + "关注本地使用节律。".repeat(600);
+            assertTrue(custom.length() > 4000);
+            store.putString(AnalyticsAiSettings.SECONDARY_PROMPT, custom);
+            server.enqueue(reply("完整提示词分析"));
+            AnalyticsAiAnalysis.prepare(store, snapshot(), 7).run();
+            String sent = body(server).getJSONArray("messages").getJSONObject(1).getString("content");
+            assertTrue(sent.contains(custom));
+            assertTrue(sent.contains("必须恰好包含十一个字符串字段"));
+        }
+    }
+
+    @Test public void missingAnalysisSelectionCannotSendToTheGlobalSupplier() throws Exception {
+        try (MockWebServer server = new MockWebServer()) {
+            SettingsRepository store = settings(server);
+            store.putString(AnalyticsAiSettings.MODEL_ID, "deleted-analysis-private-selection");
+            assertFalse(AnalyticsAiAnalysis.isConfigured(store));
+            assertEquals("未配置 AI 模型", AnalyticsAiAnalysis.modelLabel(store));
+            AnalyticsAiAnalysis.AnalysisFailure failure = assertThrows(AnalyticsAiAnalysis.AnalysisFailure.class,
+                    () -> AnalyticsAiAnalysis.prepare(store, snapshot(), 7));
+            assertEquals(AnalyticsAiAnalysis.AnalysisFailure.Kind.PREPARE, failure.kind());
+            assertFalse(failure.safeMessage().contains("deleted-analysis-private-selection"));
+            assertNull(failure.getCause());
+            assertEquals(0, server.getRequestCount());
+        }
+    }
+
     @Test public void prepareSendsNothingAndFreezesSelectedModelAndChartData() throws Exception {
         try (MockWebServer server = new MockWebServer()) {
             server.start(); server.enqueue(reply("  已完成分析  "));
