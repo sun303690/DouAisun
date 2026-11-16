@@ -38,6 +38,7 @@ import com.douai.module.config.ConfigImportTransaction;
 import com.douai.module.config.CustomViewLocator;
 import com.douai.module.config.FrameworkConfigSync;
 import com.douai.module.config.ExtendedSettings;
+import com.douai.module.config.UsageLimitSettings;
 import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
@@ -85,6 +86,7 @@ import com.douai.module.feature.CommentToolsHook;
 import com.douai.module.feature.LoadedCommentSearchHook;
 import com.douai.module.feature.SeenWorkHook;
 import com.douai.module.feature.ImmersiveModeController;
+import com.douai.module.feature.UsageLimitController;
 import com.douai.module.feature.HomeNavigationHideController;
 import com.douai.module.feature.HomeSidebarGestureHook;
 import com.douai.module.feature.HomeSidebarModuleHook;
@@ -162,6 +164,8 @@ public final class DouAiModule extends XposedModule {
     private volatile LoadedCommentSearchHook loadedCommentSearchHook;
     private volatile SeenWorkHook seenWorkHook;
     private volatile ImmersiveModeController immersiveModeController;
+    private volatile UsageLimitController usageLimitController;
+    private volatile String usageLimitFailure;
     private volatile HomeNavigationHideController homeNavigationHideController;
     private volatile HostUiController hostUiController;
     private volatile HomeSidebarGestureHook homeSidebarGestureHook;
@@ -341,6 +345,7 @@ public final class DouAiModule extends XposedModule {
             configurationReady = true;
             ensureImmersiveModeController(hostContext, extendedSettings == null
                     ? ExtendedSettings.readSystemBars(preferences) : extendedSettings);
+            ensureUsageLimitController(hostContext, localOptions);
             long scanStarted = android.os.SystemClock.elapsedRealtime();
             operation.stage("scan", "cache_checked=true;rules=" + rules.getRules().size());
             HostScanReport report = resolveHostScan(
@@ -520,6 +525,20 @@ public final class DouAiModule extends XposedModule {
             immersiveModeFailure = failure.getMessage() == null
                     ? failure.getClass().getSimpleName() : failure.getMessage();
             moduleLog(6, TAG, "Status-bar controller installation failed", failure);
+        }
+    }
+
+    private synchronized void ensureUsageLimitController(Context context, LocalOptions options) {
+        if (usageLimitController != null || context == null) return;
+        try {
+            usageLimitController = UsageLimitController.install(context,
+                    UsageLimitSettings.readFrom(options));
+            usageLimitFailure = null;
+            moduleLog(3, TAG, "Usage limit controller installed");
+        } catch (Throwable failure) {
+            usageLimitFailure = failure.getMessage() == null
+                    ? failure.getClass().getSimpleName() : failure.getMessage();
+            moduleLog(6, TAG, "Usage limit controller installation failed", failure);
         }
     }
 
@@ -737,6 +756,8 @@ public final class DouAiModule extends XposedModule {
             }
             if (seenWorkHook != null && feedFilterChanged) seenWorkHook.setOptions(settings.feedFilterEnabled, options);
             if (hostBehaviorHooks != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) hostBehaviorHooks.setOptions(options);
+            UsageLimitController usageLimit = usageLimitController;
+            if (usageLimit != null) usageLimit.setSettings(UsageLimitSettings.readFrom(options));
             if (feedGestureToolsHook != null && gestureChanged) feedGestureToolsHook.setOptions(options);
             if (initial || changes.affects(Feature.SIDEBAR)) {
                 if (homeSidebarGestureHook != null) homeSidebarGestureHook.setOptions(options);
@@ -1504,6 +1525,12 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("comment_tools_hook_installed", commentToolsHook != null);
         if (commentToolsHookFailure != null) snapshot.putString("comment_tools_hook_failure", commentToolsHookFailure);
         snapshot.putBoolean("immersive_hook_installed", immersiveModeController != null);
+        snapshot.putBoolean("usage_limit_controller_installed", usageLimitController != null);
+        if (usageLimitFailure != null) snapshot.putString("usage_limit_failure", usageLimitFailure);
+        UsageLimitSettings usageLimitSettings = UsageLimitSettings.readFrom(localOptions);
+        snapshot.putBoolean("usage_reminder_enabled", usageLimitSettings.reminderEnabled());
+        snapshot.putBoolean("usage_exit_enabled", usageLimitSettings.exitEnabled());
+        snapshot.putBoolean("usage_keep_screen_enabled", usageLimitSettings.keepScreen);
         snapshot.putBoolean("immersive_status_bar_enabled",
                 extendedSettings != null && extendedSettings.removeBlackEdges);
         snapshot.putBoolean("immersive_navigation_bar_enabled",

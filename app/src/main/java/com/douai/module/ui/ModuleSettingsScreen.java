@@ -37,6 +37,7 @@ import com.douai.module.config.CommentAiSettings;
 import com.douai.module.config.SidebarSettings;
 import com.douai.module.config.PlaybackSpeedPresets;
 import com.douai.module.config.ThirdPartyDownloadSettings;
+import com.douai.module.config.UsageLimitSettings;
 import com.douai.module.feature.FeedGestureToolsHook;
 import com.douai.module.feature.TopTabFilterHook;
 import com.douai.module.feature.ProfileListEntry;
@@ -697,10 +698,109 @@ public final class ModuleSettingsScreen {
                 addOption("本地数据分析", "", null, true, this::showLocalAnalytics);
                 addOption("配置备份", "", null, true, this::showConfigBackup);
                 break;
+            case USAGE_LIMIT:
+                buildUsageLimitControls();
+                break;
             case ABOUT:
             case COMPONENT_HIDE:
                 break;
         }
+    }
+
+    private void buildUsageLimitControls() {
+        OptionRow[] reminderMinutes = new OptionRow[1];
+        reminderMinutes[0] = addOption("休息提醒间隔", "0 关闭；只累计本次抖音前台使用时间，后台暂停",
+                usageLimitMinutesLabel(repository.getString(UsageLimitSettings.REMINDER_MINUTES, "0")),
+                true, () -> showUsageLimitMinutesDialog("休息提醒间隔",
+                        UsageLimitSettings.REMINDER_MINUTES, 0, reminderMinutes));
+        addSwitch("重复提醒", "关闭时本次只提醒一次；开启后按间隔重复提醒",
+                repository.getBoolean(UsageLimitSettings.REPEAT_REMINDER, false), true, true,
+                value -> repository.putBoolean(UsageLimitSettings.REPEAT_REMINDER, value));
+        addSwitch("提醒时振动", "", repository.getBoolean(UsageLimitSettings.REMINDER_VIBRATE, false),
+                true, true, value -> repository.putBoolean(UsageLimitSettings.REMINDER_VIBRATE, value));
+        addOption("提醒文案", "留空则使用默认文案",
+                usageLimitReminderTextLabel(), true, () -> showUsageLimitReminderTextDialog());
+        OptionRow[] longSeconds = new OptionRow[1];
+        longSeconds[0] = addOption("长视频提醒", "0 关闭；当前视频超过阈值时提醒",
+                usageLimitSecondsLabel(repository.getString(UsageLimitSettings.LONG_SECONDS, "0")),
+                true, () -> showUsageLimitSecondsDialog("长视频提醒",
+                        UsageLimitSettings.LONG_SECONDS, longSeconds));
+        OptionRow[] exitMinutes = new OptionRow[1];
+        exitMinutes[0] = addOption("定时退出", "0 关闭；从修改此项起累计前台时间，触摸不延后定时",
+                usageLimitMinutesLabel(repository.getString(UsageLimitSettings.EXIT_MINUTES, "0")),
+                true, () -> showUsageLimitMinutesDialog("定时退出",
+                        UsageLimitSettings.EXIT_MINUTES, 0, exitMinutes));
+        OptionRow[] idleMinutes = new OptionRow[1];
+        idleMinutes[0] = addOption("闲置退出", "0 关闭；触摸或返回前台后重新计时",
+                usageLimitMinutesLabel(repository.getString(UsageLimitSettings.IDLE_MINUTES, "0")),
+                true, () -> showUsageLimitMinutesDialog("闲置退出",
+                        UsageLimitSettings.IDLE_MINUTES, 0, idleMinutes));
+        addSwitch("退出前倒计时", "退出前给出 10 秒倒计时，可取消；切到后台收起",
+                repository.getBoolean(UsageLimitSettings.EXIT_COUNTDOWN, true), true, true,
+                value -> repository.putBoolean(UsageLimitSettings.EXIT_COUNTDOWN, value));
+        addSwitch("保持屏幕常亮", "仅在抖音前台生效；关闭或离开前台恢复宿主窗口原状态",
+                repository.getBoolean(UsageLimitSettings.KEEP_SCREEN, false), true, true,
+                value -> repository.putBoolean(UsageLimitSettings.KEEP_SCREEN, value));
+    }
+
+    private String usageLimitMinutesLabel(String raw) {
+        int minutes = 0;
+        try {
+            minutes = Integer.parseInt(raw.trim());
+        } catch (RuntimeException ignored) {
+            minutes = 0;
+        }
+        return UsageLimitSettings.describeMinutes(Math.max(0, minutes));
+    }
+
+    private String usageLimitSecondsLabel(String raw) {
+        int seconds = 0;
+        try {
+            seconds = Integer.parseInt(raw.trim());
+        } catch (RuntimeException ignored) {
+            seconds = 0;
+        }
+        return UsageLimitSettings.describeSeconds(Math.max(0, seconds));
+    }
+
+    private String usageLimitReminderTextLabel() {
+        String text = repository.getString(UsageLimitSettings.REMINDER_TEXT, "").trim();
+        if (text.isEmpty()) return "默认文案";
+        return text.length() > 18 ? text.substring(0, 18) + "…" : text;
+    }
+
+    private void showUsageLimitMinutesDialog(String title, String key, int fallback, OptionRow[] row) {
+        String[] choices = {"0 分钟", "15 分钟", "30 分钟", "45 分钟", "60 分钟", "90 分钟", "120 分钟"};
+        String[] values = {"0", "15", "30", "45", "60", "90", "120"};
+        new MiuixDialogBuilder(context, true).setTitle(title)
+                .setItems(choices, (dialog, which) -> {
+                    if (which < 0 || which >= values.length) return;
+                    repository.putString(key, values[which]);
+                    row[0].setValue(choices[which]);
+                }).setNegativeButton("取消", null).show();
+    }
+
+    private void showUsageLimitSecondsDialog(String title, String key, OptionRow[] row) {
+        String[] choices = {"0 秒", "60 秒", "120 秒", "180 秒", "300 秒", "600 秒", "900 秒", "1800 秒"};
+        String[] values = {"0", "60", "120", "180", "300", "600", "900", "1800"};
+        new MiuixDialogBuilder(context, true).setTitle(title)
+                .setItems(choices, (dialog, which) -> {
+                    if (which < 0 || which >= values.length) return;
+                    repository.putString(key, values[which]);
+                    row[0].setValue(choices[which]);
+                }).setNegativeButton("取消", null).show();
+    }
+
+    private void showUsageLimitReminderTextDialog() {
+        android.widget.EditText input = new android.widget.EditText(context);
+        input.setText(repository.getString(UsageLimitSettings.REMINDER_TEXT, ""));
+        input.setHint(UsageLimitSettings.DEFAULT_REMINDER_TEXT);
+        new MiuixDialogBuilder(context, true).setTitle("提醒文案")
+                .setView(com.douai.module.ui.miuix.MiuixFormControls.viewFor(input))
+                .setNegativeButton("取消", null)
+                .setPositiveButton("保存", (view, which) -> {
+                    repository.putString(UsageLimitSettings.REMINDER_TEXT, input.getText().toString().trim());
+                }).show();
     }
 
     private void showLocalAnalytics() {
@@ -2259,6 +2359,7 @@ public final class ModuleSettingsScreen {
         MESSAGE("消息管理", -1),
         SPOOF("本地伪装", -1),
         EXTENSION("扩展功能", -1),
+        USAGE_LIMIT("使用提醒", -1),
         ABOUT("关于", -1);
 
         final String title;
