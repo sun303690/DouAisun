@@ -63,6 +63,7 @@ public final class CommentToolsHook implements AutoCloseable {
     private volatile boolean visiblePanelInstalled;
     private volatile boolean closed;
     private final Consumer<String> log;
+    private final CommentMediaSaver commentMedia;
     private volatile ExtendedSettings settings;
     private volatile boolean transcriptEnabled, searchEnabled;
 
@@ -76,6 +77,7 @@ public final class CommentToolsHook implements AutoCloseable {
     private CommentToolsHook(ClassLoader loader, Class<?> itemModelClass, Class<?> commentClass,
                              Class<?> nativeImageSaveActionClass,
                              Field itemParamsField, Field paramsCommentField,
+                             CommentMediaSaver commentMedia,
                              ExtendedSettings settings, Consumer<String> log) {
         this.loader = loader;
         this.itemModelClass = itemModelClass;
@@ -83,6 +85,7 @@ public final class CommentToolsHook implements AutoCloseable {
         this.nativeImageSaveActionClass = nativeImageSaveActionClass;
         this.itemParamsField = itemParamsField;
         this.paramsCommentField = paramsCommentField;
+        this.commentMedia = commentMedia;
         this.settings = settings;
         this.log = log;
     }
@@ -112,9 +115,11 @@ public final class CommentToolsHook implements AutoCloseable {
 
         itemParams.setAccessible(true);
         paramsComment.setAccessible(true);
+        CommentMediaSaver commentMedia = CommentMediaSaver.install(report, loader, log);
         CommentToolsHook hook = new CommentToolsHook(loader, modelClass, commentClass,
                 nativeImageSaveActionClass,
-                itemParams, paramsComment, settings, log == null ? ignored -> { } : log);
+                itemParams, paramsComment, commentMedia, settings,
+                log == null ? ignored -> { } : log);
         try {
             XposedInterface.HookHandle handle = framework.hook(bind)
                     .setId("DouAi.Comment.Tools")
@@ -326,6 +331,9 @@ public final class CommentToolsHook implements AutoCloseable {
         if (current.commentMediaTools && nativeImageSaveAction != null && hasCommentImages(comment)) {
             actions.add(new Action("使用抖音保存评论图片", nativeImageSaveAction, true));
         }
+        if (current.commentMediaTools && commentMedia != null && commentMedia.hasMedia(comment)) {
+            actions.add(Action.commentMedia("保存评论图片或视频", comment));
+        }
         return actions;
     }
 
@@ -368,10 +376,15 @@ public final class CommentToolsHook implements AutoCloseable {
             return;
         }
         DouAiLog.event("comment_tools", "action", "user_selected", "kind=" + (action.nativeImageSaveAction != null
-                ? "native_image_save" : action.viewData ? "view_data" : action.text != null ? "copy_text" : "copy_source"));
+                ? "native_image_save" : action.saveCommentMedia ? "save_comment_media"
+                : action.viewData ? "view_data" : action.text != null ? "copy_text" : "copy_source"));
         if (action.nativeImageSaveAction != null) {
             if (!settings.commentMediaTools) return;
             invokeNativeImageSaveAction(context, action.nativeImageSaveAction);
+        } else if (action.saveCommentMedia) {
+            if (!settings.commentMediaTools || commentMedia == null) return;
+            int saved = commentMedia.save(context, action.source);
+            showToast(context, saved == 0 ? "保存评论媒体失败" : "已保存 " + saved + " 个评论媒体");
         } else if (action.viewData) {
             if (!settings.copySourceData) return;
             showCommentData(context, action.source);
@@ -716,13 +729,14 @@ public final class CommentToolsHook implements AutoCloseable {
         final Object source;
         final Object nativeImageSaveAction;
         final boolean viewData;
+        final boolean saveCommentMedia;
 
         Action(String title, String text, Object payload) {
             this(title, text, payload, false);
         }
 
         Action(String title, Object source) {
-            this(title, null, source, true);
+            this(title, source, true, false);
         }
 
         private Action(String title, String text, Object payload, boolean viewData) {
@@ -731,6 +745,7 @@ public final class CommentToolsHook implements AutoCloseable {
             this.source = text == null && payload != null && !(payload instanceof String) ? payload : null;
             this.nativeImageSaveAction = null;
             this.viewData = viewData;
+            this.saveCommentMedia = false;
         }
 
         Action(String title, Object nativeImageSaveAction, boolean nativeSave) {
@@ -739,8 +754,21 @@ public final class CommentToolsHook implements AutoCloseable {
             this.source = null;
             this.nativeImageSaveAction = nativeSave ? nativeImageSaveAction : null;
             this.viewData = false;
+            this.saveCommentMedia = false;
         }
 
+        private Action(String title, Object comment, boolean viewData, boolean saveCommentMedia) {
+            this.title = title;
+            this.text = null;
+            this.source = comment;
+            this.nativeImageSaveAction = null;
+            this.viewData = viewData;
+            this.saveCommentMedia = saveCommentMedia;
+        }
+
+        static Action commentMedia(String title, Object comment) {
+            return new Action(title, comment, false, true);
+        }
     }
 
     private static final class RowContext {
