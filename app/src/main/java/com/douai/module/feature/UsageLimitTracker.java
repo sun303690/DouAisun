@@ -27,10 +27,10 @@ public final class UsageLimitTracker {
     private long idleElapsedMs;
     /** Whether the single-shot reminder has already been delivered. */
     private boolean reminderDelivered;
-    /** Anchor of the currently running foreground segment. */
-    private long foregroundAnchorMs;
-    /** Anchor of the currently running idle segment. */
-    private long idleAnchorMs;
+    /** Anchor of the currently running foreground segment; {@code -1} when not in foreground. */
+    private long foregroundAnchorMs = -1L;
+    /** Anchor of the currently running idle segment; {@code -1} when no idle segment runs. */
+    private long idleAnchorMs = -1L;
 
     /** Resets every budget and re-arms the single-shot reminder. */
     public void reset() {
@@ -38,8 +38,8 @@ public final class UsageLimitTracker {
         exitElapsedMs = 0L;
         idleElapsedMs = 0L;
         reminderDelivered = false;
-        foregroundAnchorMs = 0L;
-        idleAnchorMs = 0L;
+        foregroundAnchorMs = -1L;
+        idleAnchorMs = -1L;
     }
 
     /** Marks the start of a foreground segment at {@code nowMs}. */
@@ -51,8 +51,8 @@ public final class UsageLimitTracker {
     /** Marks the end of a foreground segment at {@code nowMs}. */
     public void onForegroundStopped(long nowMs) {
         advance(nowMs);
-        foregroundAnchorMs = 0L;
-        idleAnchorMs = 0L;
+        foregroundAnchorMs = -1L;
+        idleAnchorMs = -1L;
     }
 
     /** Registers a user interaction, which restarts the idle budget at {@code nowMs}. */
@@ -63,13 +63,13 @@ public final class UsageLimitTracker {
 
     /** Accumulates the foreground time since the last anchor. */
     public void advance(long nowMs) {
-        if (foregroundAnchorMs <= 0L) return;
+        if (foregroundAnchorMs < 0L) return;
         long delta = Math.max(0L, nowMs - foregroundAnchorMs);
         foregroundAnchorMs = nowMs;
         if (delta <= 0L) return;
         reminderElapsedMs += delta;
         exitElapsedMs += delta;
-        if (idleAnchorMs > 0L) idleElapsedMs += delta;
+        if (idleAnchorMs >= 0L) idleElapsedMs += delta;
     }
 
     /**

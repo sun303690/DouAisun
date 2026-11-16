@@ -139,6 +139,8 @@ public final class ModuleSettingsReferenceTest {
                 {"MESSAGE", "消息防撤回", "自己撤回的消息", "对方撤回的消息", "撤回的背景色", "替换私聊语音",
                         "私聊语音文件", "自动文本转语音", "文本转语音设置"},
                 {"SPOOF", "个人资料数量伪装", "获赞数量", "关注数量", "粉丝数量", "互关数量", "版本信息"},
+                {"USAGE_LIMIT", "休息提醒间隔", "重复提醒", "提醒时振动", "提醒文案", "长视频提醒",
+                        "定时退出", "闲置退出", "退出前倒计时", "保持屏幕常亮"},
                 {"EXTENSION", "AI 模型设置", "文本转语音设置", "本地数据分析", "配置备份"}
         };
         for (String[] reference : references) {
@@ -273,7 +275,7 @@ public final class ModuleSettingsReferenceTest {
     @Test public void settingsSwitchRowsKeepCompactLabelsWithoutStaticDescriptions() {
         store.putString("playback_speed", "1.75");
         for (String category : new String[]{"BASIC", "INTERFACE", "FILTER", "DOWNLOAD", "AUTOPLAY",
-                "AUTO_REPLY", "AUTO_COMMENT", "COMMENT", "STREAK", "MESSAGE", "SPOOF"}) {
+                "AUTO_REPLY", "AUTO_COMMENT", "COMMENT", "STREAK", "MESSAGE", "SPOOF", "USAGE_LIMIT"}) {
             View page = openCategory(category);
             for (Switch control : collect(page, Switch.class)) {
                 ViewGroup row = (ViewGroup) control.getParent();

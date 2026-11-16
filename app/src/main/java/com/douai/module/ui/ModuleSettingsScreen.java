@@ -713,7 +713,7 @@ public final class ModuleSettingsScreen {
                 usageLimitMinutesLabel(repository.getString(UsageLimitSettings.REMINDER_MINUTES, "0")),
                 true, () -> showUsageLimitMinutesDialog("休息提醒间隔",
                         UsageLimitSettings.REMINDER_MINUTES, 0, reminderMinutes));
-        addSwitch("重复提醒", "关闭时本次只提醒一次；开启后按间隔重复提醒",
+        addSwitch("重复提醒", "",
                 repository.getBoolean(UsageLimitSettings.REPEAT_REMINDER, false), true, true,
                 value -> repository.putBoolean(UsageLimitSettings.REPEAT_REMINDER, value));
         addSwitch("提醒时振动", "", repository.getBoolean(UsageLimitSettings.REMINDER_VIBRATE, false),
@@ -735,10 +735,10 @@ public final class ModuleSettingsScreen {
                 usageLimitMinutesLabel(repository.getString(UsageLimitSettings.IDLE_MINUTES, "0")),
                 true, () -> showUsageLimitMinutesDialog("闲置退出",
                         UsageLimitSettings.IDLE_MINUTES, 0, idleMinutes));
-        addSwitch("退出前倒计时", "退出前给出 10 秒倒计时，可取消；切到后台收起",
+        addSwitch("退出前倒计时", "",
                 repository.getBoolean(UsageLimitSettings.EXIT_COUNTDOWN, true), true, true,
                 value -> repository.putBoolean(UsageLimitSettings.EXIT_COUNTDOWN, value));
-        addSwitch("保持屏幕常亮", "仅在抖音前台生效；关闭或离开前台恢复宿主窗口原状态",
+        addSwitch("保持屏幕常亮", "",
                 repository.getBoolean(UsageLimitSettings.KEEP_SCREEN, false), true, true,
                 value -> repository.putBoolean(UsageLimitSettings.KEEP_SCREEN, value));
     }
@@ -2358,8 +2358,8 @@ public final class ModuleSettingsScreen {
         COMPONENT_HIDE("组件隐藏", -1),
         MESSAGE("消息管理", -1),
         SPOOF("本地伪装", -1),
-        EXTENSION("扩展功能", -1),
         USAGE_LIMIT("使用提醒", -1),
+        EXTENSION("扩展功能", -1),
         ABOUT("关于", -1);
 
         final String title;
@@ -2372,6 +2372,7 @@ public final class ModuleSettingsScreen {
 
         String searchText() {
             if (this == ABOUT) return title + " 调试 日志 LSPosed";
+            if (this == USAGE_LIMIT) return title + " 休息提醒 定时退出 闲置退出 保持屏幕常亮";
             return this == EXTENSION ? title + " AI 模型设置 文本转语音设置 本地数据分析 数据备份 配置备份" : title;
         }
     }

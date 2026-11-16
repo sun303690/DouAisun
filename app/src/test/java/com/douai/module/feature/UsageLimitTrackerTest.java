@@ -74,7 +74,7 @@ public class UsageLimitTrackerTest {
 
         assertFalse(tracker.isExitDue(config, 60 * MINUTE_MS));
         assertTrue(tracker.isExitDue(config, 90 * MINUTE_MS));
-        assertEquals(30 * MINUTE_MS, tracker.exitElapsedMs());
+        assertEquals(60 * MINUTE_MS, tracker.exitElapsedMs());
     }
 
     @Test
