@@ -4,22 +4,12 @@
 
 # DouAi
 
-[下载正式版](https://github.com/yudigaga/DouAi/releases/latest) · [问题反馈](https://github.com/yudigaga/DouAi/issues) · [文档目录](docs/README.md)
-
 | 播放与手势 | 内容与下载 | AI 与数据 |
 | --- | --- | --- |
 | 速度、书签、章节字幕搜索与画面裁切 | 内容筛选、组件设置与下载任务管理 | 模型配置、语音工具与本地分析 |
 
----
 
-[☕ 请我喝杯咖啡](#赞助)
-
-DouAi 是面向抖音的增强模块，作者 **yudigaga**，使用 libxposed API 102。
-
-当前正式版：**0.2.71 / 172**。
-
-[下载 APK](https://github.com/yudigaga/DouAi/releases/download/v0.2.71/DouAi-0.2.71-release.apk) · [LSPosed 下载](https://github.com/Xposed-Modules-Repo/io.github.yudigaga.douai/releases/download/172-0.2.71/DouAi-0.2.71-release.apk)
-
+当前正式版：
 本版增加抖音 41 的播放书签、快进后退、章节字幕搜索、已加载评论查找与语音转写，以及默认关闭的“减少已看作品”，并修正画面取景与过渡遮罩闪烁。更新与验证范围见 [0.2.71 发布记录](docs/release-0.2.71.md)。
 
 ## 核心功能
@@ -56,29 +46,7 @@ DouAi 是面向抖音的增强模块，作者 **yudigaga**，使用 libxposed AP
 
 模块应用提供框架连接、扫描诊断、隐藏桌面图标和关于入口。帮助也可在模块设置的“关于 → 帮助”离线查看与搜索。
 
-功能配置保存在抖音私有目录；模块应用与宿主功能配置相互独立。
-
-## 升级与数据
-
-当前分析数据库为 **SQLite v4**，分析备份导出为 **v3**，仍可导入旧 v1/v2 分析备份。**不要用旧版程序直接打开新版数据库。**
-
-本地分析记录默认关闭；日常采集和计算在本机完成，主动点击请求 AI 时才发送分析摘要。
-
-## 文档
-
-- [文档目录](docs/README.md)：查找功能说明与历史记录。
-- [完整帮助](docs/help.md)：设置入口和操作说明。
-- [0.2.71 发布记录](docs/release-0.2.71.md)：本版变化、下载及验证边界。
-- [构建与发布](docs/releasing.md)：构建方式、签名及发布状态。
-- [个人内容年志](docs/portrait-analysis.md)：统计口径、数据与解释边界。
-
-历史安装包见 [Releases](https://github.com/yudigaga/DouAi/releases)，历史说明保留在文档目录中。
-
-## 赞助
-
-如果你喜欢 DouAi，欢迎请我喝杯咖啡 ☕，感谢支持！
-
-<img src="docs/assets/sponsor-wechat.png" alt="微信赞赏码" width="360" />
+功能配置保存在抖音私有目录；模块应用与宿主功能配置相互独立
 
 ## 免责协议
 
