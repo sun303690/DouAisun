@@ -66,7 +66,8 @@ public final class ComponentHideSettingsPageTest {
                 "settings.category.DOWNLOAD", "settings.category.AUTOPLAY", "settings.category.AUTO_REPLY",
                 "settings.category.AUTO_COMMENT", "settings.category.COMMENT", "settings.category.STREAK",
                 "settings.category.COMPONENT_HIDE", "settings.category.MESSAGE", "settings.category.SPOOF",
-                "settings.category.USAGE_LIMIT", "settings.category.EXTENSION", "settings.category.ABOUT"), categoryTags(home));
+                "settings.category.USAGE_LIMIT", "settings.category.VIDEO_PROXY",
+                "settings.category.EXTENSION", "settings.category.ABOUT"), categoryTags(home));
         home.scrollTo(0, 200);
 
         findDescription(home, "界面相关").performClick();
@@ -160,6 +161,7 @@ public final class ComponentHideSettingsPageTest {
                 {"MESSAGE", "消息管理"},
                 {"SPOOF", "本地伪装"},
                 {"USAGE_LIMIT", "使用提醒"},
+                {"VIDEO_PROXY", "原画代理"},
                 {"EXTENSION", "扩展功能"},
                 {"ABOUT", "关于"}
         };

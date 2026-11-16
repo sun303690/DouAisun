@@ -22,6 +22,14 @@ public final class LocalOptions {
     public static final String HASH_LONG_PRESS_VOICE = "hash_long_press_voice";
     /** Receives comment replies as a channel of native_auto_reply, like private/group chat reception. */
     public static final String COMMENT_REPLY_ENABLED = "native_comment_reply";
+    /** Serves the original playback source through a loopback proxy. */
+    public static final String VIDEO_PROXY_ENABLED = "video_proxy_enabled";
+    /** Number of upstream connections the local video proxy may open at once. */
+    public static final String VIDEO_PROXY_CONNECTIONS = "video_proxy_connections";
+    /** Cache budget of the local video proxy in megabytes. */
+    public static final String VIDEO_PROXY_CACHE_BUDGET_MB = "video_proxy_cache_budget_mb";
+    /** Limits the local video proxy cache to unmetered networks. */
+    public static final String VIDEO_PROXY_WIFI_ONLY = "video_proxy_wifi_only";
 
     public String downloadSaveTree() { return text(DOWNLOAD_SAVE_TREE, "").trim(); }
     public boolean officialDownloadDirect() { return enabled(OFFICIAL_DOWNLOAD_DIRECT); }

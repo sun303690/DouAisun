@@ -701,6 +701,9 @@ public final class ModuleSettingsScreen {
             case USAGE_LIMIT:
                 buildUsageLimitControls();
                 break;
+            case VIDEO_PROXY:
+                buildVideoProxyControls();
+                break;
             case ABOUT:
             case COMPONENT_HIDE:
                 break;
@@ -767,6 +770,61 @@ public final class ModuleSettingsScreen {
         String text = repository.getString(UsageLimitSettings.REMINDER_TEXT, "").trim();
         if (text.isEmpty()) return "默认文案";
         return text.length() > 18 ? text.substring(0, 18) + "…" : text;
+    }
+
+    private void buildVideoProxyControls() {
+        addLocalSwitch("启用原画代理", "", LocalOptions.VIDEO_PROXY_ENABLED);
+        OptionRow[] connections = new OptionRow[1];
+        connections[0] = addOption("代理并发连接数", "",
+                videoProxyConnectionsLabel(repository.getString(LocalOptions.VIDEO_PROXY_CONNECTIONS, "4")),
+                true, () -> showVideoProxyConnectionsDialog(connections));
+        OptionRow[] budget = new OptionRow[1];
+        budget[0] = addOption("代理缓存上限", "",
+                videoProxyBudgetLabel(repository.getString(LocalOptions.VIDEO_PROXY_CACHE_BUDGET_MB, "512")),
+                true, () -> showVideoProxyBudgetDialog(budget));
+        addLocalSwitch("仅 WiFi 下缓存", "", LocalOptions.VIDEO_PROXY_WIFI_ONLY);
+    }
+
+    private String videoProxyConnectionsLabel(String raw) {
+        int value = 4;
+        try {
+            value = Integer.parseInt(raw.trim());
+        } catch (RuntimeException ignored) {
+            value = 4;
+        }
+        return value + " 个连接";
+    }
+
+    private String videoProxyBudgetLabel(String raw) {
+        int value = 512;
+        try {
+            value = Integer.parseInt(raw.trim());
+        } catch (RuntimeException ignored) {
+            value = 512;
+        }
+        return value + " MB";
+    }
+
+    private void showVideoProxyConnectionsDialog(OptionRow[] row) {
+        String[] choices = {"1 个连接", "2 个连接", "4 个连接", "8 个连接"};
+        String[] values = {"1", "2", "4", "8"};
+        new MiuixDialogBuilder(context, true).setTitle("代理并发连接数")
+                .setItems(choices, (dialog, which) -> {
+                    if (which < 0 || which >= values.length) return;
+                    repository.putString(LocalOptions.VIDEO_PROXY_CONNECTIONS, values[which]);
+                    row[0].setValue(choices[which]);
+                }).setNegativeButton("取消", null).show();
+    }
+
+    private void showVideoProxyBudgetDialog(OptionRow[] row) {
+        String[] choices = {"128 MB", "256 MB", "512 MB", "1024 MB", "2048 MB"};
+        String[] values = {"128", "256", "512", "1024", "2048"};
+        new MiuixDialogBuilder(context, true).setTitle("代理缓存上限")
+                .setItems(choices, (dialog, which) -> {
+                    if (which < 0 || which >= values.length) return;
+                    repository.putString(LocalOptions.VIDEO_PROXY_CACHE_BUDGET_MB, values[which]);
+                    row[0].setValue(choices[which]);
+                }).setNegativeButton("取消", null).show();
     }
 
     private void showUsageLimitMinutesDialog(String title, String key, int fallback, OptionRow[] row) {
@@ -2359,6 +2417,7 @@ public final class ModuleSettingsScreen {
         MESSAGE("消息管理", -1),
         SPOOF("本地伪装", -1),
         USAGE_LIMIT("使用提醒", -1),
+        VIDEO_PROXY("原画代理", -1),
         EXTENSION("扩展功能", -1),
         ABOUT("关于", -1);
 
@@ -2373,6 +2432,7 @@ public final class ModuleSettingsScreen {
         String searchText() {
             if (this == ABOUT) return title + " 调试 日志 LSPosed";
             if (this == USAGE_LIMIT) return title + " 休息提醒 定时退出 闲置退出 保持屏幕常亮";
+            if (this == VIDEO_PROXY) return title + " 原画 代理 缓存 并发连接";
             return this == EXTENSION ? title + " AI 模型设置 文本转语音设置 本地数据分析 数据备份 配置备份" : title;
         }
     }

@@ -141,6 +141,7 @@ public final class ModuleSettingsReferenceTest {
                 {"SPOOF", "个人资料数量伪装", "获赞数量", "关注数量", "粉丝数量", "互关数量", "版本信息"},
                 {"USAGE_LIMIT", "休息提醒间隔", "重复提醒", "提醒时振动", "提醒文案", "长视频提醒",
                         "定时退出", "闲置退出", "退出前倒计时", "保持屏幕常亮"},
+                {"VIDEO_PROXY", "启用原画代理", "代理并发连接数", "代理缓存上限", "仅 WiFi 下缓存"},
                 {"EXTENSION", "AI 模型设置", "文本转语音设置", "本地数据分析", "配置备份"}
         };
         for (String[] reference : references) {
@@ -275,7 +276,8 @@ public final class ModuleSettingsReferenceTest {
     @Test public void settingsSwitchRowsKeepCompactLabelsWithoutStaticDescriptions() {
         store.putString("playback_speed", "1.75");
         for (String category : new String[]{"BASIC", "INTERFACE", "FILTER", "DOWNLOAD", "AUTOPLAY",
-                "AUTO_REPLY", "AUTO_COMMENT", "COMMENT", "STREAK", "MESSAGE", "SPOOF", "USAGE_LIMIT"}) {
+                "AUTO_REPLY", "AUTO_COMMENT", "COMMENT", "STREAK", "MESSAGE", "SPOOF",
+                "USAGE_LIMIT", "VIDEO_PROXY"}) {
             View page = openCategory(category);
             for (Switch control : collect(page, Switch.class)) {
                 ViewGroup row = (ViewGroup) control.getParent();

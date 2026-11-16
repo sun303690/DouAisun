@@ -43,6 +43,7 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
 import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.VideoProxyHook;
 import com.douai.module.feature.DouyinSearch;
 import com.douai.module.feature.HostDouyinSearch;
 import com.douai.module.feature.HostBehaviorHooks;
@@ -172,6 +173,8 @@ public final class DouAiModule extends XposedModule {
     private volatile HomeSidebarModuleHook homeSidebarModuleHook;
     private volatile VideoQualityHook videoQualityHook;
     private volatile String videoQualityFailure;
+    private volatile VideoProxyHook videoProxyHook;
+    private volatile String videoProxyFailure;
     private volatile boolean hostApplicationCreated;
     private volatile String homeSidebarFailure;
     private volatile XposedInterface.HookHandle applicationCreateHandle;
@@ -766,6 +769,12 @@ public final class DouAiModule extends XposedModule {
             if (videoQualityHook != null && (initial || changes.affects(Feature.VIDEO_QUALITY))) {
                 videoQualityHook.setOptions(options);
             }
+            if (videoProxyHook != null && (initial || changes.contains(VideoProxyHook.KEY_ENABLED)
+                    || changes.contains(VideoProxyHook.KEY_CONNECTIONS)
+                    || changes.contains(VideoProxyHook.KEY_CACHE_BUDGET_MB)
+                    || changes.contains(VideoProxyHook.KEY_WIFI_ONLY))) {
+                videoProxyHook.applyOptions(options);
+            }
             if (commentAiAnalysisHook != null && (initial || changes.affects(Feature.MANUAL_AI))) {
                 commentAiAnalysisHook.setOptions(options);
             }
@@ -1015,6 +1024,22 @@ public final class DouAiModule extends XposedModule {
                         ? failure.getClass().getSimpleName() : failure.getMessage();
                 DouAiLog.failure("feed_ui", "installation", failure);
                 moduleLog(6, TAG, "Feed UI visibility hook installation failed", failure);
+            }
+        }
+        if (videoProxyHook == null) {
+            try {
+                VideoProxyHook hook = VideoProxyHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, targetContext, localOptions, message -> moduleLog(3, TAG, message));
+                hook.applyOptions(localOptions);
+                videoProxyHook = hook;
+                videoProxyFailure = null;
+                moduleLog(3, TAG, "Local video proxy hook installed; enabled="
+                        + localOptions.enabled(VideoProxyHook.KEY_ENABLED));
+            } catch (Throwable failure) {
+                videoProxyFailure = failure.getMessage() == null
+                        ? failure.getClass().getSimpleName() : failure.getMessage();
+                DouAiLog.failure("video_proxy", "installation", failure);
+                moduleLog(6, TAG, "Local video proxy hook installation failed", failure);
             }
         }
         if (refreshConfirmHook == null) {
@@ -1392,6 +1417,10 @@ public final class DouAiModule extends XposedModule {
         if (homeSidebarFailure != null) snapshot.putString("feature.home_sidebar.failure", homeSidebarFailure);
         snapshot.putBoolean("feature.video_quality.installed", videoQualityHook != null && videoQualityHook.isActive());
         if (videoQualityFailure != null) snapshot.putString("feature.video_quality.failure", videoQualityFailure);
+        snapshot.putBoolean("feature.video_proxy.installed", videoProxyHook != null);
+        snapshot.putString("feature.video_proxy.rewrites",
+                Integer.toString(videoProxyHook == null ? 0 : videoProxyHook.rewriteCount()));
+        if (videoProxyFailure != null) snapshot.putString("feature.video_proxy.failure", videoProxyFailure);
         snapshot.putString("feature.comment_ai.failure", commentAiAnalysisFailure);
         snapshot.putBoolean("feature.manual_ai_search.installed", manualAiSearch != null);
         snapshot.putString("feature.manual_ai_search.failure", manualAiSearchFailure);
