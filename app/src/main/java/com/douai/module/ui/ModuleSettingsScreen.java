@@ -588,6 +588,13 @@ public final class ModuleSettingsScreen {
                         value -> repository.putBoolean("confirm_refresh", value));
                 addLocalSwitch("直播信息面板", "", LocalOptions.LIVE_ROOM_INFO);
                 addLocalSwitch("直播具体人数", "", LocalOptions.LIVE_ROOM_EXACT_COUNT);
+                addLocalSwitch("直播清爽模式", "隐藏直播间的礼物、公屏、榜单等面板，只留画面", LocalOptions.LIVE_CLEAN);
+                addLocalSwitch("隐藏礼物横幅", "隐藏直播间顶部礼物横幅", LocalOptions.LIVE_CLEAN_GIFT_TRAY);
+                addLocalSwitch("隐藏礼物特效", "隐藏直播间礼物全屏特效", LocalOptions.LIVE_CLEAN_GIFT_EFFECT);
+                addLocalSwitch("隐藏公屏消息", "隐藏直播间公屏聊天", LocalOptions.LIVE_CLEAN_PUBLIC_SCREEN);
+                addLocalSwitch("隐藏排行榜", "隐藏直播间排行榜与贡献榜", LocalOptions.LIVE_CLEAN_RANK);
+                addLocalSwitch("隐藏商品卡", "隐藏直播间小黄车与商品组件", LocalOptions.LIVE_CLEAN_COMMERCE);
+                addLocalSwitch("隐藏直播广告", "隐藏直播间广告位", LocalOptions.LIVE_CLEAN_AD);
                 addDependentSwitch("首页右滑打开侧边栏", "",
                         repository.getBoolean(SidebarSettings.ENABLED, false),
                         value -> repository.putBoolean(SidebarSettings.ENABLED, value), () -> {

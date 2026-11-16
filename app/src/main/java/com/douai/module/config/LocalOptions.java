@@ -34,6 +34,14 @@ public final class LocalOptions {
     public static final String LIVE_ROOM_INFO = "live_room_info";
     /** Renders the exact live viewer count instead of the short form. */
     public static final String LIVE_ROOM_EXACT_COUNT = "live_room_exact_count";
+    /** Live clean mode: hides the panels so only the video remains. */
+    public static final String LIVE_CLEAN = "live_clean";
+    public static final String LIVE_CLEAN_GIFT_TRAY = "live_clean_gift_tray";
+    public static final String LIVE_CLEAN_GIFT_EFFECT = "live_clean_gift_effect";
+    public static final String LIVE_CLEAN_PUBLIC_SCREEN = "live_clean_public_screen";
+    public static final String LIVE_CLEAN_RANK = "live_clean_rank";
+    public static final String LIVE_CLEAN_COMMERCE = "live_clean_commerce";
+    public static final String LIVE_CLEAN_AD = "live_clean_ad";
 
     public String downloadSaveTree() { return text(DOWNLOAD_SAVE_TREE, "").trim(); }
     public boolean officialDownloadDirect() { return enabled(OFFICIAL_DOWNLOAD_DIRECT); }

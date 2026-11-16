@@ -177,6 +177,7 @@ public final class DouAiModule extends XposedModule {
     private volatile VideoProxyHook videoProxyHook;
     private volatile String videoProxyFailure;
     private volatile LiveRoomInfoHook liveRoomInfoHook;
+    private volatile LiveCleanHook liveCleanHook;
     private volatile boolean hostApplicationCreated;
     private volatile String homeSidebarFailure;
     private volatile XposedInterface.HookHandle applicationCreateHandle;
@@ -781,6 +782,15 @@ public final class DouAiModule extends XposedModule {
                     || changes.contains(LiveRoomInfoHook.OPTION_COUNT))) {
                 liveRoomInfoHook.applyOptions(options);
             }
+            if (liveCleanHook != null && (initial || changes.contains(LiveCleanHook.OPTION)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_GIFT_TRAY)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_GIFT_EFFECT)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_PUBLIC_SCREEN)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_RANK)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_COMMERCE)
+                    || changes.contains(LocalOptions.LIVE_CLEAN_AD))) {
+                liveCleanHook.applyOptions(options);
+            }
             if (commentAiAnalysisHook != null && (initial || changes.affects(Feature.MANUAL_AI))) {
                 commentAiAnalysisHook.setOptions(options);
             }
@@ -1060,6 +1070,19 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("live_room_info", "installation", failure);
                 moduleLog(6, TAG, "Live room info hook installation failed", failure);
+            }
+        }
+        if (liveCleanHook == null) {
+            try {
+                liveCleanHook = new LiveCleanHook(hookFramework(), localOptions,
+                        message -> moduleLog(3, TAG, message));
+                liveCleanHook.install();
+                liveCleanHook.applyOptions(localOptions);
+                moduleLog(3, TAG, "Live clean hook installed; enabled="
+                        + localOptions.enabled(LiveCleanHook.OPTION));
+            } catch (Throwable failure) {
+                DouAiLog.failure("live_clean", "installation", failure);
+                moduleLog(6, TAG, "Live clean hook installation failed", failure);
             }
         }
         if (refreshConfirmHook == null) {
