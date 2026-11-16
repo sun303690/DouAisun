@@ -43,6 +43,7 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
 import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
 import com.douai.module.feature.VideoProxyHook;
 import com.douai.module.feature.DouyinSearch;
