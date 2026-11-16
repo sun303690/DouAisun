@@ -32,6 +32,8 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.diagnostics.DouAiLog;
 import com.douai.module.config.SettingsRepository;
 import com.douai.module.scan.HostScanReport;
+import com.douai.module.scan.HostAdaptation;
+import com.douai.module.scan.HostResourceProfile;
 import com.douai.module.ui.GestureQuickFeaturesDialog;
 import com.douai.module.ui.GestureQuickModelDialog;
 import com.douai.module.ui.GestureQuickVoiceDialog;
@@ -55,14 +57,18 @@ import java.util.function.Function;
 
 /** Feed-only tools tied to the selected, scan-proven video holder and its native gestures. */
 public final class FeedGestureToolsHook implements Application.ActivityLifecycleCallbacks, AutoCloseable {
+    private static WeakReference<FeedGestureToolsHook> currentTools = new WeakReference<>(null);
     public static final String[] ACTION_IDS = { "none", "menu", "copy_text", "save_media",
-            "open_comments", "toggle_components", "speed", "view_finder" };
+            "open_comments", "toggle_components", "speed", "view_finder", "seek_back_10", "seek_forward_10",
+            "bookmark_add", "reading_search", "comment_search", "bookmark_list", "like" };
     public static final String[] ACTION_LABELS = { "无", "快捷菜单", "复制文案", "保存媒体",
-            "打开评论", "隐藏/显示组件", "倍速", "视图查找" };
+            "打开评论", "隐藏/显示组件", "倍速", "视图查找", "后退 10 秒", "快进 10 秒",
+            "记下这一刻", "搜章节和字幕", "查找评论", "我的书签", "点赞" };
     private static final String[] QUICK_MENU_ACTIONS = { "copy_text", "save_media", "open_comments",
-            "toggle_components", "speed", "view_finder", "select_model", "module_settings", "quick_features" };
+            "toggle_components", "speed", "view_finder", "select_model", "module_settings", "quick_features",
+            "bookmark_add", "bookmark_list", "reading_search", "comment_search" };
     private static final String[] QUICK_MENU_LABELS = { "复制文案", "保存媒体", "打开评论",
-            "隐藏/显示组件", "倍速", "视图查找", "切换模型", "模块设置", "功能快捷" };
+            "隐藏/显示组件", "倍速", "视图查找", "切换模型", "模块设置", "功能快捷", "记下这一刻", "我的书签", "搜章节和字幕", "查找评论" };
     public static final String[] REGION_IDS = { "top_left", "top_center", "top_right",
             "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right" };
     public static final String[] REGION_LABELS = { "左上", "上中", "右上", "左中", "中央", "右中",
@@ -84,8 +90,18 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private final Field feedContext;
     private final Class<?> touchType;
     private Method playerAccessor;
+    private PlaybackPositionAccess positions;
+    private final PlaybackBookmarks.Navigator bookmarkNavigation = this::openBookmark;
+    private final BookmarkJump bookmarkJump = new BookmarkJump();
+    private long jumpToken;
+    private String jumpAccount, jumpAid;
+    private WeakReference<Activity> jumpOrigin = new WeakReference<>(null), jumpDetail = new WeakReference<>(null);
+    private boolean jumpLeftOrigin;
+    private Runnable jumpPoll;
     private Method speedHolderAccessor;
     private Method getSpeed;
+    private HostPlaybackSpeedAccess speedReader;
+    private SpeedGestureNativeGate nativeSpeedGate;
     private Method setSpeed;
     private Method isPlaying;
     private Method managerResume;
@@ -101,8 +117,17 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private final ThreadLocal<Boolean> replayingFinderTouch = new ThreadLocal<>();
     private volatile LocalOptions options;
     private volatile Consumer<Activity> moduleSettingsLauncher;
+    private volatile java.util.function.BiConsumer<Activity, String> manualLike;
+    private final SidebarPausedPlayback sidebarPause = new SidebarPausedPlayback();
+    private volatile java.util.function.Predicate<Activity> sidebarSettingsVisible = owner -> false;
+    private volatile java.util.function.BiConsumer<Object,Boolean> bookmarkPlaybackSync;
+    private final Runnable sidebarPauseReadback = this::checkSidebarPause;
+    private long bookmarkReadbackSequence;
     private volatile boolean closed;
     private WeakReference<Object> selectedHolder = new WeakReference<>(null);
+    private long commentSelectionEpoch;
+    private String lastSelectedAid;
+    private WeakReference<Activity> lastSelectedOwner = new WeakReference<>(null);
     private WeakReference<Object> pausedHolder = new WeakReference<>(null);
     private WeakReference<View> selectedRoot = new WeakReference<>(null);
     private WeakReference<Activity> resumed = new WeakReference<>(null);
@@ -112,9 +137,11 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private float appliedSpeed;
     private boolean manualSpeedEnabled;
     private GestureSpeedOverride speedOverride;
+    private boolean exclusiveSpeedSession;
     private WeakReference<Object> manualSpeedHolder = new WeakReference<>(null);
     private String manualSpeedAid;
     private boolean speedReadbackConfirmed;
+    private boolean submittingSpeed;
     private long speedRevision;
     private Runnable speedReadback;
     private PopupWindow toolbar;
@@ -132,7 +159,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private volatile Function<String, Boolean> pausedState = ignored -> null;
     private ViewTreeObserver rootObserver;
     private final ViewTreeObserver.OnPreDrawListener rootMonitor = () -> {
-        if (activeRoot() == null) { dismissToolbar(); dismissDialog(); dismissViewFinder(); restoreOwnedSpeed(); }
+        if (activeRoot() == null) { dismissToolbar(); dismissDialog(); dismissViewFinder(); detachSpeedTarget(); }
         else if (toolbar == null && !finderOpening && (viewFinder == null || viewFinder.isClosed())
                 && options != null && options.enabled("toolbar_enabled")) refreshToolbar();
         return true;
@@ -175,7 +202,8 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             }
             HostTargets.candidate(report, "feed_holder_main_root");
             Field root = HostTargets.field(selected.getDeclaringClass(), "w");
-            Field params = HostTargets.field(selected.getDeclaringClass(), "A2");
+            Field params = HostTargets.field(selected.getDeclaringClass(),
+                    HostResourceProfile.feedItemParamsField(HostAdaptation.currentProfile()));
             Class<?> paramsType = HostTargets.type(report, "adv_gesture_item_params", loader);
             if (params.getType() != paramsType || !View.class.isAssignableFrom(root.getType())) {
                 throw new IllegalStateException("Selected feed holder fields changed");
@@ -206,8 +234,19 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             });
             hook.installCurrentHolderRecovery(framework, report, loader);
             hook.installLongPress(framework, report, loader);
+            try {
+                hook.nativeSpeedGate = SpeedGestureNativeGate.install(framework, report, loader, sink);
+            } catch (Exception | LinkageError failure) {
+                hook.safeLog("Native speed touch gate unavailable: " + failure.getClass().getSimpleName());
+            }
             hook.installDoubleTap(framework, report, loader);
             hook.installSpeed(framework, report, loader);
+            if (PlaybackBookmarks.enabled()) {
+                try { hook.positions = new PlaybackPositionAccess(report, loader); }
+                catch (Exception | LinkageError failure) { hook.safeLog("Playback position unavailable: " + failure.getClass().getSimpleName()); }
+                PlaybackBookmarks.attach(hook.bookmarkNavigation);
+                currentTools = new WeakReference<>(hook);
+            }
             hook.application.registerActivityLifecycleCallbacks(hook);
             hook.safeLog("Feed gesture tools registered; longPress=" + hook.supports("long_press_action")
                     + ", doubleTap=" + hook.supports("double_tap_action")
@@ -235,6 +274,92 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         moduleSettingsLauncher = launcher;
     }
 
+    public void setManualLike(java.util.function.BiConsumer<Activity, String> action) { manualLike = action; }
+    public void setSidebarSettingsVisible(java.util.function.Predicate<Activity> visible) {
+        sidebarSettingsVisible=visible==null?owner->false:visible;
+    }
+    public void setBookmarkPlaybackSync(java.util.function.BiConsumer<Object,Boolean> sync) {bookmarkPlaybackSync=sync;}
+    static void captureSidebarPlayback(Activity owner) {
+        FeedGestureToolsHook tools=currentTools.get();
+        if(tools!=null)tools.captureBeforeSidebar(owner);
+    }
+    static void keepPauseForSidebarSettings(Activity owner) {
+        FeedGestureToolsHook tools=currentTools.get();
+        if(tools!=null)tools.beginSidebarPause(owner);
+    }
+    private void clearSidebarPause(){sidebarPause.clear();main.removeCallbacks(sidebarPauseReadback);}
+    private void captureBeforeSidebar(Activity owner) {
+        // An actual touch back on the feed also releases the guard before the host handles user play.
+        clearSidebarPause();
+        Object holder=selectedHolder.get();View root=activeRoot();
+        if(closed||owner==null||resumed.get()!=owner||root==null||activity(root.getContext())!=owner
+                ||holder==null||isPlaying==null||playerAccessor==null||speedHolderAccessor==null)return;
+        try {
+            Object panel=panel(holder);
+            if(panel==null||speedHolderAccessor.invoke(panel)!=holder)return;
+            String id=readAid(awemeAccessor.invoke(holder));
+            Object player=playerAccessor.invoke(panel);
+            if(id==null||player==null||!Boolean.FALSE.equals(isPlaying.invoke(player)))return;
+            // False may also mean loading or buffering. Require the host's pause signal as well.
+            sidebarPause.capture(owner,holder,player,id,Boolean.TRUE.equals(pausedState.apply(id)));
+        }catch(ReflectiveOperationException|RuntimeException ignored){}
+    }
+    private boolean sameSidebarTarget(Object player) {
+        if(closed||Looper.myLooper()!=Looper.getMainLooper()||player==null||playerAccessor==null||speedHolderAccessor==null)return false;
+        Object h=sidebarPause.holder(),current=selectedHolder.get();
+        Activity owner=resumed.get();
+        if(h==null||owner==null||owner.isFinishing()||owner.isDestroyed()||(current!=null&&current!=h))return false;
+        try {
+            Object p=panel(h);
+            return p!=null&&speedHolderAccessor.invoke(p)==h&&playerAccessor.invoke(p)==player
+                    &&sidebarPause.matches(owner,h,player,readAid(awemeAccessor.invoke(h)));
+        }catch(ReflectiveOperationException|RuntimeException ignored){return false;}
+    }
+    private void beginSidebarPause(Activity owner) {
+        Object player=sidebarPause.player(),holder=sidebarPause.holder();
+        if(owner!=resumed.get()||!sameSidebarTarget(player)){clearSidebarPause();return;}
+        try{
+            if(!sidebarPause.enter(owner,holder,player,readAid(awemeAccessor.invoke(holder)),android.os.SystemClock.elapsedRealtime()))return;
+            ensureFinderPauseGuard(player); // same concrete player methods, independent ownership/state
+            checkSidebarPause();
+        }catch(ReflectiveOperationException|RuntimeException ignored){clearSidebarPause();}
+    }
+    private boolean sidebarBlocks(Object player) {
+        return sidebarPause.active()&&sameSidebarTarget(player);
+    }
+    private void checkSidebarPause() {
+        main.removeCallbacks(sidebarPauseReadback);
+        Object player=sidebarPause.player();Activity owner=resumed.get();
+        if(!sidebarBlocks(player)){clearSidebarPause();return;}
+        try {
+            // Correct a resume already in flight when the module row was clicked, including dismissal.
+            if(Boolean.TRUE.equals(isPlaying.invoke(player)))managerPause.invoke(player);
+            if(sidebarPause.keep(sidebarSettingsVisible.test(owner),android.os.SystemClock.elapsedRealtime()))
+                main.postDelayed(sidebarPauseReadback,200);
+        }catch(ReflectiveOperationException|RuntimeException ignored){clearSidebarPause();}
+    }
+
+    public static void launchCurrentAction(Context context, String action) {
+        FeedGestureToolsHook tools = currentTools.get();
+        Activity owner = activity(context);
+        if (tools == null || owner == null) { if(context != null) toast(context, "当前作品工具尚未就绪"); return; }
+        tools.launchAction(owner, action);
+    }
+
+    /** Shared by sidebar rows and gesture dispatch; reading actions require the current feed. */
+    public void launchAction(Activity owner, String action) {
+        onMain(() -> {
+            if (closed || owner == null || owner != resumed.get() || owner.isFinishing() || owner.isDestroyed()) return;
+            if (!PlaybackBookmarks.enabled()) { toast(owner, "当前抖音版本暂不支持此动作"); return; }
+            if ("bookmark_list".equals(action)) { PlaybackBookmarks.show(owner); return; }
+            View root = activeRoot(); Object holder = selectedHolder.get();
+            if (root == null || holder == null || activity(root.getContext()) != owner) {
+                toast(owner, "请先打开要操作的作品"); return;
+            }
+            dispatch(action, holder, root);
+        });
+    }
+
     public boolean supports(String key) {
         BehaviorHookGroup group = groups.get(key);
         return group != null && group.isActive();
@@ -244,7 +369,19 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         if (closed) return;
         this.options = options;
         safeLog("Feed gesture configuration changed: " + configuredRegions());
-        onMain(() -> { dismissDialog(); refreshToolbar(); });
+        onMain(() -> {
+            dismissDialog(); refreshToolbar();
+            syncModuleOnlySpeedMode();
+            if (speedOverride != null) {
+                try {
+                    float desired = manualSpeedEnabled ? PlaybackBehaviorHooks.playbackSpeed(options) : 1f;
+                    speedOverride.apply(desired, () -> { });
+                } catch (ReflectiveOperationException | RuntimeException failure) {
+                    safeLog("Could not update persistent speed: " + failure.getClass().getSimpleName());
+                }
+                applyPersistentSpeed();
+            }
+        });
     }
 
     private void installCurrentHolderRecovery(XposedInterface framework, HostScanReport report, ClassLoader loader) {
@@ -317,6 +454,14 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         String action = options.text(prefix + "_" + REGION_IDS[region], legacy);
         for (String id : ACTION_IDS) if (id.equals(action)) return action;
         return "none";
+    }
+    private String assignedAction(String prefix,int region) {
+        String action=regionAction(options,prefix,region);
+        if (("bookmark_add".equals(action)||"reading_search".equals(action)||"comment_search".equals(action)
+                ||"bookmark_list".equals(action)||"like".equals(action)) && !PlaybackBookmarks.enabled()) return "none";
+        if (("seek_back_10".equals(action)||"seek_forward_10".equals(action))
+                && (!PlaybackBookmarks.enabled()||positions==null)) return "none";
+        return action;
     }
 
     private void installLongPress(XposedInterface framework, HostScanReport report, ClassLoader loader) {
@@ -399,7 +544,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     float rawX = lastRawX.getFloat(touch);
                     float rawY = lastRawY.getFloat(touch);
                     int region = region(touch, rawX, rawY);
-                    String action = region < 0 ? "none" : regionAction(options, "long_press", region);
+                    String action = region < 0 ? "none" : assignedAction("long_press",region);
                     if ("none".equals(action)) {
                         if (options != null && options.interceptNativeLongPress()) {
                             // Consume the host runnable and its pending UP so the native gesture
@@ -410,6 +555,9 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                             }
                             gestureActions++;
                             logGestureAction("long_press", "intercept_native", region);
+                            FinderGesture pending = pendingFinderGesture;
+                            if (pending != null && "none".equals(pending.action)
+                                    && pending.matches(touch, selectedHolder.get())) pending.confirmed = true;
                             safeLog("Feed native long-press intercepted: region=" + regionLabel(region));
                             return null;
                         }
@@ -424,11 +572,12 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     synchronized (pendingReleaseDiscard) {
                         pendingReleaseDiscard.put(touch, Boolean.TRUE);
                     }
+                    FinderGesture gesture = pendingFinderGesture;
+                    if (gesture != null && gesture.action.equals(action)
+                            && gesture.matches(touch, selectedHolder.get())) {
+                        gesture.confirmed = true;
+                    }
                     if ("view_finder".equals(action)) {
-                        FinderGesture gesture = pendingFinderGesture;
-                        if (gesture != null && gesture.matches(touch, selectedHolder.get())) {
-                            gesture.confirmed = true;
-                        }
                         safeLog("View finder consumed pending long-press release");
                     }
                     dispatch(action, selectedHolder.get(), root);
@@ -461,7 +610,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     if (touch == null || !touch.isShown()) return chain.proceed();
                     MotionEvent tap = (MotionEvent) event;
                     int region = region(touch, tap.getRawX(), tap.getRawY());
-                    String action = region < 0 ? "none" : regionAction(options, "double_tap", region);
+                    String action = region < 0 ? "none" : assignedAction("double_tap",region);
                     if ("none".equals(action)) return chain.proceed();
                     gestureActions++;
                     logGestureAction("double_tap", action, region);
@@ -481,6 +630,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             speedHolderAccessor = HostTargets.method(report, "auto_slide_current_holder", loader);
             setSpeed = HostTargets.method(report, "adv_gesture_player_set_speed", loader);
             getSpeed = HostTargets.method(report, "adv_gesture_player_get_speed", loader);
+            speedReader = HostPlaybackSpeedAccess.resolve(getSpeed, report, loader);
             isPlaying = HostTargets.method(report, "adv_gesture_player_is_playing", loader);
             managerResume = HostTargets.method(report, "adv_gesture_player_resume", loader);
             managerPlay = HostTargets.method(report, "adv_gesture_player_play", loader);
@@ -492,7 +642,6 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     || speedHolderAccessor.getDeclaringClass() != playerAccessor.getDeclaringClass()
                     || setSpeed.getReturnType() != void.class || setSpeed.getParameterCount() != 1
                     || setSpeed.getParameterTypes()[0] != float.class
-                    || getSpeed.getReturnType() != float.class || getSpeed.getParameterCount() != 0
                     || isPlaying.getDeclaringClass() != info || isPlaying.getReturnType() != boolean.class
                     || isPlaying.getParameterCount() != 0 || managerResume.getReturnType() != void.class
                     || managerResume.getParameterCount() != 0
@@ -503,9 +652,11 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                 throw new IllegalStateException("Gesture speed relationship changed");
             }
             installFinderPauseGuard(framework, report, loader);
+            onMain(this::syncModuleOnlySpeedMode);
             safeLog("Gesture speed interfaces ready: " + manager.getName() + ", " + info.getName());
         } catch (Exception failure) {
             playerAccessor = null; speedHolderAccessor = null; setSpeed = null; getSpeed = null;
+            speedReader = null;
             isPlaying = null; managerResume = null; managerPlay = null; managerPause = null;
             safeLog("Gesture speed unavailable: " + failure.getMessage());
         }
@@ -581,6 +732,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             try {
                 if (target == resume) {
                     guard.add(framework, target, XposedInterface.PRIORITY_HIGHEST, chain -> {
+                        if(sidebarBlocks(chain.getThisObject()))return null;
                         if (isGuardedPausedPlayer(chain.getThisObject())) {
                             deferFinderPlayback(chain, target);
                             safeLog("View finder suppressed resume on previously paused player");
@@ -590,6 +742,10 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     });
                 } else {
                     guard.add(framework, target, XposedInterface.PRIORITY_HIGHEST, chain -> {
+                        // A play call for the next video may reuse this concrete player instance.
+                        if(sidebarBlocks(chain.getThisObject()) && java.util.Objects.equals(
+                                HostTargets.invoke(awemeAccessor.invoke(sidebarPause.holder()),"getVideo"),chain.getArg(0))
+                                && chain.getArg(0)!=null)return null;
                         if (isGuardedPausedPlayer(chain.getThisObject())) {
                             deferFinderPlayback(chain, target);
                             safeLog("View finder suppressed play on previously paused player");
@@ -628,6 +784,16 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
 
     private void recordFinderGesture(View touch, MotionEvent event) {
         if (closed || event == null || Boolean.TRUE.equals(replayingFinderTouch.get())) return;
+        if(sidebarPause.active() && event.getActionMasked()==MotionEvent.ACTION_DOWN
+                && !sidebarSettingsVisible.test(resumed.get()) && sameSidebarTarget(sidebarPause.player())) {
+            // The drawer can trigger holder.pause and clear activeRoot before the user's first tap.
+            // Trust only the captured holder's still-bound video view, never another card in its Activity.
+            try {
+                Object root=rootField.get(sidebarPause.holder());
+                if(root instanceof View && ((View)root).isAttachedToWindow() && ((View)root).isShown()
+                        && belongsToRoot(touch,(View)root))clearSidebarPause();
+            }catch(IllegalAccessException|RuntimeException ignored){}
+        }
         FinderGesture pending = pendingFinderGesture;
         int action = event.getActionMasked();
         if (action != MotionEvent.ACTION_DOWN) {
@@ -645,25 +811,32 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         releaseFinderGesture(false);
         View root = activeRoot();
         Object holder = selectedHolder.get();
-        if (root == null || holder == null || !belongsToRoot(touch, root) || !touch.isShown()
-                || !"view_finder".equals(regionAction(options, "long_press",
-                region(touch, event.getRawX(), event.getRawY())))) return;
+        if (root == null || holder == null || !belongsToRoot(touch, root) || !touch.isShown()) return;
+        String configured = assignedAction("long_press", region(touch, event.getRawX(), event.getRawY()));
+        boolean speed = "speed".equals(configured);
+        boolean intercept = options != null && options.interceptNativeLongPress();
+        if (!speed && !intercept && !"view_finder".equals(configured)) return;
+        if (speed && !intercept && (speedReader == null || setSpeed == null)) return;
         try {
             String aid = readAid(awemeAccessor.invoke(holder));
             Object feedPanel = panel(holder);
             Object player = playerAccessor == null || feedPanel == null ? null : playerAccessor.invoke(feedPanel);
-            boolean paused = Boolean.TRUE.equals(aid == null ? null : pausedState.apply(aid));
-            if (player != null && isPlaying != null) paused |= !((Boolean) isPlaying.invoke(player));
-            safeLog("View finder touch snapshot: paused=" + paused + ", player="
-                    + (player == null ? "unavailable" : player.getClass().getName()));
-            if (!paused || aid == null || player == null) return;
-            FinderGesture gesture = new FinderGesture(touch, holder, player, aid, event);
+            boolean paused = false;
+            if ("view_finder".equals(configured)) {
+                paused = Boolean.TRUE.equals(aid == null ? null : pausedState.apply(aid));
+                if (player != null && isPlaying != null) paused |= !((Boolean) isPlaying.invoke(player));
+                safeLog("View finder touch snapshot: paused=" + paused + ", player="
+                        + (player == null ? "unavailable" : player.getClass().getName()));
+                if (!paused && !intercept) return;
+            }
+            if (speed && !intercept && (aid == null || player == null)) return;
+            FinderGesture gesture = new FinderGesture(touch, holder, player, aid, configured, paused, event);
             pendingFinderGesture = gesture;
             gesture.timeout = () -> {
                 if (pendingFinderGesture == gesture && !gesture.confirmed) releaseFinderGesture(false);
             };
             main.postDelayed(gesture.timeout, FINDER_GESTURE_TIMEOUT_MILLIS);
-            ensureFinderPauseGuard(player);
+            if (paused && player != null) ensureFinderPauseGuard(player);
         } catch (ReflectiveOperationException | RuntimeException failure) {
             safeLog("Could not capture view finder touch state: " + failure.getMessage());
         }
@@ -671,7 +844,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
 
     private void deferFinderPlayback(XposedInterface.Chain chain, Method target) {
         FinderGesture pending = pendingFinderGesture;
-        if (pending != null && !pending.confirmed) {
+        if (pending != null && "view_finder".equals(pending.action) && !pending.confirmed) {
             synchronized (pending) {
                 pending.deferredMethod = target;
                 pending.deferredArguments = chain.getArgs().toArray();
@@ -694,12 +867,21 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         pendingFinderGesture = null;
         if (pending != null && pending.timeout != null) main.removeCallbacks(pending.timeout);
         if (pending != null && pending.longPress != null) main.removeCallbacks(pending.longPress);
+        if (pending != null && pending.nativeSpeedLease != null) {
+            pending.nativeSpeedLease.discard();
+            pending.nativeSpeedLease = null;
+        }
         if (pending != null && pending.downEvent != null) {
+            // The host never received this DOWN. If the target/configuration disappears,
+            // keep consuming the rest of that stream until UP/CANCEL or a fresh DOWN.
+            if (!replay) synchronized (pendingReleaseDiscard) {
+                pendingReleaseDiscard.put(pending.touch, Boolean.TRUE);
+            }
             pending.downEvent.recycle();
             pending.downEvent = null;
         }
         if (pending == null || !replay || pending.confirmed || pending.holder != selectedHolder.get()
-                || !pending.aid.equals(currentAid()) || pending.player != currentPlayer()) return;
+                || !java.util.Objects.equals(pending.aid, currentAid()) || pending.player != currentPlayer()) return;
         synchronized (pending) {
             if (pending.deferredMethod == null) return;
             try { pending.deferredMethod.invoke(pending.deferredOwner, pending.deferredArguments); }
@@ -714,11 +896,18 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         MotionEvent event = (MotionEvent) chain.getArg(0);
         View touch = (View) chain.getThisObject();
         int action = event.getActionMasked();
+        if (action == MotionEvent.ACTION_DOWN) {
+            // A lost UP must not leave a previous held stream owning the next DOWN.
+            releaseFinderGesture(false);
+            synchronized (pendingReleaseDiscard) { pendingReleaseDiscard.remove(touch); }
+            finderDiscardCurrentEvent.setBoolean(touch, false);
+        }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             synchronized (pendingReleaseDiscard) {
                 if (pendingReleaseDiscard.remove(touch) != null) {
                     finderDiscardCurrentEvent.setBoolean(touch, false);
                     releaseFinderGesture(false);
+                    pendingReleaseDiscard.remove(touch);
                     return true;
                 }
             }
@@ -727,20 +916,28 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         if (gesture != null && gesture.touch == touch && gesture.downEvent != null) {
             if (action == MotionEvent.ACTION_CANCEL) {
                 releaseFinderGesture(false);
+                synchronized (pendingReleaseDiscard) { pendingReleaseDiscard.remove(touch); }
                 return true;
             }
+            // Once claimed, never replay DOWN after movement or a second pointer:
+            // that would initialize native speed recognizers during the same hold.
+            if (gesture.confirmed) return true;
             boolean moved = action == MotionEvent.ACTION_MOVE
                     && Math.hypot(event.getRawX() - gesture.x, event.getRawY() - gesture.y)
                     > ViewConfiguration.get(touch.getContext()).getScaledTouchSlop();
             if (action == MotionEvent.ACTION_UP || moved || event.getPointerCount() > 1) {
                 MotionEvent down = gesture.downEvent;
                 gesture.downEvent = null;
+                SpeedGestureNativeGate.Lease nativeLease = gesture.nativeSpeedLease;
+                gesture.nativeSpeedLease = null;
                 releaseFinderGesture(false);
                 replayingFinderTouch.set(true);
                 try {
                     finderTouchDispatch.invoke(touch, down);
+                    if (nativeLease != null) nativeLease.replayDown();
                     return chain.proceed();
                 } finally {
+                    if (nativeLease != null) nativeLease.discard();
                     down.recycle();
                     replayingFinderTouch.remove();
                 }
@@ -755,18 +952,35 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                 finderRawX.setFloat(touch, event.getRawX());
                 finderRawY.setFloat(touch, event.getRawY());
                 gesture.downEvent = MotionEvent.obtain(event);
+                if (nativeSpeedGate != null && ("speed".equals(gesture.action)
+                        || (options != null && options.interceptNativeLongPress()))) {
+                    gesture.nativeSpeedLease = nativeSpeedGate.hold(touch, event);
+                }
                 FinderGesture expected = gesture;
                 gesture.longPress = () -> {
+                    View currentRoot = activeRoot();
                     if (pendingFinderGesture == expected && expected.holder == selectedHolder.get()
-                            && expected.aid.equals(currentAid()) && expected.player == currentPlayer()
-                            && activeRoot() != null && touch.isShown()
-                            && "view_finder".equals(regionAction(options, "long_press",
-                            region(touch, expected.x, expected.y)))) {
+                            && java.util.Objects.equals(expected.aid, currentAid()) && expected.player == currentPlayer()
+                            && currentRoot != null && belongsToRoot(touch, currentRoot) && touch.isShown()
+                            && supports("long_press_action")
+                            && expected.action.equals(regionAction(options, "long_press",
+                            region(touch, expected.x, expected.y)))
+                            && (!"none".equals(expected.action)
+                                || (options != null && options.interceptNativeLongPress()))) {
                         nativeLongPress.run();
                     } else if (pendingFinderGesture == expected) releaseFinderGesture(false);
                 };
-                main.postDelayed(gesture.longPress, Math.max(1, finderLongPressInterval.getInt(touch)));
-                safeLog("View finder held paused touch before host UI listeners");
+                long holdDelay = Math.max(1L, finderLongPressInterval.getInt(touch));
+                main.postDelayed(gesture.longPress, holdDelay);
+                main.removeCallbacks(gesture.timeout);
+                main.postDelayed(gesture.timeout, holdDelay + FINDER_GESTURE_TIMEOUT_MILLIS);
+                if ("speed".equals(gesture.action)) {
+                    DouAiLog.event("gesture", "decision", "speed_touch_reserved",
+                            "host_invoked=false;result_scope=touch_down;action=speed");
+                } else if (options != null && options.interceptNativeLongPress()) {
+                    DouAiLog.event("gesture", "decision", "native_long_press_touch_reserved",
+                            "host_invoked=false;result_scope=touch_down;action=" + gesture.action);
+                } else safeLog("View finder held paused touch before host UI listeners");
                 return true;
             }
         }
@@ -795,6 +1009,8 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         final Object holder;
         final Object player;
         final String aid;
+        final String action;
+        final boolean pausedOnDown;
         final long downTime;
         final float x;
         final float y;
@@ -805,12 +1021,16 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         Runnable timeout;
         Runnable longPress;
         MotionEvent downEvent;
+        SpeedGestureNativeGate.Lease nativeSpeedLease;
 
-        FinderGesture(View touch, Object holder, Object player, String aid, MotionEvent event) {
+        FinderGesture(View touch, Object holder, Object player, String aid, String action,
+                      boolean pausedOnDown, MotionEvent event) {
             this.touch = touch;
             this.holder = holder;
             this.player = player;
             this.aid = aid;
+            this.action = action;
+            this.pausedOnDown = pausedOnDown;
             downTime = event.getDownTime();
             x = event.getRawX();
             y = event.getRawY();
@@ -822,8 +1042,9 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private boolean isGuardedPausedPlayer(Object player) {
         if (closed || player == null) return false;
         FinderGesture pending = pendingFinderGesture;
-        if (pending != null && pending.player == player && pending.holder == selectedHolder.get()
-                && pending.aid.equals(currentAid()) && pending.player == currentPlayer()) return true;
+        if (pending != null && pending.pausedOnDown && "view_finder".equals(pending.action)
+                && pending.player == player && pending.holder == selectedHolder.get()
+                && java.util.Objects.equals(pending.aid, currentAid()) && pending.player == currentPlayer()) return true;
         if ((!pauseGuardActive && (viewFinder == null || viewFinder.isClosed())) || player == null) return false;
         String aid = pauseGuardAid;
         Object holder = selectedHolder.get();
@@ -860,6 +1081,106 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         return params == null ? null : feedContext.get(params);
     }
 
+    private boolean sameWork(Object holder,View root,String aid) {
+        return !closed && aid!=null && holder==selectedHolder.get() && root!=null && root==activeRoot() && aid.equals(currentAid());
+    }
+
+    private boolean currentForCommentRequest(Activity owner,Object holder,String aid,long epoch) {
+        if(closed || owner==null || owner!=resumed.get() || owner.isFinishing() || owner.isDestroyed()
+                || epoch!=commentSelectionEpoch || !java.util.Objects.equals(aid,lastSelectedAid)
+                || lastSelectedOwner.get()!=owner) return false;
+        try {
+            Object selected=selectedHolder.get();
+            // Opening a native half-panel can pause/hide the card; that is not a new work selection.
+            return java.util.Objects.equals(aid,readAid(awemeAccessor.invoke(selected==null?holder:selected)));
+        } catch(ReflectiveOperationException | RuntimeException unavailable) { return false; }
+    }
+    private PlaybackPositionAccess.Snapshot playbackSnapshot(Object holder,View root) {
+        if (positions==null || holder==null || root==null || root!=activeRoot() || holder!=selectedHolder.get()) return null;
+        try {
+            Object work=awemeAccessor.invoke(holder);
+            return positions.snapshot(panel(holder),holder,work,readAid(work));
+        } catch(ReflectiveOperationException | RuntimeException | LinkageError unavailable) { return null; }
+    }
+    private boolean seekCaptured(Object holder,View root,PlaybackPositionAccess.Snapshot expected,long millis) {
+        if (expected==null || positions==null) return false;
+        try { return PlaybackPositionAccess.seek(expected,playbackSnapshot(holder,root),millis,positions.seek); }
+        catch(ReflectiveOperationException | RuntimeException | LinkageError unavailable) { return false; }
+    }
+    private static boolean isDetail(Activity owner) {
+        for(Class<?> type=owner==null?null:owner.getClass();type!=null;type=type.getSuperclass())
+            if("com.ss.android.ugc.aweme.detail.ui.DetailActivity".equals(type.getName()))return true;
+        return false;
+    }
+    private boolean openBookmark(Activity owner,String account,PlaybackBookmarkStore.Entry entry) {
+        if (closed || positions==null || !PlaybackBookmarks.enabled() || !account.equals(PlaybackBookmarks.account()))return false;
+        cancelJump();
+        Object holder=selectedHolder.get();
+        View root=activeRoot();
+        boolean here=isDetail(owner) && resumed.get()==owner && root!=null && entry.aid.equals(currentAid());
+        if(here) {
+            PlaybackPositionAccess.Snapshot ready=playbackSnapshot(holder,root);
+            if(ready!=null)return seekBookmark(holder,root,ready,entry.millis,account);
+        }
+        jumpToken=bookmarkJump.start(account,entry.aid,entry.millis,android.os.SystemClock.elapsedRealtime());
+        long token=jumpToken;
+        jumpAid=entry.aid; jumpAccount=account; jumpOrigin=new WeakReference<>(owner);
+        if(here)jumpDetail=new WeakReference<>(owner);
+        jumpPoll=()->pollJump(token);
+        try {
+            if(!here) PlaybackBookmarks.route(owner,entry.aid);
+            main.postDelayed(jumpPoll,150);
+            return true;
+        } catch(ReflectiveOperationException | RuntimeException | LinkageError unavailable) {cancelJump();return false;}
+    }
+    private void pollJump(long token) {
+        if (token==0 || token!=jumpToken || closed)return;
+        String account=PlaybackBookmarks.account();
+        long now=android.os.SystemClock.elapsedRealtime();
+        if(!bookmarkJump.pending(token,account,now)){
+            boolean timedOut=account.equals(jumpAccount);
+            cancelJump();
+            if(timedOut&&resumed.get()!=null)toast(resumed.get(),"未能定位此书签，可在书签中重试");
+            return;
+        }
+        Activity owner=resumed.get();
+        Object holder=selectedHolder.get();
+        View root=activeRoot();
+        if(isDetail(owner) && root!=null && activity(root.getContext())==owner && jumpAid.equals(currentAid())) {
+            jumpDetail=new WeakReference<>(owner);
+            PlaybackPositionAccess.Snapshot ready=playbackSnapshot(holder,root);
+            if(ready!=null && jumpAid.equals(ready.aid)){
+                long target=bookmarkJump.consume(token,account,ready.aid,now);
+                cancelJump();
+                if(target>=0&&!seekBookmark(holder,root,ready,target,account))toast(owner,"作品状态已改变，可在书签中重试");
+                return;
+            }
+        }else if(jumpDetail.get()!=null && owner==jumpDetail.get() && root!=null && currentAid()!=null
+                && !jumpAid.equals(currentAid())) {cancelJump();return;}
+        main.postDelayed(jumpPoll,200);
+    }
+    private void cancelJump(){
+        bookmarkJump.cancel(jumpToken);jumpToken=0;
+        if(jumpPoll!=null)main.removeCallbacks(jumpPoll);
+        jumpPoll=null;jumpOrigin.clear();jumpDetail.clear();jumpLeftOrigin=false;jumpAid=null;jumpAccount=null;
+    }
+    private boolean seekBookmark(Object holder,View root,PlaybackPositionAccess.Snapshot ready,long ms,String account) {
+        if(!seekCaptured(holder,root,ready,ms))return false;
+        try{if(sameWork(holder,root,ready.aid))PlaybackBookmarks.enrichVerified(activeOwner(root),account,ready.aid,awemeAccessor.invoke(holder));}
+        catch(ReflectiveOperationException|RuntimeException|LinkageError ignored){}
+        long seq=++bookmarkReadbackSequence;
+        Runnable reconcile=()->{
+            if(seq!=bookmarkReadbackSequence||bookmarkPlaybackSync==null||isPlaying==null||!sameWork(holder,root,ready.aid))return;
+            PlaybackPositionAccess.Snapshot current=playbackSnapshot(holder,root);
+            if(current==null||current.player!=ready.player)return;
+            try{Object playing=isPlaying.invoke(ready.player);
+                if(playing instanceof Boolean)bookmarkPlaybackSync.accept(holder,!((Boolean)playing));}
+            catch(ReflectiveOperationException|RuntimeException ignored){}
+        };
+        main.post(reconcile);main.postDelayed(reconcile,250);main.postDelayed(reconcile,650);
+        return true;
+    }
+
     private void onSelected(Object holder) {
         onMain(() -> {
             if (closed) return;
@@ -869,11 +1190,19 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                 View root = (View) value;
                 Activity activity = activity(root.getContext());
                 if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+                String selectedAid = readAid(awemeAccessor.invoke(holder));
+                if (!java.util.Objects.equals(selectedAid,lastSelectedAid) || activity!=lastSelectedOwner.get()) {
+                    clearSidebarPause();
+                    commentSelectionEpoch++; lastSelectedAid=selectedAid; lastSelectedOwner=new WeakReference<>(activity);
+                }
                 pausedHolder.clear();
                 recoverForeground(root, activity);
-                if (selectedHolder.get() == holder && selectedRoot.get() == root) return;
+                if (selectedHolder.get() == holder && selectedRoot.get() == root) {
+                    applyPersistentSpeed();
+                    return;
+                }
                 dismissDialog();
-                if (selectedHolder.get() != holder) restoreOwnedSpeed();
+                if (selectedHolder.get() != holder) detachSpeedTarget();
                 selectedHolder = new WeakReference<>(holder);
                 selectedRoot = new WeakReference<>(root);
                 safeLog("Feed gesture holder selected: foreground=" + (resumed.get() == activity)
@@ -886,6 +1215,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     observer.addOnPreDrawListener(rootMonitor);
                 }
                 refreshToolbar();
+                applyPersistentSpeed();
             } catch (ReflectiveOperationException | RuntimeException failure) {
                 BehaviorHookGroup lifecycle = groups.get("toolbar_enabled");
                 if (lifecycle != null) lifecycle.fail(failure);
@@ -953,12 +1283,50 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     case "copy_text": copyText(root.getContext(), aweme); break;
                     case "save_media": saveMedia(root, holder, aweme); break;
                     case "open_comments": openComments(root, readAid(aweme)); break;
+                    case "like":
+                        java.util.function.BiConsumer<Activity, String> liking = manualLike;
+                        if (liking != null) liking.accept(activeOwner(root), readAid(aweme));
+                        else toast(root.getContext(), "当前点赞入口不可用");
+                        break;
+                    case "comment_search":
+                        if (PlaybackBookmarks.enabled()) {
+                            String id = readAid(aweme);
+                            Activity owner = activeOwner(root); long epoch=commentSelectionEpoch;
+                            LoadedCommentSearchHook.request(owner, id,
+                                    () -> currentForCommentRequest(owner, holder, id, epoch), () -> openComments(root, id));
+                        }
+                        break;
                     case "toggle_components": componentVisibility.accept(!componentsShown.getAsBoolean()); break;
                     case "speed": applyConfiguredSpeed(root, holder, operation); break;
                     case "view_finder": showViewFinder(root, holder); break;
                     case "select_model": showModelPicker(root); break;
                     case "module_settings": openModuleSettings(root); break;
                     case "quick_features": showQuickFeatures(root); break;
+                    case "seek_back_10": case "seek_forward_10":
+                        if (PlaybackBookmarks.enabled()) {
+                            PlaybackPositionAccess.Snapshot at = playbackSnapshot(holder,root);
+                            long delta = action.equals("seek_back_10") ? -10_000L : 10_000L;
+                            if (at == null || !seekCaptured(holder,root,at,at.millis+delta))
+                                toast(root.getContext(),"当前视频暂时不能跳转");
+                        }
+                        break;
+                    case "bookmark_add":
+                        if (PlaybackBookmarks.enabled()) {
+                            String id=readAid(aweme);
+                            PlaybackBookmarks.add(activeOwner(root),playbackSnapshot(holder,root),aweme,
+                                    ()->sameWork(holder,root,id));
+                        }
+                        break;
+                    case "bookmark_list":
+                        if (PlaybackBookmarks.enabled()) PlaybackBookmarks.show(activeOwner(root));
+                        break;
+                    case "reading_search":
+                        if (PlaybackBookmarks.enabled()) {
+                            String id=readAid(aweme);
+                            PlaybackReadingDialog.show(activeOwner(root),aweme,()->sameWork(holder,root,id),
+                                    ms->sameWork(holder,root,id)&&seekCaptured(holder,root,playbackSnapshot(holder,root),ms));
+                        }
+                        break;
                     default: break;
                 }
                 if (!"speed".equals(action)) operation.finish(DouAiLog.Outcome.UNCONFIRMED, "action_dispatched",
@@ -981,9 +1349,10 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             toast(root.getContext(), "当前页面暂不可打开快捷菜单");
             return;
         }
+        String[] labels = PlaybackBookmarks.enabled() ? QUICK_MENU_LABELS : java.util.Arrays.copyOf(QUICK_MENU_LABELS, 9);
         AlertDialog menu = new MiuixDialogBuilder(owner, true).setTitle("快捷菜单")
-                .setItems(QUICK_MENU_LABELS, (dialog, index) -> {
-                    if (index >= 0 && index < QUICK_MENU_ACTIONS.length) {
+                .setItems(labels, (dialog, index) -> {
+                    if (index >= 0 && index < labels.length) {
                         dispatch(QUICK_MENU_ACTIONS[index], holder, root);
                     }
                 })
@@ -1067,7 +1436,8 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         }
         String aid = readAid(awemeAccessor.invoke(holder));
         FinderGesture gesture = pendingFinderGesture;
-        boolean pausedOnDown = gesture != null && gesture.holder == holder && gesture.aid.equals(aid);
+        boolean pausedOnDown = gesture != null && gesture.pausedOnDown && "view_finder".equals(gesture.action)
+                && gesture.holder == holder && java.util.Objects.equals(gesture.aid, aid);
         dismissViewFinder();
         Object player = null;
         boolean paused = pausedOnDown;
@@ -1251,15 +1621,17 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     }
 
     @SuppressLint("ResourceType")
-    private void openComments(View root, String workId) {
+    private boolean openComments(View root, String workId) {
         View container = HostResourceCatalog.findVerifiedView(root, 2131371414);
         if (container == null) container = HostResourceCatalog.findVerifiedView(root, 2131371299);
         List<View> candidates = new ArrayList<>();
         collectClicks(container, candidates);
-        if (candidates.size() != 1) { toast(root.getContext(), "评论入口未唯一定位"); return; }
+        if (candidates.size() != 1) { toast(root.getContext(), "评论入口未唯一定位"); return false; }
         if (candidates.get(0).performClick()) {
             com.douai.module.analytics.LocalAnalytics.action(workId, "open_comments", "快捷打开评论", "manual", "request");
+            return true;
         }
+        return false;
     }
 
     private static void collectClicks(View view, List<View> candidates) {
@@ -1276,6 +1648,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             operation.finish(DouAiLog.Outcome.SKIPPED, "speed_contract_unavailable", "setter_invoked=false");
             toast(root.getContext(), "倍速入口未适配"); return;
         }
+        syncModuleOnlySpeedMode();
         Object panel = panel(holder);
         if (panel == null || !playerAccessor.getDeclaringClass().isInstance(panel)
                 || speedHolderAccessor.invoke(panel) != holder) {
@@ -1303,51 +1676,113 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
 
         Object aweme = awemeAccessor.invoke(holder);
         String aid = readAid(aweme);
-        if (ownedSpeedPlayer.get() != null && !sameManualTarget(holder, aid, player)) {
-            restoreOwnedSpeed();
-        }
-
-        if (ownedSpeedPlayer.get() != player) {
-            restoreOwnedSpeed();
-            currentSpeed = readCurrentSpeed(player);
-            originalSpeed = validSpeed(currentSpeed) ? currentSpeed : 1f;
-        } else if (validSpeed(currentSpeed) && !sameSpeed(currentSpeed, appliedSpeed)
-                && (speedReadbackConfirmed || !sameSpeed(currentSpeed, originalSpeed))) {
-            originalSpeed = currentSpeed;
-        }
-        cancelSpeedReadback();
-        speedOperation = operation;
         LocalOptions current = options == null ? new LocalOptions(Collections.emptyMap()) : options;
         boolean enable = !manualSpeedEnabled;
         float requested = enable ? PlaybackBehaviorHooks.playbackSpeed(current) : 1f;
+        submitPersistentSpeed(root, holder, player, aid, currentSpeed, requested, operation, true);
+    }
+
+    private void applyPersistentSpeed() {
+        syncModuleOnlySpeedMode();
+        if (closed || submittingSpeed || speedOverride == null || playerAccessor == null || speedReader == null || setSpeed == null) return;
+        Object holder = selectedHolder.get();
+        View root = activeRoot();
+        if (holder == null || root == null) return;
+        try {
+            Object currentPanel = panel(holder);
+            if (currentPanel == null || speedHolderAccessor.invoke(currentPanel) != holder) return;
+            Object player = playerAccessor.invoke(currentPanel);
+            if (player == null || !setSpeed.getDeclaringClass().isInstance(player)) return;
+            String aid = readAid(awemeAccessor.invoke(holder));
+            float requested = manualSpeedEnabled ? PlaybackBehaviorHooks.playbackSpeed(options) : 1f;
+            float baseline = readCurrentSpeed(player);
+            // A holder or manager can be reused. Re-submit on its selection/resume even
+            // if its identity is unchanged; the host may have reset its engine to 1x.
+            DouAiLog.Operation operation = DouAiLog.begin("gesture", "inherit_speed_choice");
+            submitPersistentSpeed(root, holder, player, aid, baseline, requested, operation, false);
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            safeLog("Could not inherit gesture speed: " + failure.getClass().getSimpleName());
+        }
+    }
+
+    private void syncModuleOnlySpeedMode() {
+        if (closed) return;
+        boolean moduleOnly = options != null && options.moduleOnlySpeedControl();
+        if (!moduleOnly) {
+            if (exclusiveSpeedSession) restoreOwnedSpeed();
+            return;
+        }
+        if (exclusiveSpeedSession || playerAccessor == null || speedReader == null || setSpeed == null) return;
+        cancelSpeedReadback();
+        if (speedOverride == null) speedOverride = new GestureSpeedOverride();
+        // Keep a previous manual session alive so its queued SDK requests also
+        // adopt 1x. Do not queue a native-baseline restoration during takeover.
+        try { speedOverride.apply(1f, () -> { }); }
+        catch (ReflectiveOperationException | RuntimeException failure) {
+            safeLog("Could not initialize module speed control: " + failure.getClass().getSimpleName());
+            return;
+        }
+        manualSpeedEnabled = false;
+        manualSpeedHolder.clear();
+        manualSpeedAid = null;
+        speedReadbackConfirmed = false;
+        speedOverride.registerGlobal();
+        exclusiveSpeedSession = true;
+    }
+
+    private void submitPersistentSpeed(View root, Object holder, Object player, String aid,
+                                       float currentSpeed, float requested, DouAiLog.Operation operation,
+                                       boolean announce) {
+        com.douai.module.analytics.LocalAnalytics.FlowOperation speedFlow = com.douai.module.analytics.LocalAnalytics.get(root.getContext()).beginOperation(aid, "speed");
+        if (speedFlow != null) speedFlow.stage(announce ? (sameSpeed(requested,1f) ? "restore" : "manual_select") : "inherited");
+        boolean newSession = speedOverride == null;
+        if (newSession) speedOverride = new GestureSpeedOverride();
+        if (ownedSpeedPlayer.get() != player || !sameManualTarget(holder, aid, player)) {
+            originalSpeed = speedOverride.restorationSpeed(player, validSpeed(currentSpeed) ? currentSpeed : 1f);
+        } else if (validSpeed(currentSpeed) && !sameSpeed(currentSpeed, appliedSpeed)
+                && (speedReadbackConfirmed || !sameSpeed(currentSpeed, originalSpeed))) {
+            originalSpeed = currentSpeed;
+            speedOverride.updateOriginal(player, currentSpeed);
+        }
+        speedOverride.rememberOriginal(player, originalSpeed);
+        cancelSpeedReadback();
+        speedOperation = operation;
         ownedSpeedPlayer = new WeakReference<>(player);
         appliedSpeed = requested;
         speedReadbackConfirmed = false;
-        if (speedOverride == null) speedOverride = new GestureSpeedOverride();
+        boolean previousEnabled = manualSpeedEnabled;
+        if (announce) manualSpeedEnabled = !manualSpeedEnabled;
+        submittingSpeed = true;
         try {
+            speedOverride.registerGlobal();
             speedOverride.apply(requested, () -> setSpeed.invoke(player, requested));
-            com.douai.module.analytics.LocalAnalytics.action(aid, "gesture_speed", "手势切换倍速", "manual", "request");
-            manualSpeedEnabled = enable;
+            if (speedFlow != null) speedFlow.stage("requested");
+            if (announce) {
+                com.douai.module.analytics.LocalAnalytics.action(aid, "gesture_speed", "手势切换倍速", "manual", "request");
+            }
             manualSpeedHolder = new WeakReference<>(holder);
             manualSpeedAid = aid;
             safeLog("Gesture speed submitted=" + requested + "; player=" + player.getClass().getName());
             operation.stage("speed_submitted", "requested=" + requested + ";readback_pending=true");
-            scheduleSpeedReadback(holder, root, player, requested, speedRevision, 0, operation);
-            toast(root.getContext(), enable ? "已开启倍速：" + speedLabel(requested) + "x"
-                    : "已关闭倍速，恢复 1x");
+            scheduleSpeedReadback(holder, root, player, requested, speedRevision, 0, operation, speedFlow);
+            if (announce) toast(root.getContext(), manualSpeedEnabled ? "倍速锁定目标：" + speedLabel(requested) + "x"
+                    : "已选择正常播放：1x");
         } catch (ReflectiveOperationException | RuntimeException failure) {
             operation.error("speed_submit", failure);
             operation.finish(DouAiLog.Outcome.FAILED, "setter_failed", "restoration_attempted=true");
             speedOperation = null;
-            restoreOwnedSpeed();
+            manualSpeedEnabled = previousEnabled;
+            if (newSession) restoreOwnedSpeed();
             safeLog("Gesture speed failed: " + failure.getMessage());
-            toast(root.getContext(), "倍速设置失败");
+            if (announce) toast(root.getContext(), "倍速设置失败");
+        } finally {
+            submittingSpeed = false;
         }
     }
 
     private float readCurrentSpeed(Object player) {
         try {
-            return ((Number) getSpeed.invoke(player)).floatValue();
+            return speedReader.read(player);
         } catch (ReflectiveOperationException | RuntimeException failure) {
             safeLog("Gesture speed baseline unavailable: " + failure.getMessage());
             return Float.NaN;
@@ -1368,7 +1803,11 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                 && java.util.Objects.equals(manualSpeedAid, aid);
     }
 
-    private static boolean validSpeed(float value) { return Float.isFinite(value) && value > 0; }
+    private static boolean validSpeed(float value) {
+        // Match the supported playback range. A host metric such as 30 fps must never
+        // become an owned speed baseline and then be written back on pause/close.
+        return Float.isFinite(value) && value >= 0.25f && value <= 4f;
+    }
 
     private static String speedLabel(float value) {
         return new java.math.BigDecimal(Float.toString(value)).stripTrailingZeros().toPlainString();
@@ -1377,7 +1816,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     private DouAiLog.Operation speedOperation;
 
     private void scheduleSpeedReadback(Object holder, View root, Object player,
-                                       float requested, long revision, int attempt, DouAiLog.Operation operation) {
+                                       float requested, long revision, int attempt, DouAiLog.Operation operation, com.douai.module.analytics.LocalAnalytics.FlowOperation speedFlow) {
         WeakReference<Object> expectedHolder = new WeakReference<>(holder);
         WeakReference<View> expectedRoot = new WeakReference<>(root);
         WeakReference<Object> expectedPlayer = new WeakReference<>(player);
@@ -1402,7 +1841,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     if (speedOperation == operation) speedOperation = null;
                     return;
                 }
-                float reported = ((Number) getSpeed.invoke(currentPlayer)).floatValue();
+                float reported = speedReader.readEffective(currentPlayer);
                 if (revision != speedRevision || ownedSpeedPlayer.get() != currentPlayer) {
                     operation.finish(DouAiLog.Outcome.CANCELLED, "readback_revision_changed", "requested=" + requested);
                     if (speedOperation == operation) speedOperation = null;
@@ -1410,8 +1849,9 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                 }
                 if (sameSpeed(reported, requested)) {
                     speedReadbackConfirmed = true;
+                    if (speedFlow != null) speedFlow.stage("readback");
                     operation.finish(DouAiLog.Outcome.SUCCESS, "speed_getter_readback",
-                            "requested=" + requested + ";reported=" + reported + ";result_scope=current_player;later_playback=unobserved");
+                            "requested=" + requested + ";reported=" + reported + ";result_scope=effective_engine_speed;later_playback=unobserved");
                     if (speedOperation == operation) speedOperation = null;
                     safeLog("Gesture speed readback confirmed: requested=" + requested + "; reported=" + reported);
                     return;
@@ -1429,10 +1869,12 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
                     operation.finish(DouAiLog.Outcome.UNCONFIRMED, "readback_unavailable", "setter_returned=true;attempts=3");
                     if (speedOperation == operation) speedOperation = null;
                 }
-                if (attempt == 2) safeLog("Gesture speed readback unavailable: " + failure.getMessage());
+                if (attempt == 2) {
+                    safeLog("Gesture speed readback unavailable: " + failure.getMessage());
+                }
             }
             if (attempt < 2 && revision == speedRevision) scheduleSpeedReadback(currentHolder, currentRoot, currentPlayer,
-                    requested, revision, attempt + 1, operation);
+                    requested, revision, attempt + 1, operation, speedFlow);
         });
         main.postDelayed(speedReadback, attempt == 0 ? 150L : attempt == 1 ? 350L : 500L);
     }
@@ -1490,6 +1932,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
 
     private void restoreOwnedSpeed() {
         cancelSpeedReadback();
+        exclusiveSpeedSession = false;
         manualSpeedEnabled = false;
         manualSpeedHolder.clear();
         manualSpeedAid = null;
@@ -1503,7 +1946,7 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
             // A lagging getter may still report the baseline while the last setter is queued.
             if (sameSpeed(actual, appliedSpeed)
                     || (!speedReadbackConfirmed && (sameSpeed(actual, originalSpeed) || !validSpeed(actual)))) {
-                float baseline = override == null ? originalSpeed : override.restorationSpeed(originalSpeed);
+                float baseline = override == null ? originalSpeed : override.restorationSpeed(player, originalSpeed);
                 float restored = validSpeed(baseline) ? baseline : 1f;
                 if (override == null) setSpeed.invoke(player, restored);
                 else override.restore(() -> setSpeed.invoke(player, restored));
@@ -1516,8 +1959,17 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
         }
     }
 
+    private void detachSpeedTarget() {
+        cancelSpeedReadback();
+        manualSpeedHolder.clear();
+        manualSpeedAid = null;
+        speedReadbackConfirmed = false;
+        // Keep the last player weakly for module-close restoration. The user's
+        // choice and global bindings survive holder/root/activity transitions.
+    }
+
     private void clearSelected() {
-        dismissToolbar(); dismissDialog(); dismissViewFinder(); restoreOwnedSpeed();
+        dismissToolbar(); dismissDialog(); dismissViewFinder(); detachSpeedTarget();
         detachRootMonitor();
         selectedHolder.clear(); selectedRoot.clear();
     }
@@ -1603,17 +2055,27 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     @Override public void onActivityResumed(Activity activity) {
         onMain(() -> {
             if (!closed) {
+                if(jumpToken!=0 && jumpLeftOrigin && activity==jumpOrigin.get())cancelJump();
+                else if(jumpToken!=0 && jumpLeftOrigin && !isDetail(activity))cancelJump();
                 if (pausedActivity.get() == activity) pausedActivity.clear();
                 resumed = new WeakReference<>(activity);
                 refreshToolbar();
+                applyPersistentSpeed();
             }
         });
     }
     @Override public void onActivityPaused(Activity activity) {
         onMain(() -> {
+            if(jumpToken!=0) {
+                // An older route can briefly resume a different detail before the newest one arrives.
+                if(activity==jumpDetail.get()) cancelJump();
+                else if(activity==jumpOrigin.get())jumpLeftOrigin=true;
+            }
             pausedActivity = new WeakReference<>(activity);
             if (resumed.get() == activity) {
-                resumed.clear(); dismissToolbar(); dismissDialog(); dismissViewFinder(); restoreOwnedSpeed();
+                clearSidebarPause();
+                commentSelectionEpoch++;
+                resumed.clear(); dismissToolbar(); dismissDialog(); dismissViewFinder(); detachSpeedTarget();
             }
         });
     }
@@ -1628,10 +2090,19 @@ public final class FeedGestureToolsHook implements Application.ActivityLifecycle
     @Override public void onActivitySaveInstanceState(Activity activity, Bundle state) { }
 
     @Override public void close() {
+        if (currentTools.get() == this) currentTools.clear();
         if (closed) return;
         closed = true;
+        PlaybackBookmarks.detach(bookmarkNavigation);
         application.unregisterActivityLifecycleCallbacks(this);
         for (BehaviorHookGroup group : groups.values()) group.close();
-        onMain(() -> { resumed.clear(); pausedActivity.clear(); pausedHolder.clear(); clearSelected(); });
+        onMain(() -> {
+            cancelJump();
+            clearSidebarPause();bookmarkPlaybackSync=null;
+            resumed.clear(); pausedActivity.clear(); pausedHolder.clear(); clearSelected();
+            restoreOwnedSpeed();
+            if (nativeSpeedGate != null) nativeSpeedGate.close();
+            nativeSpeedGate = null;
+        });
     }
 }

@@ -49,7 +49,6 @@ final class AiModelEditor implements AutoCloseable {
     private final Context context;
     private final SettingsStore repository;
     private final boolean useMiuix;
-    private final boolean activateOnSave;
     private final Runnable onDelete;
     private final Runnable onChanged;
     private final ExecutorService requests;
@@ -72,33 +71,33 @@ final class AiModelEditor implements AutoCloseable {
 
     AiModelEditor(Context context, SettingsStore repository, AiModelConfig original,
                   boolean useMiuix, Runnable onChanged, ExecutorService requests) {
-        this(context, repository, original, useMiuix, onChanged, requests, true);
+        this(context, repository, original, useMiuix, onChanged, requests, false);
     }
 
+    /** Compatibility entry point for contact editors; saving never selects a model. */
     AiModelEditor(Context context, SettingsStore repository, AiModelConfig original,
-                  boolean useMiuix, Runnable onChanged, boolean activateOnSave) {
+                  boolean useMiuix, Runnable onChanged, boolean ignoredActivation) {
         this(context, repository, original, useMiuix, onChanged,
-                Executors.newSingleThreadExecutor(), activateOnSave, null);
+                Executors.newSingleThreadExecutor(), ignoredActivation, null);
     }
 
     AiModelEditor(Context context, SettingsStore repository, AiModelConfig original, boolean useMiuix,
-                  Runnable onChanged, boolean activateOnSave, Runnable onDelete) {
+                  Runnable onChanged, boolean ignoredActivation, Runnable onDelete) {
         this(context, repository, original, useMiuix, onChanged,
-                Executors.newSingleThreadExecutor(), activateOnSave, onDelete);
+                Executors.newSingleThreadExecutor(), ignoredActivation, onDelete);
     }
 
     private AiModelEditor(Context context, SettingsStore repository, AiModelConfig original,
-                  boolean useMiuix, Runnable onChanged, ExecutorService requests, boolean activateOnSave) {
-        this(context, repository, original, useMiuix, onChanged, requests, activateOnSave, null);
+                  boolean useMiuix, Runnable onChanged, ExecutorService requests, boolean ignoredActivation) {
+        this(context, repository, original, useMiuix, onChanged, requests, ignoredActivation, null);
     }
 
     private AiModelEditor(Context context, SettingsStore repository, AiModelConfig original,
-                  boolean useMiuix, Runnable onChanged, ExecutorService requests, boolean activateOnSave,
+                  boolean useMiuix, Runnable onChanged, ExecutorService requests, boolean ignoredActivation,
                   Runnable onDelete) {
         this.context = ModuleTheme.themedContext(context);
         this.repository = repository;
         this.useMiuix = useMiuix;
-        this.activateOnSave = activateOnSave;
         this.onDelete = onDelete == null ? () -> {
             saveAiSettings(aiSettings().delete(original.id));
             onChanged.run();
@@ -274,15 +273,11 @@ final class AiModelEditor implements AutoCloseable {
         responseMode.setTag("ai.response_mode");
         responseMode.setSelection(responseModeIndex(original.responseMode));
         addField(form, "响应方式", responseMode);
-        form.addView(text("同一模型的对话、自动回复、自动评论和本地分析共用此设置；流式接收完成后显示完整结果。",
-                12, MUTED, false), matchWrap());
 
         Spinner reasoningEffort = !useMiuix ? new Spinner(context) : MiuixFormControls.spinner(context);
         reasoningEffort.setTag("ai.reasoning_effort");
         String[][] reasoningValues = {setReasoningChoices(reasoningEffort, original.protocol, original.reasoningEffort)};
         addField(form, "推理强度", reasoningEffort);
-        form.addView(text("选项使用接口实际参数值，是否支持取决于模型；更高强度可能耗时更久、使用更多 Token。“模型默认”不附加强度参数。",
-                12, MUTED, false), matchWrap());
 
         int[] lastProtocolSelection = {protocolIndex(original.protocol)};
         protocol.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -333,14 +328,11 @@ final class AiModelEditor implements AutoCloseable {
         EditText contextRounds = formInput(form, "上下文轮数（0–50）", Integer.toString(original.contextRounds), false);
         EditText timeout = formInput(form, "超时秒数（5–120）", Integer.toString(original.timeoutSeconds), false);
         CheckBox temperatureEnabled = checkField(form, "设置温度", original.temperatureEnabled);
-        EditText temperature = formInput(form, "温度", Double.toString(original.temperature), false);
-        bindOptionalInput(temperatureEnabled, temperature);
+        EditText temperature = optionalInput(form, temperatureEnabled, "温度", Double.toString(original.temperature));
         CheckBox maxTokensEnabled = checkField(form, "限制最大输出 Token", original.maxTokensEnabled);
-        EditText maxTokens = formInput(form, "最大输出 Token", Integer.toString(original.maxTokens), false);
-        bindOptionalInput(maxTokensEnabled, maxTokens);
+        EditText maxTokens = optionalInput(form, maxTokensEnabled, "最大输出 Token", Integer.toString(original.maxTokens));
         CheckBox topPEnabled = checkField(form, "设置 Top P", original.topPEnabled);
-        EditText topP = formInput(form, "Top P", Double.toString(original.topP), false);
-        bindOptionalInput(topPEnabled, topP);
+        EditText topP = optionalInput(form, topPEnabled, "Top P", Double.toString(original.topP));
         EditText headers = formInput(form, "自定义请求头 JSON", original.customHeaders, false);
         EditText parameters = formInput(form, "自定义参数 JSON", original.customParameters, false);
         TextView status = text("", 12, MUTED, false);
@@ -374,7 +366,7 @@ final class AiModelEditor implements AutoCloseable {
 
         dialog = new MiuixDialogBuilder(context, useMiuix).setTitle("模型配置")
                 .setView(scrolling(form)).setNegativeButton("取消", null)
-                .setPositiveButton(activateOnSave ? "保存并启用" : "保存", null).setNeutralButton("删除", null).create();
+                .setPositiveButton("保存", null).setNeutralButton("删除", null).create();
         dialog.setOnDismissListener(ignored -> close());
         bindButtons = () -> {
             boolean exists = false;
@@ -389,7 +381,7 @@ final class AiModelEditor implements AutoCloseable {
                 try {
                     AiModelConfig draft = readDraft.call();
                     draft.validate(true);
-                    saveAiSettings(aiSettings().upsert(draft, activateOnSave));
+                    saveAiSettings(aiSettings().upsert(draft, false));
                     close();
                     onChanged.run();
                 } catch (Exception failure) { toast(safeError(failure)); }
@@ -454,7 +446,8 @@ final class AiModelEditor implements AutoCloseable {
             try {
                 AiModelConfig draft = readDraft.call();
                 draft.validate(true);
-                showChild(new AiTestChatDialog(context, draft, useMiuix));
+                showChild(new AiTestChatDialog(context, draft, useMiuix, false, null,
+                        AiConversationDialog.manualSearch(context, repository)));
             } catch (Exception failure) { toast(safeError(failure)); }
         });
         form.addView(MiuixFormControls.viewFor(messageContact), matchWrap());
@@ -534,9 +527,18 @@ final class AiModelEditor implements AutoCloseable {
         return values.toArray(new String[0]);
     }
 
-    private static void bindOptionalInput(CheckBox toggle, EditText input) {
+    private EditText optionalInput(LinearLayout parent, CheckBox toggle, String label, String value) {
+        LinearLayout fields = new LinearLayout(context);
+        fields.setOrientation(LinearLayout.VERTICAL);
+        parent.addView(fields, matchWrap());
+        EditText input = formInput(fields, label, value, false);
+        fields.setVisibility(toggle.isChecked() ? View.VISIBLE : View.GONE);
         input.setEnabled(toggle.isChecked());
-        toggle.setOnCheckedChangeListener((button, enabled) -> input.setEnabled(enabled));
+        toggle.setOnCheckedChangeListener((button, enabled) -> {
+            fields.setVisibility(enabled ? View.VISIBLE : View.GONE);
+            input.setEnabled(enabled);
+        });
+        return input;
     }
 
     private AiModelConfig buildAiConfig(AiModelConfig original, EditText name, Spinner provider, Spinner protocol,

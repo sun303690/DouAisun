@@ -52,6 +52,11 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
             if (audio != null) throw new IllegalStateException("Comment voice sender unavailable");
             send(event, text, valid, beforeSend, accepted, result);
         }
+        default void send(CommentReplyEvent event, String text, SpeechPreparation.Audio audio, BooleanSupplier valid,
+                          BooleanSupplier beforeSend, Runnable accepted, Consumer<String> result,
+                          Consumer<String> publishedCommentId) {
+            send(event, text, audio, valid, beforeSend, accepted, result);
+        }
         default boolean owns(Object model) { return false; }
         @Override default void close() { }
     }
@@ -155,7 +160,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
         NativeCommentReplyInbox inbox = null;
         CommentReplyHook[] installed = new CommentReplyHook[1];
         try {
-            inbox = NativeCommentReplyInbox.install(framework, report, loader, log, () -> {
+            inbox = NativeCommentReplyInbox.install(framework, report, loader, context, log, () -> {
                 CommentReplyHook hook = installed[0];
                 if (hook != null) hook.signal();
             });
@@ -176,6 +181,11 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
                 @Override public void send(CommentReplyEvent event, String text, SpeechPreparation.Audio audio,
                                            BooleanSupplier valid, BooleanSupplier before, Runnable accepted, Consumer<String> result) {
                     publisher.sendReply(event, text, audio, valid, before, accepted, result);
+                }
+                @Override public void send(CommentReplyEvent event, String text, SpeechPreparation.Audio audio,
+                                           BooleanSupplier valid, BooleanSupplier before, Runnable accepted, Consumer<String> result,
+                                           Consumer<String> publishedCommentId) {
+                    publisher.sendReply(event, text, audio, valid, before, accepted, result, publishedCommentId);
                 }
                 @Override public boolean owns(Object model) { return publisher.ownsPublish(model); }
                 @Override public void close() { publisher.close(); }
@@ -215,7 +225,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
                     || before.enabled("native_auto_reply") != next.enabled("native_auto_reply")
                     || !before.samePrefix(next, "reply_") || !before.samePrefix(next, "tts_")
                     || !before.text("auto_message_text", "").equals(next.text("auto_message_text", ""))
-                    || !before.text(AiModelSettings.KEY, "").equals(next.text(AiModelSettings.KEY, ""));
+                    || !AiModelSettings.sameAutomationSelection(before, next, AutomationHistoryStore.REPLY);
             options = next;
             if (changed) invalidate();
         }
@@ -309,7 +319,12 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
                         if (tasks.containsKey(identity)) { deferred = true; continue; }
                         int threadLimit = MAX_THREAD_REPLIES;
                         if (ledger.threadExhausted(account, event.rootId, threadLimit)) { DouAiLog.event("auto_comment_reply", "eligibility", "thread_limit", "limit=" + threadLimit); continue; }
-                        if (ledger.contains(account, event.incomingId) && !ledger.retryable(account, event.incomingId)) { DouAiLog.event("auto_comment_reply", "eligibility", "ledger_duplicate_or_not_retryable", "incoming_ref=" + DouAiLog.reference(event.incomingId)); continue; }
+                        if (ledger.contains(account, event.incomingId) && !ledger.retryable(account, event.incomingId)) {
+                            DouAiLog.event("auto_comment_reply", "eligibility", "ledger_duplicate_or_not_retryable",
+                                    "incoming_ref=" + DouAiLog.reference(event.incomingId)
+                                            + ";ledger_status=" + ledger.diagnosticStatus(account, event.incomingId));
+                            continue;
+                        }
                         if (tasks.size() >= MAX_PENDING || !rateLimiter.canSend(KIND, account, event.senderUid, options)) {
                             deferred = true;
                             continue;
@@ -531,7 +546,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
                 if (task.finished.get() && ("sent".equals(outcome) || "failed".equals(outcome))) dispatcher.recordOutcome(entry(task, outcome));
                 done.accept(outcome);
             }, () -> done.accept(task.submitted ? "submitted" : "cancelled"));
-        });
+        }, cid -> task.publishedCommentId = cid);
     }
 
     private void submitLedger(Runnable action, Runnable rejected) {
@@ -612,7 +627,8 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
             case "图片下载失败": return "image_download_failed";
             case "图片超过 16 MB": return "image_size_limit";
             case "Comment reply output is too long": return "output_limit";
-            case "请先添加并启用模型配置": return "model_unselected";
+            case "请先添加并启用模型配置":
+            case "请先选择模型配置": return "model_unselected";
             default: return "unexpected";
         }
     }
@@ -634,6 +650,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
             tasks.remove(task.identity, task);
             if (task.audio != null && !task.submitted) task.audio.delete();
             if ("failed".equals(status) && task.submitted) dispatcher.reportFinalFailure(entry(task, "failed"));
+            if ("sent".equals(status)) dispatcher.recordOutcome(entry(task, status));
             signal();
         }, () -> { tasks.remove(task.identity, task); signal(); });
     }
@@ -642,7 +659,10 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
         long now = System.currentTimeMillis();
         return new AutomationHistoryStore.Entry(task.id, KIND, task.event.aid, task.event.senderName,
                 task.input, task.text, task.model, status, task.created, now, task.requestImageCount, task.modelRequestSent,
-                task.audio == null ? AutomationHistoryStore.DELIVERY_TEXT : AutomationHistoryStore.DELIVERY_VOICE);
+                task.audio == null ? AutomationHistoryStore.DELIVERY_TEXT : AutomationHistoryStore.DELIVERY_VOICE)
+                .withLocation(new AutomationHistoryStore.Location(Long.toString(task.account), task.event.aid,
+                        task.publishedCommentId.isEmpty() ? task.event.incomingId : task.publishedCommentId,
+                        task.event.rootId, "", task.event.incomingId));
     }
 
     static String input(CommentReplyEvent event) {
@@ -714,6 +734,7 @@ public final class CommentReplyHook implements Application.ActivityLifecycleCall
         final AtomicBoolean finished = new AtomicBoolean();
         final AtomicBoolean remembered = new AtomicBoolean();
         volatile String text = "", model = "";
+        volatile String publishedCommentId = "";
         volatile boolean submitted, persistedSubmission, boundaryFailed, uncertain, deferCancellation;
         volatile AutomationRateLimiter.Reservation reservation;
         volatile SpeechPreparation.Audio audio;

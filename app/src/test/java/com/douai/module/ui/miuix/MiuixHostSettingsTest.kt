@@ -23,11 +23,13 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextReplacement
 import com.douai.module.config.HostSettingsStore
 import com.douai.module.config.AiModelConfig
 import com.douai.module.config.AiModelSettings
 import com.douai.module.config.ThirdPartyDownloadSettings
+import com.douai.module.config.LocalOptions
 import com.douai.module.analytics.LocalAnalytics
 import com.douai.module.analytics.LocalPortraitContext
 import org.json.JSONObject
@@ -70,6 +72,69 @@ class MiuixHostSettingsTest {
     @After
     fun closeSettings() {
         compose.runOnUiThread { screen.close() }
+    }
+
+    @Test
+    @Config(sdk = [28])
+    fun playbackUsesSevenMiuixChoicesAndSelectsTheNearestLegacyPresetWithoutAnEditor() {
+        compose.runOnUiThread { store.putString("playback_speed", "2.75") }
+        compose.onNodeWithTag("settings.category.4").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.toggle.仅模块控制倍速").assertIsEnabled()
+        compose.runOnIdle { assertFalse(store.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false)) }
+        compose.onNodeWithText("3x").assertIsDisplayed()
+        compose.onNodeWithTag("settings.option.倍速数值").performClick()
+        compose.runOnIdle {
+            val choices = ShadowDialog.getLatestDialog() as android.app.AlertDialog
+            assertEquals(7, choices.listView.count)
+            assertEquals(5, choices.listView.checkedItemPosition)
+            assertEquals("4x", choices.listView.getItemAtPosition(6).toString())
+            assertNull(choices.window!!.decorView.findViewWithTag<View>("settings.input.倍速数值"))
+            assertEquals("2.75", store.getString("playback_speed", ""))
+        }
+        compose.onNodeWithTag("miuix.dialog.choices").performScrollToIndex(6)
+        compose.onNodeWithTag("miuix.dialog.choice.6").performClick()
+        compose.runOnIdle { assertEquals("4", store.getString("playback_speed", "")) }
+        compose.onNodeWithText("4x").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(sdk = [28])
+    fun moduleOnlySpeedDisablesDependentMiuixControlsAndRestoresTheirRawChoices() {
+        compose.runOnUiThread {
+            store.putBoolean("auto_speed", true)
+            store.putBoolean("block_long_press_speed", false)
+            store.putBoolean(LocalOptions.INTERCEPT_NATIVE_LONG_PRESS, true)
+        }
+        compose.onNodeWithTag("settings.category.4").performScrollTo().performClick()
+        compose.runOnIdle { assertFalse(store.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false)) }
+        compose.onNodeWithTag("settings.toggle.仅模块控制倍速").performClick()
+        compose.onNodeWithTag("settings.toggle.自动倍速播放").assertIsNotEnabled()
+        compose.onNodeWithText("仅模块模式优先").assertExists()
+        compose.runOnIdle {
+            assertTrue(store.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false))
+            assertTrue(store.getBoolean("auto_speed", false))
+            assertFalse(store.getBoolean("block_long_press_speed", true))
+            assertTrue(store.getBoolean(LocalOptions.INTERCEPT_NATIVE_LONG_PRESS, false))
+        }
+        compose.runOnUiThread { screen.dismissChildPages() }
+        compose.onNodeWithTag("settings.category.1").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.toggle.拦截长按倍数启用场景").assertIsNotEnabled()
+        compose.onNodeWithTag("settings.toggle.拦截系统长按手势").assertIsNotEnabled()
+        compose.runOnUiThread { screen.dismissChildPages() }
+
+        compose.onNodeWithTag("settings.category.4").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.toggle.仅模块控制倍速").performClick()
+        compose.onNodeWithTag("settings.toggle.自动倍速播放").assertIsEnabled()
+        compose.runOnUiThread { screen.dismissChildPages() }
+        compose.onNodeWithTag("settings.category.1").performScrollTo().performClick()
+        compose.onNodeWithTag("settings.toggle.拦截长按倍数启用场景").assertIsEnabled()
+        compose.onNodeWithTag("settings.toggle.拦截系统长按手势").assertIsEnabled()
+        compose.runOnIdle {
+            assertFalse(store.getBoolean(LocalOptions.MODULE_ONLY_SPEED, true))
+            assertTrue(store.getBoolean("auto_speed", false))
+            assertFalse(store.getBoolean("block_long_press_speed", true))
+            assertTrue(store.getBoolean(LocalOptions.INTERCEPT_NATIVE_LONG_PRESS, false))
+        }
     }
 
     @Test
@@ -295,11 +360,21 @@ class MiuixHostSettingsTest {
             compose.runOnIdle {
                 assertNull("Refreshing the real page must replace its empty state", report.window!!.decorView
                     .findViewWithTag<View>("analytics.empty"))
+                assertNull(report.window!!.decorView.findViewWithTag<View>("analytics.portrait.types.chart"))
+                val headline = report.window!!.decorView.findViewWithTag<android.widget.TextView>("analytics.story.headline")
+                assertNotNull("The report opens with its local story discovery", headline)
+                assertTrue(headline.text.isNotBlank())
+                assertTrue("Headline must be visible on its dark cover", android.graphics.Color.luminance(headline.currentTextColor) > 0.7f)
+                assertNotNull("The cover comes before the recording controls", (report.window!!.decorView.findViewWithTag<android.view.ViewGroup>("analytics.body").getChildAt(0)).findViewWithTag<View>("analytics.story.headline"))
+                assertEquals(View.GONE, report.window!!.decorView.findViewWithTag<View>("analytics.section.body.settings").visibility)
+                assertNull(report.window!!.decorView.findViewWithTag<View>("analytics.section.body.topics"))
+            }
+            scrollAnalyticsViewIntoView(report, "analytics.story.all")
+            compose.onNodeWithTag("analytics.story.all").assertIsDisplayed().performClick()
+            compose.waitForIdle()
+            compose.runOnIdle {
                 assertNotNull(report.window!!.decorView.findViewWithTag<View>("analytics.portrait.types.chart"))
-                for (section in listOf("types", "topics", "settings")) {
-                    assertEquals("Long report details initially stay collapsed", View.GONE,
-                        report.window!!.decorView.findViewWithTag<View>("analytics.section.body.$section").visibility)
-                }
+                assertEquals(View.GONE, report.window!!.decorView.findViewWithTag<View>("analytics.section.body.types").visibility)
             }
             expandAnalyticsSection(report, "types")
             scrollAnalyticsViewIntoView(report, "analytics.portrait.types.selection")
@@ -307,6 +382,9 @@ class MiuixHostSettingsTest {
             expandAnalyticsSection(report, "topics")
             scrollAnalyticsViewIntoView(report, "analytics.portrait.topics.selection")
             saveDialogPreview("host-local-analytics-topics-$theme")
+            scrollAnalyticsViewIntoView(report, "analytics.manage")
+            compose.onNodeWithTag("analytics.manage").assertIsDisplayed().performClick()
+            compose.waitForIdle()
             expandAnalyticsSection(report, "settings")
             scrollAnalyticsViewIntoView(report, "analytics.purpose")
             compose.onNodeWithTag("analytics.purpose").assertIsDisplayed().performClick()
@@ -334,6 +412,8 @@ class MiuixHostSettingsTest {
             compose.onNodeWithTag("settings.option.本地数据分析").assertIsDisplayed().performClick()
             val reopened = ShadowDialog.getLatestDialog()
             waitForAnalyticsLoad(reopened, "正在本地记录")
+            scrollAnalyticsViewIntoView(reopened, "analytics.manage")
+            compose.onNodeWithTag("analytics.manage").performClick()
             compose.onNodeWithTag("analytics.recording").assertIsOn()
             compose.runOnUiThread {
                 screen.close()
@@ -379,7 +459,16 @@ class MiuixHostSettingsTest {
     private fun expandAnalyticsSection(dialog: Dialog, key: String) {
         val tag = "analytics.section.toggle.$key"
         scrollAnalyticsViewIntoView(dialog, tag)
-        compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+        try {
+            compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+        } catch (failure: AssertionError) {
+            val v = dialog.window!!.decorView.findViewWithTag<View>(tag)
+            val rect = android.graphics.Rect()
+            val scroll = dialog.window!!.decorView.findViewWithTag<android.widget.ScrollView>("analytics.scroll")
+            val bounds = android.graphics.Rect(0, 0, v.width, v.height)
+            scroll.offsetDescendantRectToMyCoords(v, bounds)
+            throw AssertionError("$tag shown=${v.isShown}, global=${v.getGlobalVisibleRect(rect)}:$rect, scrollY=${scroll.scrollY}, target=$bounds, viewport=${scroll.width}x${scroll.height}", failure)
+        }
         compose.runOnIdle {
             assertEquals(View.VISIBLE, dialog.window!!.decorView
                 .findViewWithTag<View>("analytics.section.body.$key").visibility)
@@ -472,6 +561,7 @@ class MiuixHostSettingsTest {
     fun editorSaveUpdatesMiuixPreviewAndComponentWindowClosesWithParent() {
         compose.onNodeWithTag("settings.search").performTextReplacement("下载")
         compose.onNodeWithText("下载相关").performClick()
+        compose.onNodeWithTag("settings.toggle.自定义文件名").performClick()
         compose.onNodeWithTag("settings.option.文件名模板").performClick()
         compose.waitForIdle()
         compose.runOnUiThread {
@@ -501,6 +591,7 @@ class MiuixHostSettingsTest {
     fun composeEditorWindowAllowsImeAndVisibleInputTakesFocus() {
         compose.onNodeWithTag("settings.search").performTextReplacement("下载")
         compose.onNodeWithText("下载相关").performClick()
+        compose.onNodeWithTag("settings.toggle.自定义文件名").performClick()
         compose.onNodeWithTag("settings.option.文件名模板").performClick()
         compose.waitForIdle()
         compose.runOnIdle {
@@ -572,7 +663,10 @@ class MiuixHostSettingsTest {
 
         compose.onNodeWithTag("settings.option.私聊范围").performClick()
         val privateSettings = ShadowDialog.getLatestDialog()
-        compose.onNodeWithTag("settings.option.指定用户").performClick()
+        compose.onNodeWithTag("settings.option.用户范围").performClick()
+        compose.onNodeWithTag("miuix.dialog.choice.1").performClick()
+        compose.onNodeWithTag("settings.option.选择用户").performClick()
+        compose.waitForIdle()
         val targets = ShadowDialog.getLatestDialog() as android.app.AlertDialog
         assertNotNull(targets.getButton(Dialog.BUTTON_POSITIVE))
         targets.getButton(Dialog.BUTTON_POSITIVE).performClick()

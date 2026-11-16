@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
-/** Host 40.6 UI gates and owned view visibility, independent of the host's account state. */
+/** Verified host UI gates and owned view visibility, independent of the host's account state. */
 public final class HostBehaviorHooks implements AutoCloseable {
     private static final String HIDDEN_SKIP = "prevent_skip_hidden";
     private static final int MAX_VIEW_UPDATES_PER_FRAME = 64;
@@ -48,6 +48,7 @@ public final class HostBehaviorHooks implements AutoCloseable {
     private final AtomicBoolean hiddenBackgroundLogged = new AtomicBoolean();
     private volatile boolean hiddenSkipReady;
     private volatile LocalOptions options;
+    private FeedVideoFraming videoFraming;
     private volatile boolean closed;
 
     private HostBehaviorHooks(LocalOptions options, Consumer<String> log) {
@@ -62,17 +63,24 @@ public final class HostBehaviorHooks implements AutoCloseable {
     }
 
     enum HiddenSafetyTaskContract {
-        HOST_406(0, null), HOST_408(0, null);
+        HOST_406(0, null, null), HOST_408(0, null, null), HOST_410(2, 3, null);
         final int currentBranch;
+        final Integer secondaryCurrentBranch;
         final Integer backgroundBranch;
-        HiddenSafetyTaskContract(int currentBranch, Integer backgroundBranch) {
+        HiddenSafetyTaskContract(int currentBranch, Integer secondaryCurrentBranch, Integer backgroundBranch) {
             this.currentBranch = currentBranch;
+            this.secondaryCurrentBranch = secondaryCurrentBranch;
             this.backgroundBranch = backgroundBranch;
+        }
+        boolean blocksCurrentBranch(int branch) {
+            return branch == currentBranch || secondaryCurrentBranch != null && branch == secondaryCurrentBranch;
         }
         static HiddenSafetyTaskContract resolve(String current, String background) {
             if ("Lkotlin/jvm/internal/ALambdaS32S1500000_4;".equals(current) && "LX/06ht;".equals(background)) return HOST_406;
             if ("Lkotlin/jvm/internal/ALambdaS38S1500000_35;".equals(current)
                     && "LX/12bW;".equals(background)) return HOST_408;
+            if ("Lkotlin/jvm/internal/ALambdaS43S1500000_47;".equals(current)
+                    && "LX/1R3E;".equals(background)) return HOST_410;
             throw new IllegalStateException("Hidden video safety task profile combination changed");
         }
     }
@@ -97,6 +105,14 @@ public final class HostBehaviorHooks implements AutoCloseable {
         hooks.suppress(framework, report, loader, "block_long_press_speed", null,
                 "adv_ui_long_press_speed");
         hooks.installBlackEdges(framework, report, loader);
+        if (com.douai.module.scan.HostAdaptation.currentProfile() == com.douai.module.scan.HostAdaptation.PROFILE_410) {
+            try {
+                hooks.videoFraming = FeedVideoFraming.install(framework, report, loader,
+                        options != null && options.enabled("hide_video_black_edges"), hooks.log);
+            } catch (Exception | LinkageError unavailable) {
+                hooks.log.accept("41 video framing unavailable: " + unavailable.getClass().getSimpleName());
+            }
+        }
         hooks.installPublishButton(framework, report, loader);
         return hooks;
     }
@@ -124,6 +140,7 @@ public final class HostBehaviorHooks implements AutoCloseable {
         if (closed) return;
         LocalOptions previous = this.options;
         this.options = options;
+        if (videoFraming != null) videoFraming.setEnabled(options != null && options.enabled("hide_video_black_edges"));
         java.util.Set<String> changedKeys = new java.util.LinkedHashSet<>();
         for (String key : new String[]{"hide_video_black_edges", "hide_camera_plus"}) {
             if (previous == null || options == null || previous.enabled(key) != options.enabled(key)) {
@@ -261,7 +278,7 @@ public final class HostBehaviorHooks implements AutoCloseable {
                     group.fail(failure);
                     return chain.proceed();
                 }
-                if (branch != contract.currentBranch) return chain.proceed();
+                if (!contract.blocksCurrentBranch(branch)) return chain.proceed();
                 hiddenCurrentHits.incrementAndGet();
                 if (!enabled(HIDDEN_SKIP)) return chain.proceed();
                 hiddenCurrentBlocked.incrementAndGet();
@@ -456,6 +473,7 @@ public final class HostBehaviorHooks implements AutoCloseable {
     @Override public void close() {
         if (closed) return;
         closed = true;
+        if (videoFraming != null) videoFraming.close();
         hiddenSkipReady = false;
         for (BehaviorHookGroup group : groups.values()) group.close();
         onMain(() -> {

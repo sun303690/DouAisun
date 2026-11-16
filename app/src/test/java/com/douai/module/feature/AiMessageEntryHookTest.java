@@ -2,6 +2,7 @@ package com.douai.module.feature;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -32,12 +33,136 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE, sdk = 35, packageName = "com.douai.module")
 public final class AiMessageEntryHookTest {
+    @Test public void repeatedDiscoveryReusesClassAccessorsButReadsFreshHostState() throws Exception {
+        HostReflectionCache cache = null;
+        for (java.lang.reflect.Field field : AiMessageEntryHook.class.getDeclaredFields()) {
+            if (field.getType() == HostReflectionCache.class && java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                field.setAccessible(true);
+                cache = (HostReflectionCache) field.get(null);
+            }
+        }
+        assertNotNull("Discovery should reuse the class-isolated accessor cache", cache);
+        java.lang.reflect.Field resolverField = HostReflectionCache.class.getDeclaredField("resolver");
+        java.lang.reflect.Field classesField = HostReflectionCache.class.getDeclaredField("classes");
+        resolverField.setAccessible(true);
+        classesField.setAccessible(true);
+        HostReflectionCache.Resolver original = (HostReflectionCache.Resolver) resolverField.get(cache);
+        CountingResolver resolver = new CountingResolver();
+        java.util.Map<?, ?> classes = (java.util.Map<?, ?>) classesField.get(cache);
+        classes.clear();
+        resolverField.set(cache, resolver);
+        MessageActivity activity = activity();
+        try {
+            FrameLayout root = root(activity);
+            RecyclerView list = list(activity, root);
+            MessagesFragment3 fragment = new MessagesFragment3(root);
+            activity.fragments.entries.add(fragment);
+            assertSame(list, AiMessageEntryHook.uniqueMessageList(activity));
+            // Pin weak accessors only for this deterministic resolution workload.
+            List<Object> pinned = new ArrayList<>();
+            for (Object value : classes.values()) pinned.add(((java.lang.ref.WeakReference<?>) value).get());
+            for (int i = 0; i < 300; i++) {
+                fragment.hidden = i % 2 == 0;
+                if (fragment.hidden) assertNull(AiMessageEntryHook.uniqueMessageList(activity));
+                else assertSame(list, AiMessageEntryHook.uniqueMessageList(activity));
+            }
+            assertEquals("Five getters resolve once, not on each discovery", 5, resolver.methods);
+        } finally {
+            resolverField.set(cache, original);
+            classes.clear();
+            activity.finish();
+        }
+    }
+
+    private static final class CountingResolver implements HostReflectionCache.Resolver {
+        int methods;
+        public java.lang.reflect.Field field(Class<?> owner, String name) throws NoSuchFieldException {
+            return HostReflectionCache.REFLECTION.field(owner, name);
+        }
+        public java.lang.reflect.Method publicNoArgMethod(Class<?> owner, String name) throws NoSuchMethodException {
+            methods++;
+            return HostReflectionCache.REFLECTION.publicNoArgMethod(owner, name);
+        }
+        public java.lang.reflect.Method declaredMethod(Class<?> owner, String name, String descriptor) throws NoSuchMethodException {
+            return HostReflectionCache.REFLECTION.declaredMethod(owner, name, descriptor);
+        }
+    }
+
+    @Test public void stableLayoutBurstsCoalesceAndDoNotSubmitIdenticalDiagnostics() throws Exception {
+        MessageActivity activity = activity();
+        FrameLayout root = root(activity);
+        list(activity, root);
+        MessagesFragment3 fragment = new MessagesFragment3(root);
+        activity.fragments.entries.add(fragment);
+        MemoryStore store = new MemoryStore();
+        new AiModelSettings(Arrays.asList(model("a", true, "助手")), "a").save(store);
+        AiMessageEntryHook hook = AiMessageEntryHook.install(activity, store, (owner, value) -> null, ignored -> { });
+        try {
+            hook.onActivityResumed(activity);
+            measure(root, 400, 600);
+            root.getViewTreeObserver().dispatchOnGlobalLayout();
+            ShadowLooper.idleMainLooper(150, java.util.concurrent.TimeUnit.MILLISECONDS);
+            long before = suppressedEvents();
+            int reads = activity.fragments.reads;
+            for (int i = 0; i < 300; i++) root.getViewTreeObserver().dispatchOnGlobalLayout();
+            ShadowLooper.idleMainLooper(149, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertEquals(reads, activity.fragments.reads);
+            ShadowLooper.idleMainLooper(1, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertEquals("300 events coalesce to one fresh visibility/uniqueness check", reads + 1, activity.fragments.reads);
+            assertEquals("Stable discovery and readback should not enter logger again", before, suppressedEvents());
+            fragment.hidden = true;
+            root.getViewTreeObserver().dispatchOnGlobalLayout();
+            ShadowLooper.idleMainLooper(150, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertNull(root.findViewWithTag(AiMessageEntryHook.CONTACTS_TAG));
+            fragment.hidden = false;
+            root.getViewTreeObserver().dispatchOnGlobalLayout();
+            ShadowLooper.idleMainLooper(150, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertNotNull(root.findViewWithTag(AiMessageEntryHook.CONTACTS_TAG));
+            hook.onActivityPaused(activity);
+            ShadowLooper.idleMainLooper(1, java.util.concurrent.TimeUnit.HOURS);
+            hook.onActivityResumed(activity);
+            assertNotNull(root.findViewWithTag(AiMessageEntryHook.CONTACTS_TAG));
+        } finally { hook.close(); activity.finish(); }
+    }
+
+    private static long suppressedEvents() throws Exception {
+        java.lang.reflect.Field field = com.douai.module.diagnostics.DouAiLog.class.getDeclaredField("suppressed");
+        field.setAccessible(true);
+        return field.getLong(null);
+    }
+
+    @Test public void discoveryDistinguishesMissingMessagePageUnknownListAndAmbiguousLists() throws Exception {
+        MessageActivity activity = activity();
+        try {
+            FrameLayout root = root(activity);
+            AtomicReference<String> diagnostic = new AtomicReference<>();
+            assertNull(AiMessageEntryHook.uniqueMessageList(activity, diagnostic::set));
+            assertEquals("fragment_manager_getter=true;visible_message_fragments=0;session_lists=0", diagnostic.get());
+            MessagesFragment3 fragment = new MessagesFragment3(root);
+            activity.fragments.entries.add(fragment);
+            RecyclerView list = list(activity, root);
+            list.setLayoutManager(new Object());
+            assertNull(AiMessageEntryHook.uniqueMessageList(activity, diagnostic::set));
+            assertEquals("fragment_manager_getter=true;visible_message_fragments=1;session_lists=0", diagnostic.get());
+            list.setLayoutManager(new MessageListRvLinearLayoutManager());
+            assertSame(list, AiMessageEntryHook.uniqueMessageList(activity, diagnostic::set));
+            assertEquals("fragment_manager_getter=true;visible_message_fragments=1;session_lists=1", diagnostic.get());
+            list(activity, root);
+            assertNull(AiMessageEntryHook.uniqueMessageList(activity, diagnostic::set));
+            assertEquals("fragment_manager_getter=true;visible_message_fragments=1;session_lists=2", diagnostic.get());
+            fragment.hidden = true;
+            assertNull(AiMessageEntryHook.uniqueMessageList(activity, diagnostic::set));
+            assertEquals("fragment_manager_getter=true;visible_message_fragments=0;session_lists=0", diagnostic.get());
+        } finally { activity.finish(); }
+    }
+
     @Test public void limitsDiscoveryToUniqueNativeConversationListOnVisibleMessageFragment() throws Exception {
         MessageActivity activity = activity();
         FrameLayout root = root(activity);
@@ -79,9 +204,9 @@ public final class AiMessageEntryHookTest {
         assertNotNull(insertion);
         insertion.bind(Arrays.asList(model("a", true, "助手")), ignored -> { });
         assertSame(before, root.getChildAt(0));
-        assertSame(insertion.wrapper, root.getChildAt(1));
-        assertSame(list, root.getChildAt(2));
-        assertSame(after, root.getChildAt(3));
+        assertSame(list, root.getChildAt(1));
+        assertSame(after, root.getChildAt(2));
+        assertSame(insertion.wrapper, root.getChildAt(3));
         assertSame(root, list.getParent());
         assertEquals(7, original.topMargin);
         assertTrue(((FrameLayout.LayoutParams) list.getLayoutParams()).topMargin > 7);
@@ -92,6 +217,53 @@ public final class AiMessageEntryHookTest {
         assertEquals(7, ((FrameLayout.LayoutParams) list.getLayoutParams()).topMargin);
         assertEquals(3, root.getChildCount());
         activity.finish();
+    }
+
+    @Test public void nativeLoadingViewsAndLaterInflatedOverlaysDoNotCoverOrInterceptContacts() throws Exception {
+        MessageActivity activity = activity();
+        FrameLayout root = root(activity);
+        RecyclerView list = list(activity, root);
+        View loading = new View(activity);
+        loading.setBackgroundColor(android.graphics.Color.WHITE);
+        loading.setElevation(8f);
+        AtomicInteger intercepted = new AtomicInteger();
+        loading.setOnTouchListener((view, event) -> { intercepted.incrementAndGet(); return true; });
+        root.addView(loading, new FrameLayout.LayoutParams(-1, -1));
+        activity.fragments.entries.add(new MessagesFragment3(root));
+        MemoryStore store = new MemoryStore();
+        new AiModelSettings(Arrays.asList(model("a", true, "助手")), "a").save(store);
+        AtomicInteger opened = new AtomicInteger();
+        AiMessageEntryHook hook = AiMessageEntryHook.install(activity, store,
+                (owner, value) -> { opened.incrementAndGet(); return null; }, ignored -> { });
+        try {
+            hook.onActivityResumed(activity);
+            measure(root, 400, 600);
+            View header = root.findViewWithTag(AiMessageEntryHook.CONTACTS_TAG);
+            assertNotNull(header);
+            assertTrue(header.isShown());
+            assertTrue(header.getWidth() > 0 && header.getHeight() > 0);
+            assertTrue(header.getZ() > loading.getZ());
+            assertTrue(root.indexOfChild(header) > root.indexOfChild(loading));
+            tap(root, header.getX() + header.getWidth() / 2f, header.getY() + header.getHeight() / 2f);
+            assertEquals(1, opened.get());
+            assertEquals(0, intercepted.get());
+
+            View inflated = new View(activity);
+            inflated.setBackgroundColor(android.graphics.Color.WHITE);
+            inflated.setElevation(20f);
+            inflated.setOnTouchListener((view, event) -> { intercepted.incrementAndGet(); return true; });
+            root.addView(inflated, new FrameLayout.LayoutParams(-1, -1));
+            hook.onActivityResumed(activity);
+            measure(root, 400, 600);
+            assertSame(header, root.findViewWithTag(AiMessageEntryHook.CONTACTS_TAG));
+            assertTrue(header.getZ() > inflated.getZ());
+            assertTrue(root.indexOfChild(header) > root.indexOfChild(inflated));
+            tap(root, header.getX() + header.getWidth() / 2f, header.getY() + header.getHeight() / 2f);
+            assertEquals(2, opened.get());
+            assertEquals(0, intercepted.get());
+            assertSame(root, list.getParent());
+            assertTrue(list.getTop() >= header.getBottom());
+        } finally { hook.close(); activity.finish(); }
     }
 
     @Test public void nativeConstraintIdsAndSiblingAnchorsRemainValidAndReparentCleansHeader() throws Exception {
@@ -272,6 +444,12 @@ public final class AiMessageEntryHookTest {
                 View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY));
         root.layout(0, 0, width, height);
     }
+    private static void tap(View root, float x, float y) {
+        MotionEvent down = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 0);
+        MotionEvent up = MotionEvent.obtain(0, 1, MotionEvent.ACTION_UP, x, y, 0);
+        try { root.dispatchTouchEvent(down); root.dispatchTouchEvent(up); ShadowLooper.idleMainLooper(); }
+        finally { down.recycle(); up.recycle(); }
+    }
     private static Object widget(ConstraintLayout.LayoutParams params) throws Exception {
         return params.getClass().getMethod("getConstraintWidget").invoke(params);
     }
@@ -299,7 +477,8 @@ public final class AiMessageEntryHookTest {
     }
     public static final class FragmentManager {
         final List<Object> entries = new ArrayList<>();
-        public List<Object> getFragments() { return entries; }
+        int reads;
+        public List<Object> getFragments() { reads++; return entries; }
     }
     public static final class ParentFragment {
         final FragmentManager children = new FragmentManager();

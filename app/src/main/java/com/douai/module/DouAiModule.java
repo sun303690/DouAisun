@@ -39,6 +39,11 @@ import com.douai.module.config.CustomViewLocator;
 import com.douai.module.config.FrameworkConfigSync;
 import com.douai.module.config.ExtendedSettings;
 import com.douai.module.config.LocalOptions;
+import com.douai.module.config.AiModelSettings;
+import com.douai.module.config.CommentAiSettings;
+import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.DouyinSearch;
+import com.douai.module.feature.HostDouyinSearch;
 import com.douai.module.feature.HostBehaviorHooks;
 import com.douai.module.feature.PlaybackBehaviorHooks;
 import com.douai.module.feature.ProfileSpoofHook;
@@ -77,8 +82,13 @@ import com.douai.module.feature.AutomationDispatcher;
 import com.douai.module.feature.CommentReplyHook;
 import com.douai.module.feature.AutoMessageDraftHook;
 import com.douai.module.feature.CommentToolsHook;
+import com.douai.module.feature.LoadedCommentSearchHook;
+import com.douai.module.feature.SeenWorkHook;
 import com.douai.module.feature.ImmersiveModeController;
 import com.douai.module.feature.HomeNavigationHideController;
+import com.douai.module.feature.HomeSidebarGestureHook;
+import com.douai.module.feature.HomeSidebarModuleHook;
+import com.douai.module.feature.VideoQualityHook;
 import com.douai.module.ui.HostUiController;
 import io.github.libxposed.api.XposedInterface;
 
@@ -119,6 +129,11 @@ public final class DouAiModule extends XposedModule {
     private volatile AutomationDispatcher automationDispatcher;
     private volatile RecallHighlightHook recallHighlightHook;
     private volatile FeedGestureToolsHook feedGestureToolsHook;
+    private volatile CommentAiAnalysisHook commentAiAnalysisHook;
+    private volatile DouyinSearch manualAiSearch;
+    private volatile boolean manualAiSearchResolved;
+    private volatile String commentAiAnalysisFailure;
+    private volatile String manualAiSearchFailure;
     private volatile DirectMessageSpeechHook directMessageSpeechHook;
     private volatile HashLongPressVoiceHook hashLongPressVoiceHook;
     private volatile boolean additionalInitialized;
@@ -144,9 +159,17 @@ public final class DouAiModule extends XposedModule {
     private volatile String commentReplyHookFailure;
     private volatile AutoMessageDraftHook autoMessageDraftHook;
     private volatile CommentToolsHook commentToolsHook;
+    private volatile LoadedCommentSearchHook loadedCommentSearchHook;
+    private volatile SeenWorkHook seenWorkHook;
     private volatile ImmersiveModeController immersiveModeController;
     private volatile HomeNavigationHideController homeNavigationHideController;
     private volatile HostUiController hostUiController;
+    private volatile HomeSidebarGestureHook homeSidebarGestureHook;
+    private volatile HomeSidebarModuleHook homeSidebarModuleHook;
+    private volatile VideoQualityHook videoQualityHook;
+    private volatile String videoQualityFailure;
+    private volatile boolean hostApplicationCreated;
+    private volatile String homeSidebarFailure;
     private volatile XposedInterface.HookHandle applicationCreateHandle;
     private volatile XposedInterface.HookHandle activityResumeHandle;
     private volatile String feedHookFailure;
@@ -210,8 +233,8 @@ public final class DouAiModule extends XposedModule {
             HostAdaptation.setCurrentProfile(hostProfile);
             if (hostProfile != null) {
                 moduleLog(3, TAG, "Selected host profile " + hostProfile.versionName + " / " + hostProfile.versionCode
-                        + (hostProfile == HostAdaptation.PROFILE_408
-                        ? "; build=" + HostAdaptation.VERIFIED_UPDATE_VERSION_CODE : ""));
+                        + (hostProfile.updateVersionCode >= 0
+                        ? "; build=" + hostProfile.updateVersionCode : ""));
             } else {
                 com.douai.module.scan.HostApkProfile.Identity actual =
                         com.douai.module.scan.HostApkProfile.readIdentity(archives.get(0));
@@ -239,6 +262,7 @@ public final class DouAiModule extends XposedModule {
             downloadHookFailure = "抖音 ClassLoader 不可用";
             return;
         }
+        ensureVideoQualityHook(false);
         installEarlyCachedHooks();
         installFeatureHooksIfReady();
     }
@@ -261,6 +285,20 @@ public final class DouAiModule extends XposedModule {
         } catch (Exception failure) {
             moduleLog(5, TAG, "Startup cache unavailable; asynchronous scan retained: " + failure.getClass().getSimpleName());
         } finally { android.os.Trace.endSection(); }
+    }
+
+    private synchronized void ensureVideoQualityHook(boolean includePlayer) {
+        if (hostProfile != HostAdaptation.PROFILE_410 || hostClassLoader == null) return;
+        try {
+            if (videoQualityHook == null) videoQualityHook = VideoQualityHook.installEarly(hookFramework(), hostClassLoader,
+                    localOptions, message -> moduleLog(3, TAG, message));
+            if (includePlayer) videoQualityHook.installPlayer(hookFramework());
+            videoQualityFailure = null;
+        } catch (Exception | LinkageError unavailable) {
+            videoQualityFailure = HostAdaptationDiagnostics.installationFailure(unavailable);
+            if (videoQualityHook != null) { videoQualityHook.close(); videoQualityHook = null; }
+            DouAiLog.failure("video_quality", "installation", unavailable);
+        }
     }
 
     private void scanHost(List<File> archives) {
@@ -374,18 +412,25 @@ public final class DouAiModule extends XposedModule {
                         .setExceptionMode(XposedInterface.ExceptionMode.PASSTHROUGH)
                         .intercept(chain -> {
                             Object application = chain.getArg(0);
-                            if (hostBehaviorHooks != null && application instanceof Application) {
+                            if ((hostBehaviorHooks != null || hostProfile == HostAdaptation.PROFILE_410)
+                                    && application instanceof Application) {
                                 try {
                                     SharedPreferences preferences = ((Application) application).getSharedPreferences(
                                             SettingsRepository.PREFERENCES_NAME, Context.MODE_PRIVATE);
                                     localOptions = LocalOptions.readFrom(preferences);
-                                    hostBehaviorHooks.setOptions(localOptions);
+                                    if (hostBehaviorHooks != null) hostBehaviorHooks.setOptions(localOptions);
+                                    ensureVideoQualityHook(false);
+                                    if (videoQualityHook != null) videoQualityHook.setOptions(localOptions);
                                 } catch (RuntimeException failure) {
                                     moduleLog(5, TAG, "Could not read startup options: " + failure.getClass().getSimpleName());
                                 }
                             }
                             Object result = chain.proceed();
                             if (application instanceof Application) {
+                                if (TARGET_PACKAGE.equals(((Application) application).getPackageName())) {
+                                    hostApplicationCreated = true;
+                                    ensureVideoQualityHook(true);
+                                }
                                 try {
                                     ensureHostUiController((Application) application);
                                     ExtendedSettings startupSettings = extendedSettings;
@@ -690,12 +735,23 @@ public final class DouAiModule extends XposedModule {
                 hook.setSettings(settings);
                 hook.setOptions(options);
             }
+            if (seenWorkHook != null && feedFilterChanged) seenWorkHook.setOptions(settings.feedFilterEnabled, options);
             if (hostBehaviorHooks != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) hostBehaviorHooks.setOptions(options);
+            if (feedGestureToolsHook != null && gestureChanged) feedGestureToolsHook.setOptions(options);
+            if (initial || changes.affects(Feature.SIDEBAR)) {
+                if (homeSidebarGestureHook != null) homeSidebarGestureHook.setOptions(options);
+                if (homeSidebarModuleHook != null) homeSidebarModuleHook.setOptions(options);
+            }
+            if (videoQualityHook != null && (initial || changes.affects(Feature.VIDEO_QUALITY))) {
+                videoQualityHook.setOptions(options);
+            }
+            if (commentAiAnalysisHook != null && (initial || changes.affects(Feature.MANUAL_AI))) {
+                commentAiAnalysisHook.setOptions(options);
+            }
             if (playbackBehaviorHooks != null && playbackChanged) playbackBehaviorHooks.setOptions(options);
             if (profileSpoofHook != null && spoofChanged) profileSpoofHook.setOptions(options);
             if (nativeMessagingHooks != null && (replyChanged || messageRecallChanged)) nativeMessagingHooks.setOptions(options);
             if (recallHighlightHook != null && messageRecallChanged) recallHighlightHook.setOptions(options);
-            if (feedGestureToolsHook != null && gestureChanged) feedGestureToolsHook.setOptions(options);
             if (directMessageSpeechHook != null && (initial || changes.affects(Feature.DIRECT_MESSAGE_SPEECH))) {
                 directMessageSpeechHook.setOptions(options);
             }
@@ -728,6 +784,12 @@ public final class DouAiModule extends XposedModule {
             CommentToolsHook commentHook = commentToolsHook;
             if (commentHook != null && (initial || changes.affects(Feature.COMMENT_TOOLS))) {
                 commentHook.setSettings(extended);
+                boolean reading41 = HostAdaptation.PROFILE_410.equals(HostAdaptation.currentProfile());
+                commentHook.setReadingOptions(reading41 && options.enabled("comment_transcript_enabled"),
+                        reading41 && options.enabled("loaded_comment_search_enabled"));
+            }
+            if (loadedCommentSearchHook != null && (initial || changes.affects(Feature.COMMENT_TOOLS))) {
+                loadedCommentSearchHook.setOptions(options.enabled("loaded_comment_search_enabled"), options.enabled("comment_transcript_enabled"));
             }
             ImmersiveModeController immersive = immersiveModeController;
             if (immersive != null && (initial || changes.affects(Feature.IMMERSIVE))) {
@@ -791,6 +853,24 @@ public final class DouAiModule extends XposedModule {
                             + ";context=" + (targetContext != null) + ";configuration=" + configurationReady);
             publishFeatureLogState();
             return;
+        }
+        if (HostAdaptation.PROFILE_410.equals(HostAdaptation.currentProfile())) {
+            if (seenWorkHook == null) {
+                try {
+                    seenWorkHook = SeenWorkHook.install(hookFramework(), hostScanReport, hostClassLoader, targetContext,
+                            () -> hostUiController == null ? null : hostUiController.getResumedActivity(),
+                            message -> moduleLog(3, TAG, message));
+                } catch (Throwable failure) { DouAiLog.failure("feed_filter", "seen_work_installation", failure); }
+            }
+            if (seenWorkHook != null) seenWorkHook.setOptions(currentSettings.feedFilterEnabled, localOptions);
+            if (loadedCommentSearchHook == null) {
+                try {
+                    loadedCommentSearchHook = LoadedCommentSearchHook.install(hookFramework(), hostClassLoader,
+                            message -> moduleLog(3, TAG, message));
+                } catch (Throwable failure) { DouAiLog.failure("comment_tools", "loaded_search_installation", failure); }
+            }
+            if (loadedCommentSearchHook != null) loadedCommentSearchHook.setOptions(
+                    localOptions.enabled("loaded_comment_search_enabled"), localOptions.enabled("comment_transcript_enabled"));
         }
         if (localAnalyticsHook == null) {
             try {
@@ -1024,6 +1104,9 @@ public final class DouAiModule extends XposedModule {
             try {
                 commentToolsHook = CommentToolsHook.install(hookFramework(), hostScanReport, hostClassLoader,
                         extendedSettings, message -> moduleLog(3, TAG, message));
+                boolean reading41 = HostAdaptation.PROFILE_410.equals(HostAdaptation.currentProfile());
+                commentToolsHook.setReadingOptions(reading41 && localOptions.enabled("comment_transcript_enabled"),
+                        reading41 && localOptions.enabled("loaded_comment_search_enabled"));
                 commentToolsHookFailure = null;
                 moduleLog(3, TAG, "Comment long-press tools hook installed");
             } catch (Throwable failure) {
@@ -1056,6 +1139,58 @@ public final class DouAiModule extends XposedModule {
 
     private void installAdditionalHooks() {
         if (downloadActionHook != null) downloadActionHook.setOptions(localOptions);
+        if (HostAdaptation.currentProfile() == HostAdaptation.PROFILE_410) {
+            if (!manualAiSearchResolved) {
+                try {
+                    manualAiSearch = HostDouyinSearch.create(hostClassLoader, HostAdaptation.currentProfile());
+                    manualAiSearchFailure = null;
+                } catch (ReflectiveOperationException | RuntimeException | LinkageError unavailable) {
+                    manualAiSearchFailure = HostAdaptationDiagnostics.installationFailure(unavailable);
+                    DouAiLog.failure("manual_ai_search", "installation", unavailable);
+                }
+                manualAiSearchResolved = true;
+            }
+            if (commentAiAnalysisHook == null) {
+                try {
+                    commentAiAnalysisHook = CommentAiAnalysisHook.install(hookFramework(), hostClassLoader,
+                            targetContext, localOptions, () -> {
+                                LocalOptions snapshot = localOptions;
+                                AiModelSettings models = AiModelSettings.read(snapshot);
+                                String selected = snapshot.text(CommentAiSettings.MODEL_ID, "");
+                                return selected.isEmpty() ? models : models.activate(selected);
+                            }, manualAiSearch, message -> moduleLog(3, TAG, message));
+                    commentAiAnalysisFailure = null;
+                } catch (Exception | LinkageError unavailable) {
+                    commentAiAnalysisFailure = HostAdaptationDiagnostics.installationFailure(unavailable);
+                    DouAiLog.failure("comment_ai", "installation", unavailable);
+                }
+            }
+        }
+        if (HostAdaptation.currentProfile() == HostAdaptation.PROFILE_410) {
+            try {
+                if (homeSidebarGestureHook == null) homeSidebarGestureHook = HomeSidebarGestureHook.install(
+                        hookFramework(), hostClassLoader, localOptions, message -> moduleLog(3, TAG, message));
+                if (homeSidebarModuleHook == null) {
+                    HostUiController ui = hostUiController;
+                    if (ui != null) homeSidebarModuleHook = HomeSidebarModuleHook.install(hookFramework(), hostClassLoader,
+                            localOptions, (owner, id) -> {
+                                if (com.douai.module.config.SidebarSettings.isFeedAction(id)) {
+                                    FeedGestureToolsHook tools = feedGestureToolsHook;
+                                    if (tools != null) tools.launchAction(owner, id);
+                                    else android.widget.Toast.makeText(owner, "当前作品工具尚未就绪", android.widget.Toast.LENGTH_SHORT).show();
+                                } else ui.showSidebarEntry(owner, id);
+                            }, () -> homeSidebarGestureHook.closeSidebar(),
+                            message -> moduleLog(3, TAG, message));
+                }
+                homeSidebarFailure = null;
+            } catch (Exception | LinkageError unavailable) {
+                homeSidebarFailure = HostAdaptationDiagnostics.installationFailure(unavailable);
+                if (homeSidebarModuleHook != null) { homeSidebarModuleHook.close(); homeSidebarModuleHook = null; }
+                if (homeSidebarGestureHook != null) { homeSidebarGestureHook.close(); homeSidebarGestureHook = null; }
+                DouAiLog.failure("home_sidebar", "installation", unavailable);
+            }
+        }
+        ensureVideoQualityHook(hostApplicationCreated);
         // Startup gates can also be installed synchronously before Application.onCreate.
         synchronized (this) {
             if (hostBehaviorHooks == null) {
@@ -1139,15 +1274,25 @@ public final class DouAiModule extends XposedModule {
                         targetContext, localOptions, message -> moduleLog(3, TAG, message));
                 HostUiController ui = hostUiController;
                 if (ui != null) feedGestureToolsHook.setModuleSettingsLauncher(ui::showSettingsFromGesture);
+                if (ui != null) feedGestureToolsHook.setSidebarSettingsVisible(ui::isSettingsShowing);
+                feedGestureToolsHook.setManualLike((owner, id) -> {
+                    AutoLikeHook liking = autoLikeHook;
+                    if (liking != null) liking.requestManualLike(owner, id);
+                    else android.widget.Toast.makeText(owner, "当前点赞入口尚未就绪", android.widget.Toast.LENGTH_SHORT).show();
+                });
                 Activity activity = ui == null ? null : ui.getResumedActivity();
                 if (activity != null) feedGestureToolsHook.onActivityResumed(activity);
                 AutoPlayHook pauseState = autoPlayHook;
                 if (pauseState != null) feedGestureToolsHook.setPausedStateProvider(pauseState::pauseStateFor);
-            } catch (Throwable failure) { moduleLog(6, TAG, "Feed gesture tools failed", failure); }
+            } catch (Throwable failure) {
+                DouAiLog.failure("gesture", "installation", failure);
+                moduleLog(6, TAG, "Feed gesture tools failed", failure);
+            }
         }
         if (feedGestureToolsHook != null && feedUiHideHook != null) {
             feedGestureToolsHook.setComponentVisibility(feedUiHideHook::setComponentsTemporarilyShown,
                     feedUiHideHook::areComponentsTemporarilyShown);
+            feedGestureToolsHook.setBookmarkPlaybackSync(feedUiHideHook::syncBookmarkPlayback);
         }
         if (directMessageSpeechHook == null) {
             DirectMessageSpeechHook candidate = null;
@@ -1220,6 +1365,15 @@ public final class DouAiModule extends XposedModule {
 
     private Bundle diagnosticsSnapshot() {
         Bundle snapshot = new Bundle(scanDiagnostics);
+        snapshot.putBoolean("feature.comment_ai.installed", commentAiAnalysisHook != null && commentAiAnalysisHook.isActive());
+        snapshot.putBoolean("feature.home_sidebar.installed", homeSidebarGestureHook != null && homeSidebarGestureHook.isActive()
+                && homeSidebarModuleHook != null && homeSidebarModuleHook.isActive());
+        if (homeSidebarFailure != null) snapshot.putString("feature.home_sidebar.failure", homeSidebarFailure);
+        snapshot.putBoolean("feature.video_quality.installed", videoQualityHook != null && videoQualityHook.isActive());
+        if (videoQualityFailure != null) snapshot.putString("feature.video_quality.failure", videoQualityFailure);
+        snapshot.putString("feature.comment_ai.failure", commentAiAnalysisFailure);
+        snapshot.putBoolean("feature.manual_ai_search.installed", manualAiSearch != null);
+        snapshot.putString("feature.manual_ai_search.failure", manualAiSearchFailure);
         snapshot.putString("module_version", BuildConfig.VERSION_NAME);
         snapshot.putBoolean("additional_initialized", additionalInitialized);
         snapshot.putBoolean("feature.local_analytics.installed", localAnalyticsHook != null);
@@ -1426,6 +1580,7 @@ public final class DouAiModule extends XposedModule {
                 || settings.minimumDurationEnabled || settings.minimumLikesEnabled
                 || localOptions.enabled("hide_product_cards")
                 || localOptions.enabled("hide_hotspot_rank_cards")
+                || HostAdaptation.PROFILE_410.equals(HostAdaptation.currentProfile()) && localOptions.enabled("hide_seen_works")
                 || localOptions.enabled("hide_mini_games") || localOptions.enabled("hide_long_videos"));
     }
 

@@ -11,6 +11,37 @@ import static com.douai.module.config.ConfigurationCatalog.Feature.*;
 import static org.junit.Assert.*;
 
 public final class ConfigurationCatalogTest {
+    @Test public void readingFlagsAreOffAndRefreshOnlyTheirOwners() {
+        for (String key : new String[]{"loaded_comment_search_enabled", "comment_transcript_enabled"}) {
+            assertEquals(false, ConfigurationCatalog.settings().get(key).defaultValue);
+            assertConsumers(key, EnumSet.of(COMMENT_TOOLS));
+        }
+        assertEquals(false, ConfigurationCatalog.settings().get("hide_seen_works").defaultValue);
+        assertEquals("3", ConfigurationCatalog.settings().get("seen_work_days").defaultValue);
+        assertConsumers("hide_seen_works", EnumSet.of(FEED_FILTER));
+        assertConsumers("seen_work_days", EnumSet.of(FEED_FILTER));
+    }
+    @Test public void fishSettingsTransferIndependentlyAndReuseTheSharedSpeechRefreshContract() {
+        for (String key : FishSpeechSettings.KEYS) {
+            if (FishSpeechSettings.REFERENCE_SAMPLES.equals(key)) assertFalse(ConfigKeys.TYPES.containsKey(key));
+            else assertEquals("string", ConfigKeys.TYPES.get(key));
+            assertConsumers(key, EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY,
+                    AUTOMATION_DISPATCH, DIRECT_MESSAGE_SPEECH, NATIVE_COMMENT_SPEECH));
+        }
+        for (String cache : new String[]{FishSpeechSettings.VOICE_SAMPLE, FishSpeechSettings.MODEL_SAMPLE,
+                FishSpeechSettings.MODEL_SOURCE}) assertFalse(ConfigKeys.TYPES.containsKey(cache));
+    }
+
+    @Test public void breezeSettingsTransferAndRefreshSpeechConsumersWithoutExportingRuntimeCatalogs() {
+        for (String key : BreezeSpeechSettings.KEYS) {
+            assertEquals("string", ConfigKeys.TYPES.get(key));
+            assertConsumers(key, EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY,
+                    AUTOMATION_DISPATCH, DIRECT_MESSAGE_SPEECH, NATIVE_COMMENT_SPEECH));
+        }
+        for (String runtime : new String[]{BreezeSpeechSettings.VOICE_SAMPLE, BreezeSpeechSettings.MODEL_SAMPLE,
+                BreezeSpeechSettings.MODEL_SOURCE}) assertFalse(ConfigKeys.TYPES.containsKey(runtime));
+    }
+
     @Test public void explicitAnalyticsSettingsTransferWithoutRestartingAutomaticFeatures() {
         for (String key : new String[]{AnalyticsAiSettings.MODEL_ID, AnalyticsAiSettings.SECONDARY_PROMPT}) {
             assertEquals("string", ConfigKeys.TYPES.get(key));
@@ -57,6 +88,27 @@ public final class ConfigurationCatalogTest {
         assertEquals(false, ConfigurationCatalog.settings().get(LocalOptions.DEBUG_LOGGING).defaultValue);
         assertConsumers(LocalOptions.DEBUG_LOGGING, EnumSet.of(DIAGNOSTICS));
     }
+    @Test public void highestVideoQualityTransfersWithFalseDefaultAndDoesNotRefreshPlaybackSpeed() {
+        String key = LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY;
+        assertEquals("boolean", ConfigKeys.TYPES.get(key));
+        assertEquals(false, ConfigurationCatalog.settings().get(key).defaultValue);
+        assertConsumers(key, EnumSet.of(VIDEO_QUALITY));
+        ConfigurationChanges removed = ConfigurationChanges.between(Map.of(key, true), Collections.emptyMap());
+        for (ConfigurationCatalog.Feature feature : ConfigurationCatalog.Feature.values()) {
+            assertEquals("quality removal must only notify its own consumer: " + feature,
+                    feature == VIDEO_QUALITY, removed.affects(feature));
+        }
+    }
+    @Test public void moduleOnlySpeedTransfersWithFalseDefaultAndRefreshesItsThreeConsumers() {
+        assertEquals("boolean", ConfigKeys.TYPES.get(LocalOptions.MODULE_ONLY_SPEED));
+        assertEquals(false, ConfigurationCatalog.settings().get(LocalOptions.MODULE_ONLY_SPEED).defaultValue);
+        assertConsumers(LocalOptions.MODULE_ONLY_SPEED, EnumSet.of(PLAYBACK, GESTURE, HOST_BEHAVIOR));
+        ConfigurationChanges removed = ConfigurationChanges.between(
+                Map.of(LocalOptions.MODULE_ONLY_SPEED, true), Collections.emptyMap());
+        assertTrue(removed.affects(PLAYBACK));
+        assertTrue(removed.affects(GESTURE));
+        assertTrue(removed.affects(HOST_BEHAVIOR));
+    }
     @Test public void miniMaxTransportAndMixKeysParticipateInBackupAndSharedSpeechRefresh() {
         for (String key : new String[]{MiniMaxSpeechOptions.OUTPUT_FORMAT, MiniMaxSpeechOptions.TIMBRE_WEIGHTS}) {
             assertEquals("string", ConfigKeys.TYPES.get(key));
@@ -84,12 +136,35 @@ public final class ConfigurationCatalogTest {
     }
 
     @Test public void sharedSettingsRefreshTheirConsumersWithoutTouchingPlayerOrFeedUi() {
-        assertConsumers("ai_model_settings_v2", EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY, AUTOMATION_DISPATCH));
+        assertConsumers("ai_model_settings_v2", EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY,
+                AUTOMATION_DISPATCH, MANUAL_AI));
         assertConsumers("tts_future_option", EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY,
                 AUTOMATION_DISPATCH, DIRECT_MESSAGE_SPEECH, NATIVE_COMMENT_SPEECH));
         assertConsumers(LocalOptions.COMMENT_REPLY_ENABLED, EnumSet.of(COMMENT_REPLY, AUTOMATION_DISPATCH));
         assertConsumers("comment_prompt", EnumSet.of(COMMENT_AUTOMATION, AUTOMATION_DISPATCH));
         assertConsumers("reply_prompt", EnumSet.of(REPLY, COMMENT_REPLY, AUTOMATION_DISPATCH));
+    }
+
+    @Test public void catalogMarkerOnlyRefreshesEverySpeechConsumerWhenSampleIsUnchanged() {
+        String[][] catalogs = {
+                {"tts_voice_sample", "voice_catalog_third_party_query_v1"},
+                {"tts_minimax_voice_sample", "voice_catalog_minimax_query_v1"},
+                {"tts_breeze_voice_sample", "voice_catalog_breeze_query_v1"},
+                {"tts_fish_voice_sample", "voice_catalog_fish_query_v1"}
+        };
+        Set<ConfigurationCatalog.Feature> expected = EnumSet.of(REPLY, COMMENT_AUTOMATION, COMMENT_REPLY,
+                AUTOMATION_DISPATCH, DIRECT_MESSAGE_SPEECH, NATIVE_COMMENT_SPEECH);
+        for (String[] catalog : catalogs) {
+            ConfigurationChanges changes = ConfigurationChanges.between(
+                    Map.of(catalog[0], "same response", catalog[1], ""),
+                    Map.of(catalog[0], "same response", catalog[1], "new query"));
+            Set<ConfigurationCatalog.Feature> actual = EnumSet.noneOf(ConfigurationCatalog.Feature.class);
+            for (ConfigurationCatalog.Feature feature : ConfigurationCatalog.Feature.values()) {
+                if (changes.affects(feature)) actual.add(feature);
+            }
+            assertEquals(catalog[1], expected, actual);
+            assertFalse(catalog[1], ConfigKeys.TYPES.containsKey(catalog[1]));
+        }
     }
 
     @Test public void removalsAndLegacyPrefixesUseTheSameDependenciesAsUpdates() {
@@ -113,13 +188,21 @@ public final class ConfigurationCatalogTest {
         for (ConfigurationCatalog.Setting setting : ConfigurationCatalog.settings().values()) {
             if (setting.defaultValue != null) ConfigKeys.validate(setting.key, setting.defaultValue);
         }
-        assertEquals("0.25", ConfigurationCatalog.validatePlaybackSpeed(" 0.25 "));
+        assertEquals("0.75", ConfigurationCatalog.validatePlaybackSpeed(" 0.75 "));
+        assertEquals("2", ConfigurationCatalog.validatePlaybackSpeed("2.0"));
         assertEquals("4", ConfigurationCatalog.validatePlaybackSpeed("4"));
-        for (String invalid : new String[]{"0", "4.01", "Infinity", "NaN", "text", ""}) {
+        for (String invalid : new String[]{"0", "0.25", "1.75", "2.75", "3.5", "4.01", "Infinity", "NaN", "text", ""}) {
             assertThrows(invalid, IllegalArgumentException.class, () -> ConfigurationCatalog.validatePlaybackSpeed(invalid));
-            assertEquals("2", ConfigurationCatalog.normalizedPlaybackSpeed(invalid));
-            // Import remains type-compatible; runtime/settings retain their existing fallback behavior.
+            // Legacy transfer strings stay type-compatible and normalize instead of rejecting the backup.
             ConfigKeys.validate("playback_speed", invalid);
+        }
+        assertEquals("3", ConfigurationCatalog.normalizedPlaybackSpeed("3.5"));
+        assertEquals("3", ConfigurationCatalog.normalizedPlaybackSpeed("2.75"));
+        assertEquals("1.5", ConfigurationCatalog.normalizedPlaybackSpeed("1.75"));
+        assertEquals("0.75", ConfigurationCatalog.normalizedPlaybackSpeed("0"));
+        assertEquals("4", ConfigurationCatalog.normalizedPlaybackSpeed("4.01"));
+        for (String invalid : new String[]{"Infinity", "NaN", "text", ""}) {
+            assertEquals("2", ConfigurationCatalog.normalizedPlaybackSpeed(invalid));
         }
         assertEquals("2", ConfigurationCatalog.normalizedPlaybackSpeed(null));
         assertThrows(IllegalArgumentException.class, () -> ConfigKeys.validate("playback_speed", 2));

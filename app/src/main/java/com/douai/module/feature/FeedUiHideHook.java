@@ -11,6 +11,7 @@ import android.view.ViewTreeObserver;
 import android.widget.TextView;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 
 import com.douai.module.config.ExtendedSettings;
 import com.douai.module.diagnostics.DouAiLog;
@@ -77,7 +78,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
     private final Map<View, WindowMonitor> windowMonitors = new WeakHashMap<>();
     private final Map<View, Map<View, TargetStyle>> fixedTargets = new WeakHashMap<>();
     private final Map<View, Map<View, TargetStyle>> windowProgressTargets = new WeakHashMap<>();
-    private final Map<View, Set<View>> customTargets = new WeakHashMap<>();
+    private final Map<View, Map<View, Integer>> customTargets = new WeakHashMap<>();
     private final Map<View, String> customSignatures = new WeakHashMap<>();
     private final Map<View, Integer> customResolvedCounts = new WeakHashMap<>();
     private final Map<View, Integer> customRetryCounts = new WeakHashMap<>();
@@ -104,6 +105,14 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
     private WeakReference<View> selectedRoot = new WeakReference<>(null);
     private WeakReference<Object> selectedHolder = new WeakReference<>(null);
     private String selectedAid;
+    // A dispatcher notification can precede the detail holder's selection or first attached frame.
+    // Keep only a short hand-off, never a playback history. Reconcile only against the actual card.
+    private String pendingPlaybackAid;
+    private boolean pendingPaused;
+    private WeakReference<Object> pendingPlaybackHolder;
+    private long pendingPlaybackUntil;
+    private String previousAid;
+    private long previousAidUntil;
     private Runnable progressDiagnosticTask;
     private int progressSelectionSnapshots;
     private int progressChangeSnapshots;
@@ -170,6 +179,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         mainHandler.post(() -> {
             if (closed) return;
             ComponentHideSettings current = components;
+            if (!usesPlaybackPolicy(current)) clearPendingPlayback();
             if (componentsShown && (current == null || !current.enabled || !current.showOnPause)) {
                 componentsShown = false;
                 notifyVisibility();
@@ -205,12 +215,14 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
             if (closed || componentsShown == shown || current == null
                     || !current.configured || !current.enabled) return;
             componentsShown = shown;
+            clearPendingPlayback();
             for (View root : new ArrayList<>(activeCards)) {
                 if (root.isAttachedToWindow()) hiddenViews.addAndGet(hideMatchingViews(root));
             }
             notifyVisibility();
             scheduleProgressDiagnostics("temporary");
             refreshWindows();
+            hiddenViews.addAndGet(reconcileTargets());
         });
     }
 
@@ -262,20 +274,97 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         }
     }
 
+    private static boolean usesPlaybackPolicy(ComponentHideSettings current) {
+        return current != null && current.configured && current.enabled && current.showOnPause;
+    }
+
+    /** A verified state read after positioning a bookmark; never change user preferences. */
+    public void syncBookmarkPlayback(Object holder, Boolean paused) {
+        if (closed || holder == null || paused == null || !usesPlaybackPolicy(components)) return;
+        String aid = readAid(holder);
+        if (aid == null || aid.isEmpty()) return;
+        // Queue behind player events already emitted by seek. Guard holder recycling at delivery.
+        mainHandler.post(() -> {
+            if (!closed && aid.equals(readAid(holder))) receivePlayback(aid, paused, holder);
+        });
+    }
+
     private void onPlaybackVisibility(String aid, boolean paused) {
+        receivePlayback(aid, paused, null);
+    }
+
+    private void receivePlayback(String aid, boolean paused, Object verifiedHolder) {
         ComponentHideSettings current = components;
         View root = selectedRoot.get();
-        if (closed || current == null || !current.configured || !current.enabled || !current.showOnPause
-                || root == null || !activeCards.contains(root) || !root.isAttachedToWindow()
-                || !root.isShown() || aid.isEmpty() || !aid.equals(selectedAid)
-                || !aid.equals(readAid(selectedHolder.get()))) return;
+        Object holder = selectedHolder.get();
+        if (closed || !usesPlaybackPolicy(current) || aid == null || aid.isEmpty()) return;
+        if (aid.equals(selectedAid) && (verifiedHolder == null || verifiedHolder == holder)
+                && aid.equals(readAid(holder)) && root != null && activeCards.contains(root)
+                && root.isAttachedToWindow() && isShownWithoutModuleHiding(root)) {
+            if (aid.equals(pendingPlaybackAid)) clearPendingPlayback();
+            applyPlayback(root, current, paused);
+            return;
+        }
+        // Outgoing callbacks must not overwrite a new card's already buffered initial state.
+        boolean recentlyDeparted = aid.equals(previousAid) && SystemClock.uptimeMillis() <= previousAidUntil;
+        if (!aid.equals(selectedAid) && recentlyDeparted && verifiedHolder == null) return;
+        if (verifiedHolder != null && holder != null && verifiedHolder != holder
+                && recentlyDeparted) return;
+        pendingPlaybackAid = aid;
+        pendingPlaybackHolder = verifiedHolder == null ? null : new WeakReference<>(verifiedHolder);
+        pendingPaused = paused;
+        pendingPlaybackUntil = SystemClock.uptimeMillis() + 1500;
+    }
+
+    private void clearPendingPlayback() {
+        pendingPlaybackAid = null;
+        pendingPlaybackHolder = null;
+    }
+
+    private void consumePendingPlayback(View root) {
+        if (pendingPlaybackAid == null) return;
+        ComponentHideSettings current = components;
+        if (!usesPlaybackPolicy(current) || SystemClock.uptimeMillis() > pendingPlaybackUntil) {
+            clearPendingPlayback(); return;
+        }
+        Object holder = selectedHolder.get();
+        if (root != selectedRoot.get() || !root.isAttachedToWindow() || !activeCards.contains(root)
+                || (pendingPlaybackHolder != null && pendingPlaybackHolder.get() != holder)
+                || !pendingPlaybackAid.equals(readAid(holder)) || !isShownWithoutModuleHiding(root)) return;
+        // A just-selected holder can be present before its work model is bound.
+        if (selectedAid == null || selectedAid.isEmpty()) selectedAid = pendingPlaybackAid;
+        if (!pendingPlaybackAid.equals(selectedAid)) return;
+        boolean paused = pendingPaused; clearPendingPlayback();
+        applyPlayback(root,current,paused);
+    }
+
+    private void departed(String aid) {
+        if (aid == null || aid.isEmpty()) return;
+        previousAid = aid;
+        previousAidUntil = SystemClock.uptimeMillis() + 1500;
+    }
+
+    private void applyPlayback(View root, ComponentHideSettings current, boolean paused) {
         if (componentsShown == paused) return;
         componentsShown = paused;
         hiddenViews.addAndGet(hideMatchingViews(root));
         notifyVisibility();
         scheduleProgressDiagnostics("playback");
         refreshWindows();
+        hiddenViews.addAndGet(reconcileTargets());
         if (paused && current.openCommentsOnShow) openComments(root);
+    }
+
+    private boolean isShownWithoutModuleHiding(View root) {
+        if (root.isShown()) return true;
+        for (View view = root; view != null;
+             view = view.getParent() instanceof View ? (View) view.getParent() : null) {
+            if (view.getVisibility() == View.VISIBLE) continue;
+            ViewState state = originalStates.get(view);
+            if (state == null || !state.trackComponentVisibility || state.visibility != View.VISIBLE
+                    || view.getVisibility() != state.appliedVisibility) return false;
+        }
+        return true;
     }
 
     private static String readAid(Object holder) {
@@ -405,6 +494,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                 mainHandler.post(() -> {
                     if (closed) return;
                     if (paused) {
+                        if (selectedRoot.get() == root && selectedHolder.get() != holder) return;
                         activeCards.remove(root);
                         HideMonitor monitor = hideMonitors.remove(root);
                         if (monitor != null) monitor.remove();
@@ -416,13 +506,17 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                             cancelProgressDiagnostics();
                             selectedRoot.clear();
                             selectedHolder.clear();
+                            departed(selectedAid);
                             selectedAid = null;
                         }
                         return;
                     }
                     String aid = readAid(holder);
-                    boolean changedCard = selectedRoot.get() != root
+                    boolean changedCard = selectedRoot.get() != root || selectedHolder.get() != holder
                             || (aid != null && !aid.equals(selectedAid));
+                    if (changedCard && selectedAid != null && !selectedAid.equals(aid)) departed(selectedAid);
+                    if (changedCard && pendingPlaybackAid != null && aid != null && !aid.isEmpty()
+                            && !pendingPlaybackAid.equals(aid)) clearPendingPlayback();
                     selectedRoot = new WeakReference<>(root);
                     selectedHolder = new WeakReference<>(holder);
                     selectedAid = aid;
@@ -438,6 +532,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                     if (hasAnyEffect()) {
                         hiddenViews.addAndGet(hideMatchingViews(root));
                         installHideMonitor(root);
+                        consumePendingPlayback(root);
                     }
                     if (changedCard) scheduleProgressDiagnostics("selection");
                     safeLog("Feed UI card scan: callbacks=" + selectedCallbacks.get()
@@ -501,8 +596,9 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
     }
 
     private String progressDiagnosticStyle(View view) {
-        for (Set<View> custom : customTargets.values()) {
-            if (custom.contains(view)) return "custom alpha=-2";
+        for (Map<View, Integer> custom : customTargets.values()) {
+            Integer alpha = custom.get(view);
+            if (alpha != null) return "custom alpha=" + alpha;
         }
         for (Map<View, TargetStyle> targets : fixedTargets.values()) {
             TargetStyle style = targets.get(view);
@@ -542,13 +638,13 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         if (root == null) return 0;
         int changed = 0;
         View windowRoot = root.getRootView();
-        Set<View> custom = customTargets.get(windowRoot);
+        Map<View, Integer> custom = customTargets.get(windowRoot);
         boolean windowOwnsCustom = windowMonitors.containsKey(windowRoot);
         Map<View, TargetStyle> fixed = fixedTargets.get(root);
         if (fixed != null) {
             for (Map.Entry<View, TargetStyle> target : fixed.entrySet()) {
                 if (target.getKey() == null || isFinderView(target.getKey())) continue;
-                if (windowOwnsCustom && custom != null && custom.contains(target.getKey())) continue;
+                if (windowOwnsCustom && custom != null && custom.containsKey(target.getKey())) continue;
                 TargetStyle style = target.getValue();
                 changed += style.component ? applyComponentTarget(target.getKey(), style.alpha, style.trackHostAlpha)
                         : applyTarget(target.getKey(), style.alpha);
@@ -556,8 +652,9 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         }
         // The window observer already owns these properties, including feed-scoped custom rules.
         if (!windowOwnsCustom && custom != null) {
-            for (View view : custom) {
-                if (view != null && !isFinderView(view)) changed += applyComponentTarget(view, -2);
+            for (Map.Entry<View, Integer> target : custom.entrySet()) {
+                View view = target.getKey();
+                if (view != null && !isFinderView(view)) changed += applyComponentTarget(view, target.getValue(), true);
             }
         }
         return changed;
@@ -588,7 +685,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
 
     private boolean hasCustomEffect() {
         ComponentHideSettings current = components;
-        return current != null && current.enabled && !current.customViews.isEmpty();
+        return current != null && current.enabled && !componentsShown && !current.customViews.isEmpty();
     }
 
     private boolean hasWindowEffect() {
@@ -679,30 +776,30 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         ComponentHideSettings current = components;
         StringBuilder signature = new StringBuilder();
         for (CustomViewLocator locator : current.customViews) {
-            signature.append(locator.identityKey()).append('\n');
+            signature.append(locator.identityKey()).append('=').append(locator.alpha).append('\n');
         }
         String nextSignature = signature.toString();
         String previousSignature = customSignatures.get(windowRoot);
-        Set<View> previous = customTargets.get(windowRoot);
+        Map<View, Integer> previous = customTargets.get(windowRoot);
         if (!force && nextSignature.equals(previousSignature)
                 && previous != null
                 && customResolvedCounts.getOrDefault(windowRoot, 0) == current.customViews.size()) {
             boolean attached = true;
-            for (View target : previous) attached &= target.isAttachedToWindow();
+            for (View target : previous.keySet()) attached &= target.isAttachedToWindow();
             if (attached) return;
         }
         if (!force && nextSignature.equals(previousSignature)
                 && customResolvedCounts.getOrDefault(windowRoot, 0) < current.customViews.size()
                 && customRetryCounts.getOrDefault(windowRoot, 0) >= MAX_CUSTOM_RETRIES) return;
         viewSearches.incrementAndGet();
-        Set<View> targets = Collections.newSetFromMap(new WeakHashMap<>());
+        Map<View, Integer> targets = new WeakHashMap<>();
         int resolvedCount = 0;
         for (CustomViewLocator locator : current.customViews) {
             boolean resolved = false;
             if (locator.scope == CustomViewLocator.Scope.WINDOW) {
                 View target = locator.resolve(windowRoot, null);
                 if (target != null && target != windowRoot && !isFinderView(target)) {
-                    targets.add(target);
+                    targets.put(target, locator.alpha);
                     resolved = true;
                 }
             } else {
@@ -710,7 +807,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                     if (feedRoot.isAttachedToWindow() && feedRoot.getRootView() == windowRoot) {
                         View target = locator.resolve(windowRoot, feedRoot);
                         if (target != null && target != feedRoot && !isFinderView(target)) {
-                            targets.add(target);
+                            targets.put(target, locator.alpha);
                             resolved = true;
                         }
                     }
@@ -720,7 +817,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         }
         customTargets.put(windowRoot, targets);
         WindowMonitor monitor = windowMonitors.get(windowRoot);
-        if (monitor != null) monitor.captureTargets(targets);
+        if (monitor != null) monitor.captureTargets(targets.keySet());
         customSignatures.put(windowRoot, nextSignature);
         customResolvedCounts.put(windowRoot, resolvedCount);
         if (force || !nextSignature.equals(previousSignature)) {
@@ -736,8 +833,10 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         Map<View, TargetStyle> targets = new LinkedHashMap<>();
         for (Map<View, TargetStyle> values : fixedTargets.values()) targets.putAll(values);
         for (Map<View, TargetStyle> values : windowProgressTargets.values()) targets.putAll(values);
-        for (Set<View> values : customTargets.values()) {
-            for (View view : values) targets.put(view, new TargetStyle(-2, true, view));
+        for (Map<View, Integer> values : customTargets.values()) {
+            for (Map.Entry<View, Integer> target : values.entrySet()) {
+                targets.put(target.getKey(), new TargetStyle(target.getValue(), true, target.getKey(), true));
+            }
         }
         for (View view : new ArrayList<>(originalStates.keySet())) {
             if (!targets.containsKey(view)) {
@@ -1122,6 +1221,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                 return true;
             }
             if (hasAnyEffect() && !closed && activeCards.contains(root)) {
+                if (pendingPlaybackAid != null) consumePendingPlayback(root);
                 preDrawRechecks.incrementAndGet();
                 if (!targetsDirty && !structure.matches(structureNodeChecks)) targetsDirty = true;
                 Map<View, TargetStyle> targets = fixedTargets.get(root);
@@ -1174,6 +1274,7 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
         @Override
         public void onViewAttachedToWindow(View view) {
             if (closed || !hasAnyEffect() || !activeCards.contains(view)) return;
+            consumePendingPlayback(view);
             hiddenViews.addAndGet(hideMatchingViews(view));
             attachObserver(view);
             captureStructure(view);
@@ -1221,14 +1322,15 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
                     refreshWindowProgressTargets(root);
                     hiddenViews.addAndGet(reconcileTargets());
                 }
-                Set<View> targets = customTargets.get(root);
+                Map<View, Integer> targets = customTargets.get(root);
                 int changed = 0;
-                for (View target : targets == null ? Collections.<View>emptySet() : targets) {
-                    if (target != null && !isFinderView(target)) changed += applyComponentTarget(target, -2);
+                if (targets != null) for (Map.Entry<View, Integer> target : targets.entrySet()) {
+                    View view = target.getKey();
+                    if (view != null && !isFinderView(view)) changed += applyComponentTarget(view, target.getValue(), true);
                 }
                 Map<View, TargetStyle> progress = windowProgressTargets.get(root);
                 if (progress != null) for (Map.Entry<View, TargetStyle> entry : progress.entrySet()) {
-                    if (targets != null && targets.contains(entry.getKey())) continue;
+                    if (targets != null && targets.containsKey(entry.getKey())) continue;
                     changed += applyComponentTarget(entry.getKey(), entry.getValue().alpha, true);
                 }
                 hiddenViews.addAndGet(changed);
@@ -1544,6 +1646,8 @@ public final class FeedUiHideHook implements Application.ActivityLifecycleCallba
             selectedRoot.clear();
             selectedHolder.clear();
             selectedAid = null;
+            previousAid = null;
+            clearPendingPlayback();
             visibilityListener = ignored -> { };
         });
         unhookAll(null);

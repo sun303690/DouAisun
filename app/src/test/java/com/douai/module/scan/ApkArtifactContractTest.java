@@ -40,8 +40,7 @@ public final class ApkArtifactContractTest {
             assertEquals("true", metadata.getProperty("staticScope"));
             assertEquals(3, metadata.size());
 
-            for (HostAdaptation.Profile profile : new HostAdaptation.Profile[]{
-                    HostAdaptation.PROFILE_406, HostAdaptation.PROFILE_408}) {
+            for (HostAdaptation.Profile profile : HostApkTestProfile.profiles()) {
                 File source = HostApkTestProfile.assetFile(profile.rulesAsset);
                 byte[] packagedRules = read(release, "assets/" + profile.rulesAsset);
                 assertArrayEquals(profile.versionName + " packaged host rules differ from source",
@@ -95,6 +94,39 @@ public final class ApkArtifactContractTest {
 
     @Test public void releaseHostReflectionNamesAndScannerOpcodeTextSurviveR8() throws Exception {
         DexFacts release = dexFacts("DOUAI_VERIFY_RELEASE_APK");
+        assertMethod(release, "Lcom/douai/module/config/AiModelSettings;",
+                "sameAutomationSelection(Lcom/douai/module/config/LocalOptions;Lcom/douai/module/config/LocalOptions;Ljava/lang/String;)Z",
+                0, true);
+        for (String marker : new String[]{"跟随全局默认", "自动回复（私聊、群聊、评论回复）", "请先选择模型配置"}) {
+            assertTrue("Missing per-feature model selection marker: " + marker, release.strings.contains(marker));
+        }
+        assertFalse("Model management must not include activation controls", release.strings.contains("ai.activate."));
+        assertFalse("Saving a model must not activate it", release.strings.contains("保存并启用"));
+        for (String marker : new String[]{"module_only_speed", "仅模块控制倍速", "倍速锁定目标：", "已选择正常播放：1x"}) {
+            assertTrue("Missing module speed control marker: " + marker, release.strings.contains(marker));
+        }
+        assertFalse("The old retry toast would contradict a retained speed choice",
+                release.strings.contains("倍速尚未确认生效，请重试"));
+        assertMethod(release, "Lcom/douai/module/feature/HostPlaybackSpeedAccess;",
+                "readEffective(Ljava/lang/Object;)F", 0, false);
+        assertMethod(release, "Lcom/douai/module/feature/GestureSpeedOverride;",
+                "registerGlobal()V", 0, false);
+        assertMethod(release, "Lcom/douai/module/feature/GestureSpeedOverride;",
+                "captureScope()Lcom/douai/module/feature/GestureSpeedOverride$ScopeToken;", 0, true);
+        assertMethod(release, "Lcom/douai/module/feature/EnginePlaybackSpeedHooks;",
+                "close()V", 0, false);
+        assertMethod(release, "Lcom/douai/module/feature/EnginePlaybackSpeedHooks;",
+                "deoptimizeSdkCallers(Lio/github/libxposed/api/XposedInterface;Lcom/douai/module/scan/HostScanReport;Ljava/lang/ClassLoader;)V",
+                0, false);
+        assertMethod(release, "Lcom/douai/module/feature/GestureSpeedOverride;",
+                "restorationSpeed(Ljava/lang/Object;F)F", 0, false);
+        assertMethod(release, "Lcom/douai/module/feature/SpeedGestureNativeGate;",
+                "hold(Landroid/view/View;Landroid/view/MotionEvent;)Lcom/douai/module/feature/SpeedGestureNativeGate$Lease;",
+                0, false);
+        for (String operation : new String[]{"replayDown", "discard"}) {
+            assertMethod(release, "Lcom/douai/module/feature/SpeedGestureNativeGate$Lease;",
+                    operation + "()V", 0, false);
+        }
         assertMethod(release, "Lcom/douai/module/feature/CommentReplyHook;",
                 "generationFailureDiagnostic(Ljava/lang/Exception;)Ljava/lang/String;", 0, true);
         assertMethod(release, "Lcom/douai/module/feature/CommentReplyHook$SharedReplyGenerator;",

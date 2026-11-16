@@ -2,14 +2,18 @@
     <string name="app_name">DouAi</string>
     <string name="module_brand">DouAi</string>
     <string name="module_version">模块版本 %1$s</string>
-    <string name="module_host_version">抖音 40.6.0</string>
+    <string name="module_host_version">抖音 40.6.0 / 40.8.0 / 41.0.0</string>
     <string name="module_status">模块状态</string>
     <string name="module_framework_connected">LSPosed 已连接</string>
     <string name="module_framework_disconnected">LSPosed 未连接</string>
     <string name="module_framework_waiting">等待 LSPosed 服务连接以读取抖音进程诊断。</string>
     <string name="module_restart_required">请完全退出并重新打开抖音后生效。</string>
     <string name="module_settings_title">功能设置</string>
-    <string name="module_settings_location">抖音内功能设置独立保存在抖音应用，本页只显示模块应用状态。</string>
     <string name="module_open_host">打开抖音</string>
     <string name="module_host_unavailable">未安装抖音或无法打开应用。</string>
+    <string name="voice_quick_catalog_status">已缓存 %1$d 项 · 匹配 %2$d 项%3$s</string>
+    <string name="voice_quick_catalog_empty">\n未找到匹配音色，可清空搜索或到完整设置搜索全部音色。</string>
+    <string name="fish_catalog_public_title">单说话人音色 · 公开音色</string>
+    <string name="fish_catalog_self_title">单说话人音色 · 我的音色</string>
+    <string name="breeze_catalog_title">Breeze Blue 音色 · %1$s</string>
 </resources>

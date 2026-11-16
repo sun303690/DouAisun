@@ -33,10 +33,14 @@ import com.douai.module.config.FeatureSettings;
 import com.douai.module.config.ConfigurationCatalog;
 import com.douai.module.config.SettingsStore;
 import com.douai.module.config.LocalOptions;
+import com.douai.module.config.CommentAiSettings;
+import com.douai.module.config.SidebarSettings;
+import com.douai.module.config.PlaybackSpeedPresets;
 import com.douai.module.config.ThirdPartyDownloadSettings;
 import com.douai.module.feature.FeedGestureToolsHook;
 import com.douai.module.feature.TopTabFilterHook;
 import com.douai.module.feature.ProfileListEntry;
+import com.douai.module.feature.NativeFollowLists;
 import com.douai.module.feature.NativeMessagingHooks;
 import com.douai.module.ui.miuix.HostComposeEnvironment;
 import com.douai.module.ui.miuix.MiuixComponentHidePage;
@@ -106,18 +110,24 @@ public final class ModuleSettingsScreen {
             new SearchEntry("analytics", "本地数据分析与报告", "扩展功能 > 本地数据分析", "本地分析 统计 图表 浏览历史 AI分析 报告 导出 长图 PNG PDF 分享", SearchDestination.ANALYTICS),
             new SearchEntry("debug-logs", "调试与日志", "关于 > 调试与日志", "调试 debug 日志 log LSPosed 详细 简要 JSON 刷新 清空 复制 导出", SearchDestination.DEBUG_LOGS),
             new SearchEntry("speed", "自动倍速与自动播放", "自动播放 > 倍速数值", "倍速 播放速度 自动滑动 智能滑动 暂停评论", SearchDestination.AUTOPLAY),
+            new SearchEntry("module-only-speed", "仅模块控制倍速", "自动播放 > 仅模块控制倍速", "倍速 独占 模块控制 官方倍速 长按 手动优先 1x 4x", SearchDestination.AUTOPLAY,
+                    "settings.toggle.仅模块控制倍速"),
+            new SearchEntry("video-quality", "锁定最高画质", "自动播放 > 锁定最高画质", "画质 清晰度 最高画质 自动 高清 超清 分辨率 1080 2K 4K", SearchDestination.AUTOPLAY,
+                    "settings.toggle.锁定最高画质"),
             new SearchEntry("interaction", "互动自动化", "自动播放 > 互动自动化", "自动点赞 自动关注 停止自动化", SearchDestination.INTERACTION),
-            new SearchEntry("feed-filter", "视频筛选", "视频筛选 > 过滤总开关", "过滤 广告 直播 图集 关键词 时长 低赞 推荐商家 商品卡 购物卡 热点榜单", SearchDestination.FILTER),
+            new SearchEntry("feed-filter", "视频筛选", "视频筛选 > 过滤总开关", "过滤 广告 直播 图集 关键词 时长 低赞 推荐商家 商品卡 购物卡 热点榜单 已看 去重 重复", SearchDestination.FILTER),
             new SearchEntry("component-hide", "组件隐藏", "组件隐藏 > 隐藏与透明度", "界面 隐藏 透明度 自定义控件 暂停显示", SearchDestination.COMPONENT_HIDE),
             new SearchEntry("streak", "自动续火花", "自动续火花 > 选择用户", "续火花 好友 定时 结果未知 重试", SearchDestination.STREAK),
             new SearchEntry("message-recall", "消息防撤回", "消息管理 > 消息防撤回", "私信 防撤回 撤回背景 消息记录", SearchDestination.MESSAGE),
             new SearchEntry("gestures", "长按与双击手势", "界面相关 > 长按事件与双击事件", "手势 长按 双击 悬浮条 工具栏", SearchDestination.GESTURES),
-            new SearchEntry("comment-tools", "评论工具", "评论相关 > 长按操作", "复制评论 评论图片 复制源数据 查看评论数据 评论解析 JSON 语音摘要 彩色评论 后缀 替换语音", SearchDestination.COMMENT),
+            new SearchEntry("comment-tools", "评论工具", "评论相关 > 长按操作", "复制评论 评论图片 复制源数据 查看评论数据 评论解析 JSON 语音摘要 彩色评论 后缀 替换语音 查评论 搜索评论 转写", SearchDestination.COMMENT),
             new SearchEntry("comment-voice-file", "评论语音文件", "评论相关 > 评论语音文件", "替换语音 音频 文件路径 选择文件", SearchDestination.COMMENT, "settings.option.评论语音文件"),
             new SearchEntry("message-voice-file", "私聊语音文件", "消息管理 > 私聊语音文件", "私信 替换语音 音频 文件路径 选择文件", SearchDestination.MESSAGE, "settings.option.私聊语音文件"),
             new SearchEntry("comment-speech", "评论转语音", "评论相关 > 评论转语音", "语音 TTS # 单击发送 评论", SearchDestination.COMMENT, "settings.option.评论转语音"),
             new SearchEntry("hash-long-press-voice", "#长按发送转语音（全局）", "评论相关 > #长按发送转语音（全局）", "语音 TTS #长按 长按发送 全局 私信 群聊 评论", SearchDestination.COMMENT, "settings.toggle.#长按发送转语音（全局）"),
-            new SearchEntry("ai-chat", "AI 测试对话", "扩展功能 > AI 模型设置 > 测试对话", "AI 聊天 测试模型 对话 图片", SearchDestination.AI_CHAT)
+            new SearchEntry("ai-chat", "AI 测试对话", "扩展功能 > AI 模型设置 > 测试对话", "AI 聊天 测试模型 对话 图片", SearchDestination.AI_CHAT),
+            new SearchEntry("comment-ai", "评论 AI 解析与抖音搜索", "扩展功能 > AI 模型设置", "AI 解析 接管 评论 分析 搜索 抖音 联网 工具调用", SearchDestination.AI),
+            new SearchEntry("sidebar", "首页右滑侧边栏与模块快捷入口", "界面相关 > 首页右滑打开侧边栏", "侧边栏 右滑 商城 常用功能 评论历史 回复历史 快捷入口", SearchDestination.GESTURES, "settings.toggle.首页右滑打开侧边栏")
     };
 
     public ModuleSettingsScreen(Context context, SettingsStore repository) {
@@ -135,6 +145,46 @@ public final class ModuleSettingsScreen {
         this.onClose = onClose;
         this.analyticsDiagnostics = analyticsDiagnostics;
         this.settings = repository.load();
+    }
+
+    /** Opens catalog-owned viewing/configuration destinations without executing an automation action. */
+    public void openSidebarEntry(String id) {
+        if (closed || !repository.isInHost() || SidebarSettings.find(id) == null) return;
+        dismissChildPages();
+        switch (id) {
+            case "module": break;
+            case "comment_history": showAutomationHistory(com.douai.module.config.AutomationHistoryStore.COMMENT); break;
+            case "reply_history": showAutomationHistory(com.douai.module.config.AutomationHistoryStore.REPLY); break;
+            case "ai_chat": showAiChat(); break;
+            case "download_tasks": {
+                DownloadTasksDialog page = new DownloadTasksDialog(context, miuixHome != null);
+                showOptionDialog(page.dialog(), page::close); break;
+            }
+            case "analytics": showLocalAnalytics(); break;
+            case "ai_models": showAiModelSettings(); break;
+            case "speech": showSpeechSettings(); break;
+            case "auto_comment": openCategory(Category.AUTO_COMMENT); break;
+            case "auto_reply": openCategory(Category.AUTO_REPLY); break;
+            case "automation": showAutomationSettings(); break;
+            case "streak": openCategory(Category.STREAK); break;
+            case "feed_filter": openCategory(Category.FILTER); break;
+            case "component_hide": openCategory(Category.COMPONENT_HIDE); break;
+            case "autoplay": openCategory(Category.AUTOPLAY); break;
+            case "gestures": openCategory(Category.INTERFACE); break;
+            case "comment_tools": openCategory(Category.COMMENT); break;
+            case "message_management": openCategory(Category.MESSAGE); break;
+            case "download_settings": openCategory(Category.DOWNLOAD); break;
+            case "backup": showConfigBackup(); break;
+            case "debug_logs": showDebugLogs(); break;
+            case "help": showOptionDialog(new HelpDialog(context, miuixHome != null).dialog()); break;
+            case "about": openCategory(Category.ABOUT); break;
+            default: break;
+        }
+    }
+
+    private void showAutomationHistory(String kind) {
+        AutomationHistoryDialog page = new AutomationHistoryDialog(context, kind, miuixHome != null);
+        showOptionDialog(page.dialog(), page::closeDetails);
     }
 
     public View createView() {
@@ -158,14 +208,11 @@ public final class ModuleSettingsScreen {
         scroll.addView(content, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        addTitle("DouAi", "抖音 40.6.0 / 40.8.0");
+        addTitle("DouAi", "抖音 40.6.0 / 40.8.0 / 41.0.0");
         addScanStatus(ScanStatus.pending());
-        if (repository.isInHost()) {
-            addHostSettingsNotice();
-        } else {
+        if (!repository.isInHost()) {
             addFrameworkSyncStatus();
-            addIndependentSettingsNotice();
-            addOption("关于", "DouAi " + com.douai.module.BuildConfig.VERSION_NAME, null, true,
+            addOption("关于", "", "DouAi " + com.douai.module.BuildConfig.VERSION_NAME, true,
                     () -> openCategory(Category.ABOUT));
             ModuleTheme.bind(scroll);
             return scroll;
@@ -525,20 +572,26 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("禁用双击点赞", "", "disable_double_tap_like");
                 addLocalSwitch("不允许系统跳过已隐藏视频", "", "prevent_skip_hidden");
                 addLocalSwitch("不允许中途插入视频", "", "prevent_insert_video");
-                addLocalSwitch("拦截长按倍数启用场景", "", "block_long_press_speed");
-                addLocalSwitch("拦截系统长按手势", "",
-                        LocalOptions.INTERCEPT_NATIVE_LONG_PRESS);
+                addNativeLongPressSwitch("拦截长按倍数启用场景", "block_long_press_speed");
+                addNativeLongPressSwitch("拦截系统长按手势", LocalOptions.INTERCEPT_NATIVE_LONG_PRESS);
                 addOption("长按事件", "", null, true, () -> showGestureSettings("长按事件", "long_press"));
                 addOption("双击事件", "", null, true, () -> showGestureSettings("双击事件", "double_tap"));
                 addOption("沉浸式全屏", "", null, true, this::showSystemBarSettings);
-                addSwitch("隐藏顶部Tab开关", "",
-                        repository.getBoolean("hide_top_tabs", false), true,
-                        value -> repository.putBoolean("hide_top_tabs", value));
-                addOption("设置顶部Tab", "", repository.getString("hidden_top_tabs", ""),
-                        true, this::showTopTabs);
+                addDependentSwitch("隐藏顶部Tab开关", "",
+                        repository.getBoolean("hide_top_tabs", false),
+                        value -> repository.putBoolean("hide_top_tabs", value),
+                        () -> addOption("设置顶部Tab", "", repository.getString("hidden_top_tabs", ""),
+                                true, this::showTopTabs));
                 addSwitch("首页刷新确认", "",
                         repository.getBoolean("confirm_refresh", false), true,
                         value -> repository.putBoolean("confirm_refresh", value));
+                addDependentSwitch("首页右滑打开侧边栏", "",
+                        repository.getBoolean(SidebarSettings.ENABLED, false),
+                        value -> repository.putBoolean(SidebarSettings.ENABLED, value), () -> {
+                            OptionRow[] sidebarItems = new OptionRow[1];
+                            sidebarItems[0] = addOption("侧边栏显示项", "", sidebarSelectionPreview(), true,
+                                    () -> showSidebarSelection(sidebarItems[0]));
+                        });
                 break;
             case FILTER:
                 buildFeedFilters();
@@ -547,77 +600,98 @@ public final class ModuleSettingsScreen {
                 buildDownloadControls();
                 break;
             case AUTOPLAY:
-                addSwitch("自动滑动到下一个视频", "",
-                        repository.getBoolean("auto_play", false), true,
-                        value -> repository.putBoolean("auto_play", value));
-                addLocalSwitch("自动倍速播放", "", "auto_speed");
-                addEditableOption("倍速数值", "", effectivePlaybackSpeed(
-                                repository.getString(ConfigurationCatalog.PLAYBACK_SPEED, ConfigurationCatalog.PLAYBACK_SPEED_DEFAULT)), true, true, false,
-                        value -> repository.putString(ConfigurationCatalog.PLAYBACK_SPEED, ConfigurationCatalog.validatePlaybackSpeed(value)));
-                addLocalSwitch("打开评论时,不滑动视频", "", "pause_auto_on_comments");
-                addSwitch("滑动智能判断上下", "",
-                        repository.getBoolean("smart_swipe", true), true,
-                        value -> repository.putBoolean("smart_swipe", value));
+                addDependentSwitch("自动滑动到下一个视频", "",
+                        repository.getBoolean("auto_play", false),
+                        value -> repository.putBoolean("auto_play", value), () -> {
+                            addLocalSwitch("打开评论时,不滑动视频", "", "pause_auto_on_comments");
+                            addSwitch("滑动智能判断上下", "",
+                                    repository.getBoolean("smart_swipe", true), true,
+                                    value -> repository.putBoolean("smart_swipe", value));
+                        });
+                buildPlaybackSpeedControls();
+                addLocalSwitch("锁定最高画质", "", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
                 addOption("互动自动化", "", null, true, this::showAutomationSettings);
                 break;
             case COMMENT:
-                addLocalSwitch("评论自动添加后缀", "", "comment_append_suffix");
-                addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),
-                        false, true, false, value -> repository.putString("comment_suffix", value));
-                addLocalSwitch("替换语音文件", "", "comment_voice_replace");
-                addAudioPathOption("评论语音文件", "comment_voice_path");
+                addDependentSwitch("评论自动添加后缀", "", repository.getBoolean("comment_append_suffix", false),
+                        value -> repository.putBoolean("comment_append_suffix", value),
+                        () -> addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),
+                                false, true, false, value -> repository.putString("comment_suffix", value)));
+                addDependentSwitch("替换语音文件", "", repository.getBoolean("comment_voice_replace", false),
+                        value -> repository.putBoolean("comment_voice_replace", value),
+                        () -> addAudioPathOption("评论语音文件", "comment_voice_path"));
                 addOption("评论转语音", "", null, true, this::showCommentSpeechSettings);
-                addOption("文本转语音设置", "配置语音来源、接口与音色", null, true, this::showSpeechSettings);
-                addLocalSwitch("#长按发送转语音（全局）", "适用于私信、群聊和评论。输入以 # 开头时长按发送，只发送语音，不发送文字。", "hash_long_press_voice");
+                addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
+                addLocalSwitch("#长按发送转语音（全局）", "", "hash_long_press_voice");
                 addCommentLongPressOption();
-                addLocalSwitch("彩色评论", "", "colored_comment");
-                addChoiceOption("彩色评论类型", "colored_comment_type", new String[]{"类型 0", "类型 33"},
-                        new String[]{"0", "33"}, "0");
+                addDependentSwitch("彩色评论", "", repository.getBoolean("colored_comment", false),
+                        value -> repository.putBoolean("colored_comment", value),
+                        () -> addChoiceOption("彩色评论类型", "colored_comment_type", new String[]{"类型 0", "类型 33"},
+                                new String[]{"0", "33"}, "0"));
                 break;
             case STREAK:
-                addSwitch("自动续火花", "",
-                        repository.getBoolean("streak_enabled", false), true, value -> {
+                addDependentSwitch("自动续火花", "",
+                        repository.getBoolean("streak_enabled", false), value -> {
                             repository.putBoolean("streak_enabled", value);
                             if (value) update(s -> withAutomation(s, true, null, null, null, null));
+                        }, () -> {
+                            java.util.function.Supplier<String> selectionPreview = () -> {
+                                int count = com.douai.module.feature.ReplyPolicy.targets(
+                                        repository.getString("streak_targets", "")).size();
+                                return count == 0 ? "未选择" : "已选择 " + count + " 人";
+                            };
+                            OptionRow[] targets = new OptionRow[1];
+                            targets[0] = addOption("选择用户", "", selectionPreview.get(), true,
+                                    () -> showTargetSelection("选择用户", "streak_targets",
+                                            () -> targets[0].setValue(selectionPreview.get())));
+                            LinearLayout fixedContent = addDependentControls(
+                                    repository.getString("streak_content_api", "").trim().isEmpty(),
+                                    () -> addEditableOption("续火花内容", "", repository.getString("streak_content", ""),
+                                            false, true, false, value -> repository.putString("streak_content", value)));
+                            addLocalSwitch("续火花成功弹出Tip", "", "streak_tip");
+                            addOption("续火花限制时间", "", null, true, this::showStreakWindow);
+                            addEditableOption("内容Api", "",
+                                    repository.getString("streak_content_api", ""), false, true, false, value -> {
+                                        repository.putString("streak_content_api", value);
+                                        fixedContent.setVisibility(value.trim().isEmpty() ? View.VISIBLE : View.GONE);
+                                    });
                         });
-                addOption("选择用户", "", repository.getString("streak_targets", ""),
-                        true, () -> showTargetSelection("选择用户", "streak_targets"));
-                addEditableOption("续火花内容", "", repository.getString("streak_content", ""),
-                        false, true, false, value -> repository.putString("streak_content", value));
-                addLocalSwitch("续火花成功弹出Tip", "", "streak_tip");
                 addOption("重试结果未知的续火花", "", null, true,
                         this::confirmUnknownStreakRetry);
                 addOption("清空续火花记录", "", null, true, () -> {
                     repository.putString("streak_reset_token", Long.toString(System.currentTimeMillis()));
                     android.widget.Toast.makeText(context, "续火花记录已清空", android.widget.Toast.LENGTH_SHORT).show();
                 });
-                addOption("续火花限制时间", "", null, true, this::showStreakWindow);
-                addEditableOption("内容Api", "",
-                        repository.getString("streak_content_api", ""), false, true, false,
-                        value -> repository.putString("streak_content_api", value));
                 break;
             case MESSAGE:
-                addLocalSwitch("消息防撤回", "", "prevent_message_recall");
-                addSwitch("自己撤回的消息", "", repository.getBoolean("recall_self", true), true,
-                        value -> repository.putBoolean("recall_self", value));
-                addSwitch("对方撤回的消息", "", repository.getBoolean("recall_other", true), true,
-                        value -> repository.putBoolean("recall_other", value));
-                addColorOption();
-                addLocalSwitch("替换私聊语音", "", "dm_voice_replace");
-                addAudioPathOption("私聊语音文件", "dm_voice_path");
+                addDependentSwitch("消息防撤回", "", repository.getBoolean("prevent_message_recall", false),
+                        value -> repository.putBoolean("prevent_message_recall", value), () -> {
+                            addSwitch("自己撤回的消息", "", repository.getBoolean("recall_self", true), true,
+                                    value -> repository.putBoolean("recall_self", value));
+                            addSwitch("对方撤回的消息", "", repository.getBoolean("recall_other", true), true,
+                                    value -> repository.putBoolean("recall_other", value));
+                            addColorOption();
+                        });
+                addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
+                        value -> repository.putBoolean("dm_voice_replace", value),
+                        () -> addAudioPathOption("私聊语音文件", "dm_voice_path"));
                 addLocalSwitch("自动文本转语音",
-                        "私信以 # 开头时，单击发送转为语音。", "dm_tts");
-                addOption("文本转语音设置", "配置语音来源、接口与音色", null, true, this::showSpeechSettings);
+                        "", "dm_tts");
+                addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
                 break;
             case SPOOF:
-                addLocalSwitch("伪装总开关", "", "spoof_profile");
-                addProfileCount("获赞数量", "profile_like_count");
-                addProfileCount("关注数量", "profile_following_count");
-                addProfileCount("粉丝数量", "profile_follower_count");
-                addProfileCount("互关数量", "profile_mutual_count");
+                addDependentSwitch("个人资料数量伪装", "", repository.getBoolean("spoof_profile", false),
+                        value -> repository.putBoolean("spoof_profile", value), () -> {
+                            addProfileCount("获赞数量", "profile_like_count");
+                            addProfileCount("关注数量", "profile_following_count");
+                            addProfileCount("粉丝数量", "profile_follower_count");
+                            addProfileCount("互关数量", "profile_mutual_count");
+                        });
                 addOption("版本信息", "", null, true, this::showVersionSettings);
                 break;
             case EXTENSION:
+                if (reading41()) addOption("我的时间点书签", "", null, true,
+                        () -> com.douai.module.feature.PlaybackBookmarks.show(findOwnerActivity(context)));
                 addOption("AI 模型设置", "", null, true, this::showAiModelSettings);
                 addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
                 addOption("本地数据分析", "", null, true, this::showLocalAnalytics);
@@ -633,6 +707,32 @@ public final class ModuleSettingsScreen {
         LocalAnalyticsDialog page = new LocalAnalyticsDialog(context, repository, miuixHome != null,
                 analyticsDiagnostics);
         showOptionDialog(page.dialog(), page::close);
+    }
+
+    private String sidebarSelectionPreview() {
+        int count = SidebarSettings.selected(repository).size();
+        return count == 0 ? "不显示模块入口" : "已选择 " + count + " 项";
+    }
+
+    private void showSidebarSelection(OptionRow preview) {
+        java.util.List<SidebarSettings.Entry> entries = SidebarSettings.availableEntries();
+        String[] labels = new String[entries.size()];
+        boolean[] checked = new boolean[labels.length];
+        java.util.Set<String> selected = new java.util.HashSet<>();
+        for (SidebarSettings.Entry entry : SidebarSettings.selected(repository)) selected.add(entry.id);
+        for (int index = 0; index < labels.length; index++) {
+            SidebarSettings.Entry entry = entries.get(index);
+            labels[index] = entry.title;
+            checked[index] = selected.contains(entry.id);
+        }
+        showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("侧边栏显示项")
+                .setMultiChoiceItems(labels, checked, (ignored, which, value) -> checked[which] = value)
+                .setNegativeButton("取消", null).setPositiveButton("保存", (ignored, which) -> {
+                    java.util.List<String> ids = new java.util.ArrayList<>();
+                    for (int index = 0; index < checked.length; index++) if (checked[index]) ids.add(entries.get(index).id);
+                    repository.putString(SidebarSettings.ITEMS, SidebarSettings.serializeSelection(repository, ids));
+                    preview.setValue(sidebarSelectionPreview());
+                }).create());
     }
 
     private void showConfigBackup() {
@@ -651,7 +751,7 @@ public final class ModuleSettingsScreen {
         LinearLayout panel = form();
         content = panel;
         try {
-            addLocalSwitch("评论自动文本转语音", "评论以 # 开头时，单击发送转为语音。", "comment_tts");
+            addLocalSwitch("评论自动文本转语音", "", "comment_tts");
         } finally { content = previous; }
         showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("评论转语音")
                 .setView(scrolling(panel)).setPositiveButton("完成", null).create());
@@ -728,14 +828,13 @@ public final class ModuleSettingsScreen {
                     if (value) master.setChecked(true);
                     repository.putBoolean(LocalOptions.OFFICIAL_DOWNLOAD_DIRECT, value);
                 });
-        addSwitch("自定义文件名", "",
-                repository.getBoolean("download_custom_name", false), true, value -> {
+        addDependentSwitch("自定义文件名", "",
+                repository.getBoolean("download_custom_name", false), value -> {
                     if (value) master.setChecked(true);
                     repository.putBoolean("download_custom_name", value);
-                });
-        addEditableOption("文件名模板", "",
-                repository.getString("download_name_template", ConfigurationCatalog.DOWNLOAD_NAME_DEFAULT),
-                false, true, false, value -> repository.putString("download_name_template", value));
+                }, () -> addEditableOption("文件名模板", "",
+                        repository.getString("download_name_template", ConfigurationCatalog.DOWNLOAD_NAME_DEFAULT),
+                        false, true, false, value -> repository.putString("download_name_template", value)));
         addSwitch("去除下载限制", "",
                 repository.getBoolean("remove_download_limits", false), true, value -> {
                     if (value) master.setChecked(true);
@@ -819,75 +918,92 @@ public final class ModuleSettingsScreen {
     }
 
     private void buildFeedFilters() {
-        addSwitch("过滤总开关", "", settings.feedFilterEnabled, true,
-                false, value -> {
-                    update(s -> withFeedEnabled(s, value));
-                    setFeedFilterControlsEnabled(value);
-                });
-        addSwitch("整页筛空时保留原列表", "",
-                repository.getBoolean("filter_interrupt", true), settings.feedFilterEnabled, true,
-                value -> repository.putBoolean("filter_interrupt", value));
-        addSwitch("去广告开关", "", settings.hideAds, settings.feedFilterEnabled,
-                true, value -> update(s -> withFilter(s, value, Filter.AD)));
-        addSwitch("去直播开关", "", settings.hideLives, settings.feedFilterEnabled,
-                true, value -> update(s -> withFilter(s, value, Filter.LIVE)));
-        addSwitch("去推荐卡片开关", "", settings.hideRecommendationCards,
-                settings.feedFilterEnabled, true, value -> update(s -> withFilter(s, value, Filter.CARD)));
-        addSwitch("去推荐商家开关", "", settings.hideRecommendationMerchants,
-                settings.feedFilterEnabled, true,
-                value -> update(s -> withRecommendationMerchants(s, value)));
-        addSwitch("去商品/购物卡片开关", "",
-                repository.getBoolean("hide_product_cards", false), settings.feedFilterEnabled, true,
-                value -> repository.putBoolean("hide_product_cards", value));
-        addSwitch("去热点榜单卡开关", "",
-                repository.getBoolean("hide_hotspot_rank_cards", false), settings.feedFilterEnabled, true,
-                value -> repository.putBoolean("hide_hotspot_rank_cards", value));
-        addSwitch("去小游戏开关", "",
-                repository.getBoolean("hide_mini_games", false), settings.feedFilterEnabled, true,
-                value -> repository.putBoolean("hide_mini_games", value));
-        addSwitch("去长视频开关", "",
-                repository.getBoolean("hide_long_videos", false), settings.feedFilterEnabled, true,
-                value -> repository.putBoolean("hide_long_videos", value));
-        addEditableOption("最长时长（秒）", "",
-                repository.getString("maximum_duration_seconds", "120"), true,
-                settings.feedFilterEnabled, true,
-                value -> repository.putString("maximum_duration_seconds", value));
-        addEditableOption("最低点赞数（0不限制）", "", settings.minimumLikesEnabled
-                        ? Integer.toString(settings.minimumLikeCount) : "0",
-                true, settings.feedFilterEnabled, true,
-                value -> update(s -> withLikes(withFilter(s, parseNonNegative(value) > 0, Filter.LIKES),
-                        parseNonNegative(value))));
-        addSwitch("去图集开关", "", settings.hideImagePosts,
-                settings.feedFilterEnabled, true,
-                value -> update(s -> withFilter(s, value, Filter.IMAGE)));
-        addEditableOption("屏蔽关键词", "",
-                settings.keyword, false, settings.feedFilterEnabled, true,
-                value -> update(s -> withKeyword(withFilter(s, !value.trim().isEmpty(), Filter.KEYWORD), value)));
-        addSwitch("过滤短视频", "", settings.minimumDurationEnabled,
-                settings.feedFilterEnabled, true,
-                value -> update(s -> withFilter(s, value, Filter.DURATION)));
-        addEditableOption("最短时长（秒）", "", Integer.toString(settings.minimumDurationSeconds),
-                true, settings.feedFilterEnabled, true,
-                value -> update(s -> withDuration(s, parseNonNegative(value))));
+        addDependentSwitch("过滤总开关", "", settings.feedFilterEnabled, value -> {
+            update(s -> withFeedEnabled(s, value));
+            setFeedFilterControlsEnabled(value);
+        }, () -> {
+            addSwitch("整页筛空时保留原列表", "",
+                    repository.getBoolean("filter_interrupt", true), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("filter_interrupt", value));
+            if (reading41()) {
+                addSwitch("减少已看作品", "", repository.getBoolean("hide_seen_works", false),
+                        settings.feedFilterEnabled, true, value -> repository.putBoolean("hide_seen_works", value));
+                OptionRow[] days = new OptionRow[1];
+                days[0] = addOption("已看记录保留天数", "", repository.getString("seen_work_days", "3") + " 天", true, () ->
+                        new MiuixDialogBuilder(context, true).setTitle("已看记录保留天数")
+                                .setItems(new String[]{"1 天", "3 天", "7 天"}, (dialog, which) -> {
+                                    String value = new String[]{"1","3","7"}[which];
+                                    repository.putString("seen_work_days", value);
+                                    days[0].setValue(value + " 天");
+                                }).setNegativeButton("取消", null).show());
+            }
+            addSwitch("去广告开关", "", settings.hideAds, settings.feedFilterEnabled,
+                    true, value -> update(s -> withFilter(s, value, Filter.AD)));
+            addSwitch("去直播开关", "", settings.hideLives, settings.feedFilterEnabled,
+                    true, value -> update(s -> withFilter(s, value, Filter.LIVE)));
+            addSwitch("去推荐卡片开关", "", settings.hideRecommendationCards,
+                    settings.feedFilterEnabled, true, value -> update(s -> withFilter(s, value, Filter.CARD)));
+            addSwitch("去推荐商家开关", "", settings.hideRecommendationMerchants,
+                    settings.feedFilterEnabled, true,
+                    value -> update(s -> withRecommendationMerchants(s, value)));
+            addSwitch("去商品/购物卡片开关", "",
+                    repository.getBoolean("hide_product_cards", false), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("hide_product_cards", value));
+            addSwitch("去热点榜单卡开关", "",
+                    repository.getBoolean("hide_hotspot_rank_cards", false), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("hide_hotspot_rank_cards", value));
+            addSwitch("去小游戏开关", "",
+                    repository.getBoolean("hide_mini_games", false), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("hide_mini_games", value));
+            addDependentSwitch("去长视频开关", "",
+                    repository.getBoolean("hide_long_videos", false), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("hide_long_videos", value),
+                    () -> addEditableOption("最长时长（秒）", "",
+                            repository.getString("maximum_duration_seconds", "120"), true,
+                            settings.feedFilterEnabled, true,
+                            value -> repository.putString("maximum_duration_seconds", value)));
+            addEditableOption("最低点赞数（0不限制）", "", settings.minimumLikesEnabled
+                            ? Integer.toString(settings.minimumLikeCount) : "0",
+                    true, settings.feedFilterEnabled, true,
+                    value -> update(s -> withLikes(withFilter(s, parseNonNegative(value) > 0, Filter.LIKES),
+                            parseNonNegative(value))));
+            addSwitch("去图集开关", "", settings.hideImagePosts,
+                    settings.feedFilterEnabled, true,
+                    value -> update(s -> withFilter(s, value, Filter.IMAGE)));
+            addEditableOption("屏蔽关键词", "",
+                    settings.keyword, false, settings.feedFilterEnabled, true,
+                    value -> update(s -> withKeyword(withFilter(s, !value.trim().isEmpty(), Filter.KEYWORD), value)));
+            addDependentSwitch("过滤短视频", "", settings.minimumDurationEnabled,
+                    settings.feedFilterEnabled, true,
+                    value -> update(s -> withFilter(s, value, Filter.DURATION)),
+                    () -> addEditableOption("最短时长（秒）", "", Integer.toString(settings.minimumDurationSeconds),
+                            true, settings.feedFilterEnabled, true,
+                            value -> update(s -> withDuration(s, parseNonNegative(value)))));
+        });
         setFeedFilterControlsEnabled(settings.feedFilterEnabled);
+        if (reading41()) addOption("清空已看记录", "", null, true, () ->
+                new MiuixDialogBuilder(context, true).setTitle("清空当前账号已看记录？")
+                        .setMessage("书签和本地分析数据会保留。")
+                        .setNegativeButton("取消", null).setPositiveButton("清空", (dialog, which) ->
+                                com.douai.module.feature.SeenWorkHook.clearCurrentAccount(context,
+                                        ok -> android.widget.Toast.makeText(context, ok ? "已清空" : "未能清空，请确认账号并重试", android.widget.Toast.LENGTH_SHORT).show())).show());
     }
 
     private void showProfileSelection(String title, java.util.Map<String, ProfileListEntry> available,
-                                      java.util.Set<String> selected, java.util.function.Consumer<java.util.Set<String>> saved,
-                                      Runnable manual) {
+                                      java.util.Set<String> selected, java.util.function.Consumer<java.util.Set<String>> saved) {
         java.util.Map<String, ProfileListEntry> entries = new java.util.LinkedHashMap<>(available);
         for (String uid : selected) if (!entries.containsKey(uid)) {
             entries.put(uid, "选择群成员".equals(title) && !uid.matches("[1-9][0-9]{0,19}")
-                    ? ProfileListEntry.named(uid) : new ProfileListEntry(uid, "", ""));
+                    ? ProfileListEntry.named(uid) : NativeFollowLists.findMember(uid));
         }
         MemberListView list = new MemberListView(miuixHome != null ? rowContext() : context, miuixHome != null,
-                new ArrayList<>(entries.values()), selected, true);
+                new ArrayList<>(entries.values()), selected, true, true);
         MiuixDialogBuilder builder = new MiuixDialogBuilder(context, miuixHome != null);
-        builder.setTitle(title).setView(list).setNegativeButton("取消", null)
-                .setPositiveButton("保存", (dialog, which) -> saved.accept(list.selected()));
-        if (manual != null) builder.setNeutralButton("填写 UID", (dialog, which) ->
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(manual));
-        showOptionDialog(builder.create(), list::close);
+        builder.setTitle(title).setCustomTitle(list.createTitleView(title)).setView(list).setNegativeButton("取消", null)
+                .setNeutralButton("刷新", null).setPositiveButton("保存", (dialog, which) -> saved.accept(list.selected()));
+        AlertDialog picker = builder.create();
+        showOptionDialog(picker, list::close);
+        if (picker.isShowing()) list.bindRefreshButton(picker.getButton(AlertDialog.BUTTON_NEUTRAL));
     }
 
     private void addUnavailable(String detail) {
@@ -903,6 +1019,67 @@ public final class ModuleSettingsScreen {
     private void addLocalSwitch(String title, String summary, String key) {
         addSwitch(title, summary, repository.getBoolean(key, false), true,
                 value -> repository.putBoolean(key, value));
+    }
+
+    private void addDependentSwitch(String title, String summary, boolean checked,
+                                    ValueListener listener, Runnable children) {
+        addDependentSwitch(title, summary, checked, true, false, listener, children);
+    }
+
+    private void addDependentSwitch(String title, String summary, boolean checked,
+                                    boolean enabled, boolean feedControl,
+                                    ValueListener listener, Runnable children) {
+        LinearLayout[] controls = new LinearLayout[1];
+        addSwitch(title, summary, checked, enabled, feedControl, value -> {
+            listener.onValue(value);
+            if (controls[0] != null) controls[0].setVisibility(value ? View.VISIBLE : View.GONE);
+        });
+        controls[0] = addDependentControls(checked, children);
+    }
+
+    private LinearLayout addDependentControls(boolean visible, Runnable children) {
+        LinearLayout previous = content;
+        LinearLayout controls = new LinearLayout(context);
+        controls.setOrientation(LinearLayout.VERTICAL);
+        content = controls;
+        try { children.run(); }
+        finally { content = previous; }
+        controls.setVisibility(visible ? View.VISIBLE : View.GONE);
+        previous.addView(controls, matchWrap());
+        return controls;
+    }
+
+    private void buildPlaybackSpeedControls() {
+        ToggleControl[] automatic = new ToggleControl[1];
+        Runnable refresh = () -> {
+            boolean moduleOnly = repository.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false);
+            automatic[0].setEnabled(!moduleOnly);
+            automatic[0].setSummary(moduleOnly ? "仅模块模式优先" : "");
+        };
+        addSwitch("仅模块控制倍速", "",
+                repository.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false), true, value -> {
+                    repository.putBoolean(LocalOptions.MODULE_ONLY_SPEED, value);
+                    refresh.run();
+                });
+        automatic[0] = addSwitch("自动倍速播放", "", repository.getBoolean("auto_speed", false), true,
+                false, value -> {
+                    if (!repository.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false)) {
+                        repository.putBoolean("auto_speed", value);
+                    }
+                });
+        addChoiceOption("倍速数值", ConfigurationCatalog.PLAYBACK_SPEED, PlaybackSpeedPresets.labels(),
+                PlaybackSpeedPresets.values(), PlaybackSpeedPresets.DEFAULT, null,
+                ModuleSettingsScreen::effectivePlaybackSpeed);
+        refresh.run();
+    }
+
+    private void addNativeLongPressSwitch(String title, String key) {
+        boolean moduleOnly = repository.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false);
+        addSwitch(title, moduleOnly ? "由仅模块控制倍速启用" : "",
+                moduleOnly || repository.getBoolean(key, false), !moduleOnly,
+                value -> {
+                    if (!repository.getBoolean(LocalOptions.MODULE_ONLY_SPEED, false)) repository.putBoolean(key, value);
+                });
     }
 
     private void addProfileCount(String title, String key) {
@@ -925,23 +1102,29 @@ public final class ModuleSettingsScreen {
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(40), 1);
                 params.rightMargin = colors.getChildCount() < 4 ? dp(8) : 0;
                 colors.addView(swatch, params);
-                swatch.setOnClickListener(ignored -> {
-                    repository.putString("recall_background", color);
-                    colorRow[0].setColor(Color.parseColor(color));
-                });
             }
             form.addView(colors, matchWrap());
             EditText input = formInput(form, "颜色值", repository.getString("recall_background", "#2051BA55"), false);
-            showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("撤回的背景色").setView(form)
-                    .setNegativeButton("取消", null).setPositiveButton("保存", (dialog, which) -> {
-                        try {
-                            Color.parseColor(input.getText().toString().trim());
-                            repository.putString("recall_background", input.getText().toString().trim());
-                            colorRow[0].setColor(Color.parseColor(input.getText().toString().trim()));
-                        } catch (IllegalArgumentException failure) {
-                            android.widget.Toast.makeText(context, "颜色值无效", android.widget.Toast.LENGTH_SHORT).show();
-                        }
-                    }).create());
+            for (int index = 0; index < colors.getChildCount(); index++) {
+                View swatch = colors.getChildAt(index);
+                String color = swatch.getContentDescription().toString();
+                swatch.setOnClickListener(ignored -> input.setText(color));
+            }
+            AlertDialog editor = new MiuixDialogBuilder(context, miuixHome != null).setTitle("撤回的背景色").setView(form)
+                    .setNegativeButton("取消", null).setPositiveButton("保存", null).create();
+            showOptionDialog(editor);
+            editor.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(ignored -> {
+                if (closed || !editor.isShowing()) return;
+                String candidate = input.getText().toString().trim();
+                try {
+                    int color = Color.parseColor(candidate);
+                    repository.putString("recall_background", candidate);
+                    colorRow[0].setColor(color);
+                    editor.dismiss();
+                } catch (IllegalArgumentException failure) {
+                    input.setError("颜色值无效");
+                }
+            });
         });
         colorRow[0] = row;
         try { row.setColor(Color.parseColor(value)); }
@@ -949,6 +1132,12 @@ public final class ModuleSettingsScreen {
     }
 
     private void addCommentLongPressOption() {
+        if (reading41()) {
+            addLocalSwitch("查看和复制语音转写", "", "comment_transcript_enabled");
+            addLocalSwitch("在已加载评论中查找", "", "loaded_comment_search_enabled");
+            addOption("查找当前作品评论", "", null, repository.getBoolean("loaded_comment_search_enabled", false),
+                    () -> FeedGestureToolsHook.launchCurrentAction(context, "comment_search"));
+        }
         String[] labels = {"复制评论", "保存评论图片", "复制源数据"};
         String[] keys = {"copy_comment_text", "comment_media_tools", "copy_source_data"};
         java.util.function.Supplier<String> selection = () -> {
@@ -959,16 +1148,20 @@ public final class ModuleSettingsScreen {
             return selected.isEmpty() ? "未启用" : String.join("、", selected);
         };
         OptionRow[] row = new OptionRow[1];
-        row[0] = addOption("长按操作", "选择评论菜单中的工具", selection.get(), true, () -> {
+        row[0] = addOption("长按操作", "", selection.get(), true, () -> {
             boolean[] enabled = new boolean[keys.length];
             for (int index = 0; index < keys.length; index++) {
                 enabled[index] = repository.getBoolean(keys[index], false);
             }
             AlertDialog choices = new MiuixDialogBuilder(context, miuixHome != null).setTitle("长按操作")
                     .setMultiChoiceItems(labels, enabled, (dialog, which, value) -> {
-                        if (!closed && ((Dialog) dialog).isShowing()) repository.putBoolean(keys[which], value);
+                        enabled[which] = value;
                     })
-                    .setPositiveButton("完成", null).create();
+                    .setNegativeButton("取消", null)
+                    .setPositiveButton("保存", (dialog, which) -> {
+                        if (closed || !((Dialog) dialog).isShowing()) return;
+                        for (int index = 0; index < keys.length; index++) repository.putBoolean(keys[index], enabled[index]);
+                    }).create();
             showOptionDialog(choices, () -> row[0].setValue(selection.get()));
         });
     }
@@ -987,9 +1180,35 @@ public final class ModuleSettingsScreen {
         content = panel;
         addOption("添加模型配置", "", null, true, this::showAiPresetPicker);
         addOption("测试当前配置", "", null, true, this::showAiChat);
+        addLocalSwitch("接管评论 AI 解析", "", CommentAiSettings.TAKEOVER);
+        AiModelSettings commentModels = aiSettings();
+        String commentModelId = repository.getString(CommentAiSettings.MODEL_ID, "");
+        String commentModelName = commentModelId.isEmpty() ? "跟随全局模型" : "请选择模型";
+        for (AiModelConfig model : commentModels.configs) if (model.id.equals(
+                commentModelId.isEmpty() ? commentModels.activeId : commentModelId)) commentModelName = model.name;
+        OptionRow[] commentModelRow = new OptionRow[1];
+        commentModelRow[0] = addOption("评论解析模型", "",
+                commentModelName, true, () -> {
+                    AiModelSettings current = aiSettings();
+                    String[] names = new String[current.configs.size() + 1];
+                    names[0] = "跟随全局模型";
+                    for (int i = 0; i < current.configs.size(); i++) names[i + 1] = current.configs.get(i).name;
+                    showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null)
+                            .setTitle("评论解析模型").setItems(names, (dialog, index) -> {
+                                if (index == 0) {
+                                    repository.putString(CommentAiSettings.MODEL_ID, "");
+                                    commentModelRow[0].setValue("跟随全局模型");
+                                } else {
+                                    AiModelConfig chosen = current.configs.get(index - 1);
+                                    repository.putString(CommentAiSettings.MODEL_ID, chosen.id);
+                                    commentModelRow[0].setValue(chosen.name);
+                                }
+                            }).setNegativeButton("取消", null).create());
+                });
+        addLocalSwitch("允许 AI 使用抖音搜索", "",
+                CommentAiSettings.SEARCH);
         addSectionLabel("已配置模型");
         AiModelSettings settings = aiSettings();
-        java.util.Map<Button, String> activationButtons = new java.util.LinkedHashMap<>();
         if (settings.configs.isEmpty()) addUnavailable("尚未配置");
         for (AiModelConfig config : settings.configs) {
             LinearLayout row = new LinearLayout(context);
@@ -1014,26 +1233,6 @@ public final class ModuleSettingsScreen {
             }
             row.addView(modelDetails, miuixHome == null
                     ? new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1)
-                    : matchWrap());
-            Button activate = formButton();
-            boolean active = config.id.equals(settings.activeId);
-            activate.setText(active ? "已启用" : "启用");
-            activate.setEnabled(!active);
-            activate.setTag("ai.activate." + config.id);
-            activationButtons.put(activate, config.id);
-            activate.setOnClickListener(ignored -> {
-                try {
-                    AiModelSettings next = aiSettings().activate(config.id);
-                    saveAiSettings(next);
-                    for (java.util.Map.Entry<Button, String> entry : activationButtons.entrySet()) {
-                        boolean selected = next.activeId.equals(entry.getValue());
-                        entry.getKey().setText(selected ? "已启用" : "启用");
-                        entry.getKey().setEnabled(!selected);
-                    }
-                } catch (RuntimeException failure) { toast(safeError(failure)); }
-            });
-            row.addView(MiuixFormControls.viewFor(activate), miuixHome == null
-                    ? new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44))
                     : matchWrap());
             content.addView(row, matchWrap());
             addDivider();
@@ -1130,7 +1329,8 @@ public final class ModuleSettingsScreen {
     }
 
     private void showAiChat() {
-        try { showOptionDialog(new AiTestChatDialog(context, aiSettings().selected(), miuixHome != null)); }
+        try { showOptionDialog(new AiTestChatDialog(context, aiSettings().selected(), miuixHome != null,
+                false, null, AiConversationDialog.manualSearch(context, repository))); }
         catch (RuntimeException failure) { toast(safeError(failure)); }
     }
 
@@ -1139,12 +1339,18 @@ public final class ModuleSettingsScreen {
     }
 
     private void addChoiceOption(String title, String key, String[] labels, String[] values, String fallback, Runnable changed) {
-        String selected = repository.getString(key, fallback);
+        addChoiceOption(title, key, labels, values, fallback, changed, value -> value);
+    }
+
+    private void addChoiceOption(String title, String key, String[] labels, String[] values, String fallback,
+                                 Runnable changed, java.util.function.UnaryOperator<String> effectiveValue) {
+        String selected = effectiveValue.apply(repository.getString(key, fallback));
         int initial = java.util.Arrays.asList(values).indexOf(selected);
         int selectedIndex = Math.max(0, initial);
         OptionRow[] preview = new OptionRow[1];
         OptionRow row = addOption(title, "", labels[selectedIndex], true, () -> {
-            int current = Math.max(0, java.util.Arrays.asList(values).indexOf(repository.getString(key, fallback)));
+            int current = Math.max(0, java.util.Arrays.asList(values).indexOf(
+                    effectiveValue.apply(repository.getString(key, fallback))));
             showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle(title)
                     .setSingleChoiceItems(labels, current, (dialog, which) -> {
                         repository.putString(key, values[which]);
@@ -1173,33 +1379,45 @@ public final class ModuleSettingsScreen {
             progress.dismiss();
             if (success) showSelection.run();
             else showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("会话名单暂不可用")
-                    .setMessage("读取失败或登录账号已变化，请稍后重新打开。也可以继续填写目标 ID。")
+                    .setMessage("读取失败或登录账号已变化，请稍后重新打开。也可以继续查看已读取的名单。")
                     .setPositiveButton("继续选择", (dialog, which) -> { if (!closed) showSelection.run(); })
                     .setNegativeButton("返回", null).create());
         });
     }
 
-    private void showTargetSelection(String title, String key) {
-        withNativeContacts(false, () -> showTargetSelectionLoaded(title, key));
+    private void showTargetSelection(String title, String key, Runnable onSaved) {
+        withNativeContacts(false, () -> withFollowing(complete -> showTargetSelectionLoaded(title, key, onSaved)));
     }
 
-    private void showTargetSelectionLoaded(String title, String key) {
-        java.util.Map<String, String> contacts = NativeMessagingHooks.availableContacts();
-        if (contacts.isEmpty()) {
-            showTargetIds(title, key);
-            return;
+    private void withFollowing(java.util.function.Consumer<Boolean> showSelection) {
+        if (closed) return;
+        java.util.concurrent.atomic.AtomicBoolean waiting = new java.util.concurrent.atomic.AtomicBoolean(true);
+        AutoCloseable[] request = new AutoCloseable[1];
+        AlertDialog progress = new MiuixDialogBuilder(context, miuixHome != null).setTitle("读取关注名单")
+                .setMessage("正在分页读取我关注的用户，请稍候…").setNegativeButton("取消", null).create();
+        showOptionDialog(progress, () -> {
+            if (waiting.getAndSet(false) && request[0] != null) {
+                try { request[0].close(); } catch (Exception ignored) { }
+            }
+        });
+        request[0] = NativeFollowLists.loadFollowing(complete -> {
+            if (!waiting.getAndSet(false) || closed) return;
+            progress.dismiss();
+            showSelection.accept(complete);
+        });
+    }
+
+    private void showTargetSelectionLoaded(String title, String key, Runnable onSaved) {
+        java.util.Map<String, ProfileListEntry> users = new java.util.LinkedHashMap<>(NativeMessagingHooks.availableContactProfiles());
+        for (com.douai.module.feature.FollowListSnapshot.Kind kind : com.douai.module.feature.FollowListSnapshot.Kind.values()) {
+            NativeFollowLists.memberDetails(kind).forEach((uid, profile) ->
+                    users.merge(uid, profile, (existing, incoming) -> incoming.withFallback(existing)));
         }
         java.util.Set<String> selected = com.douai.module.feature.ReplyPolicy.targets(repository.getString(key, ""));
-        showProfileSelection(title, NativeMessagingHooks.availableContactProfiles(), selected,
-                next -> repository.putString(key, String.join(",", next)), () -> showTargetIds(title, key));
-    }
-
-    private void showTargetIds(String title, String key) {
-        LinearLayout form = form();
-        EditText input = formInput(form, "用户 UID，以逗号分隔", repository.getString(key, ""), false);
-        showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle(title).setView(form)
-                .setNegativeButton("取消", null).setPositiveButton("保存", (dialog, which) ->
-                        repository.putString(key, String.join(",", com.douai.module.feature.ReplyPolicy.targets(input.getText().toString())))).create());
+        showProfileSelection(title, users, selected, next -> {
+            repository.putString(key, String.join(",", next));
+            onSaved.run();
+        });
     }
 
     private void showStreakWindow() {
@@ -1237,7 +1455,7 @@ public final class ModuleSettingsScreen {
 
     private void addAudioPathOption(String title, String key) {
         OptionRow[] row = new OptionRow[1];
-        row[0] = addOption(title, "选择音频文件或填写可读取的路径", repository.getString(key, ""), true,
+        row[0] = addOption(title, "", repository.getString(key, ""), true,
                 () -> showAudioPathEditor(title, key, () -> {
                     String value = repository.getString(key, "");
                     row[0].setValue(value.isEmpty() ? "未设置" : value);
@@ -1321,7 +1539,7 @@ public final class ModuleSettingsScreen {
                 int selected = Math.max(0, java.util.Arrays.asList(FeedGestureToolsHook.ACTION_IDS).indexOf(action));
                 showOptionDialog(new MiuixDialogBuilder(context, true)
                         .setTitle(title + " · " + FeedGestureToolsHook.REGION_LABELS[region])
-                        .setSingleChoiceItems(FeedGestureToolsHook.ACTION_LABELS, selected, (dialog, which) -> {
+                        .setSingleChoiceItems(gestureActionLabels(), Math.min(selected, gestureActionLabels().length-1), (dialog, which) -> {
                             repository.putString(key, FeedGestureToolsHook.ACTION_IDS[which]);
                             grid[0].setAction(region, FeedGestureToolsHook.ACTION_LABELS[which]);
                             dialog.dismiss();
@@ -1366,7 +1584,7 @@ public final class ModuleSettingsScreen {
                     String action = FeedGestureToolsHook.regionAction(gestureOptions(prefix), prefix, region);
                     int current = java.util.Arrays.asList(FeedGestureToolsHook.ACTION_IDS).indexOf(action);
                     showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle(title + " · " + label)
-                            .setSingleChoiceItems(FeedGestureToolsHook.ACTION_LABELS, Math.max(0, current),
+                            .setSingleChoiceItems(gestureActionLabels(), Math.max(0, Math.min(current, gestureActionLabels().length-1)),
                                     (dialog, which) -> {
                                         repository.putString(key, FeedGestureToolsHook.ACTION_IDS[which]);
                                         updateGestureCell(cell, value, label, prefix, region);
@@ -1467,13 +1685,14 @@ public final class ModuleSettingsScreen {
         LinearLayout previous = content;
         LinearLayout panel = form();
         content = panel;
-        addSwitch("版本信息修改", "",
-                repository.getBoolean("spoof_version", false), true,
-                value -> repository.putBoolean("spoof_version", value));
-        addEditableOption("版本名称", "", repository.getString("fake_version_name", ""),
-                false, true, false, value -> repository.putString("fake_version_name", value));
-        addEditableOption("版本号", "", repository.getString("fake_version_code", ""),
-                true, true, false, value -> repository.putString("fake_version_code", value));
+        addDependentSwitch("版本信息修改", "",
+                repository.getBoolean("spoof_version", false),
+                value -> repository.putBoolean("spoof_version", value), () -> {
+                    addEditableOption("版本名称", "", repository.getString("fake_version_name", ""),
+                            false, true, false, value -> repository.putString("fake_version_name", value));
+                    addEditableOption("版本号", "", repository.getString("fake_version_code", ""),
+                            true, true, false, value -> repository.putString("fake_version_code", value));
+                });
         content = previous;
         showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("版本信息").setView(scrolling(panel))
                 .setNegativeButton("返回", null).create());
@@ -1659,9 +1878,9 @@ public final class ModuleSettingsScreen {
     public void setFrameworkSyncStatus(boolean connected, String message, String error) {
         if (syncTitle == null) return;
         syncTitle.setText(connected ? "LSPosed 已连接" : "LSPosed 未连接");
-        String detail = "本页设置保存在模块应用；抖音内设置保存在抖音应用，两者互不共享。";
-        if (error != null && !error.isEmpty()) detail += "\n" + error;
+        String detail = error == null ? "" : error;
         syncDetail.setText(detail);
+        syncDetail.setVisibility(detail.isEmpty() ? View.GONE : View.VISIBLE);
         syncMark.setBackground(makeCircle(connected ? Color.rgb(0, 146, 117)
                 : Color.rgb(198, 84, 67)));
     }
@@ -1688,24 +1907,6 @@ public final class ModuleSettingsScreen {
                     ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
         content.addView(header, matchWrap());
-    }
-
-    private void addHostSettingsNotice() {
-        TextView notice = text("设置保存在抖音本地。",
-                13, MUTED, false);
-        LinearLayout.LayoutParams p = matchWrap();
-        p.topMargin = dp(12);
-        content.addView(notice, p);
-    }
-
-    private void addIndependentSettingsNotice() {
-        TextView notice = text("抖音内功能设置独立保存在抖音应用；此处可查看模块状态及调试日志。",
-                14, TEXT, false);
-        notice.setPadding(dp(14), dp(14), dp(14), dp(14));
-        notice.setBackground(makeRounded(Color.WHITE, LINE, dp(7)));
-        LinearLayout.LayoutParams params = matchWrap();
-        params.topMargin = dp(12);
-        content.addView(notice, params);
     }
 
     private void addScanStatus(ScanStatus status) {
@@ -1753,7 +1954,8 @@ public final class ModuleSettingsScreen {
         LinearLayout labels = new LinearLayout(context);
         labels.setOrientation(LinearLayout.VERTICAL);
         syncTitle = text("配置未连接", 14, TEXT, true);
-        syncDetail = text("本地设置保存在此设备。", 12, MUTED, false);
+        syncDetail = text("", 12, MUTED, false);
+        syncDetail.setVisibility(View.GONE);
         labels.addView(syncTitle, matchWrap());
         LinearLayout.LayoutParams detailParams = matchWrap();
         detailParams.topMargin = dp(3);
@@ -1867,6 +2069,14 @@ public final class ModuleSettingsScreen {
         parent.addView(divider, p);
     }
 
+    private static boolean reading41() {
+        return com.douai.module.scan.HostAdaptation.PROFILE_410.equals(com.douai.module.scan.HostAdaptation.currentProfile());
+    }
+
+    private static String[] gestureActionLabels() {
+        return reading41() ? FeedGestureToolsHook.ACTION_LABELS : java.util.Arrays.copyOf(FeedGestureToolsHook.ACTION_LABELS, 8);
+    }
+
     private static Activity findOwnerActivity(Context context) {
         while (context instanceof ContextWrapper) {
             if (context instanceof Activity) return (Activity) context;
@@ -1929,7 +2139,7 @@ public final class ModuleSettingsScreen {
     }
 
     private static String effectivePlaybackSpeed(String value) {
-        return ConfigurationCatalog.normalizedPlaybackSpeed(value);
+        return PlaybackSpeedPresets.normalize(value);
     }
 
     private static int parseNonNegative(String value) {
@@ -2036,19 +2246,19 @@ public final class ModuleSettingsScreen {
     }
 
     private enum Category {
-        BASIC("基本功能", 3),
-        INTERFACE("界面相关", 13),
-        FILTER("视频筛选", 16),
-        DOWNLOAD("下载相关", 14),
-        AUTOPLAY("自动播放", 6),
-        AUTO_REPLY("自动回复", 13),
-        AUTO_COMMENT("自动评论", 8),
-        COMMENT("评论相关", 11),
-        STREAK("自动续火花", 7),
-        COMPONENT_HIDE("组件隐藏", 24),
-        MESSAGE("消息管理", 8),
-        SPOOF("本地伪装", 6),
-        EXTENSION("扩展功能", 4),
+        BASIC("基本功能", -1),
+        INTERFACE("界面相关", -1),
+        FILTER("视频筛选", -1),
+        DOWNLOAD("下载相关", -1),
+        AUTOPLAY("自动播放", -1),
+        AUTO_REPLY("自动回复", -1),
+        AUTO_COMMENT("自动评论", -1),
+        COMMENT("评论相关", -1),
+        STREAK("自动续火花", -1),
+        COMPONENT_HIDE("组件隐藏", -1),
+        MESSAGE("消息管理", -1),
+        SPOOF("本地伪装", -1),
+        EXTENSION("扩展功能", -1),
         ABOUT("关于", -1);
 
         final String title;

@@ -11,13 +11,16 @@ import android.view.ViewGroup;
 import android.widget.Switch;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Spinner;
 
 import com.douai.module.analytics.AnalyticsSnapshot;
 import com.douai.module.analytics.AnalyticsSnapshot.Bucket;
 import com.douai.module.analytics.AnalyticsSnapshot.Rank;
 import com.douai.module.analytics.AnalyticsSnapshot.Recent;
+import com.douai.module.analytics.JournalExample;
 import com.douai.module.analytics.PortraitSnapshot;
 import com.douai.module.analytics.AnalyticsAiAnalysis;
+import com.douai.module.analytics.LocalPortraitContext;
 import com.douai.module.config.AiModelConfig;
 import com.douai.module.config.AiModelSettings;
 
@@ -107,6 +110,126 @@ public final class LocalAnalyticsDialogTest {
         ShadowLooper.idleMainLooper();
         assertFalse(shown.isShowing());
         assertTrue(worker.isShutdown());
+    }
+
+    @Test public void flowOnlyEvidenceOpensSameStoryOnScreenAndPaper() {
+        com.douai.module.analytics.PortraitEvidence e = new com.douai.module.analytics.PortraitEvidence("2026-11-01","2026-11-07",0,
+            List.of(),List.of(),com.douai.module.analytics.PortraitEvidence.Decomposition.empty("无可比浏览"),
+            List.of(new com.douai.module.analytics.PortraitEvidence.Observation("exploration","exploration","主动追问记录","记录到2个会话。","会话计数","会话","2026-11-01","2026-11-07",2L,null,null,"flow","sample",List.of("路由不代表播放"))),List.of("仅有AI操作记录"),
+            List.of(new com.douai.module.analytics.PortraitEvidence.StageCount("followup_click",2)),List.of(),List.of());
+        PortraitSnapshot b = PortraitSnapshot.empty();
+        PortraitSnapshot p = new PortraitSnapshot(e.startDate,e.endDate,b.days,b.weekdayHours,b.topicTiles,b.authorPareto,b.featureSources,
+            b.browseDays,b.authorCount,b.topicCount,b.topicOccurrences,b.repeatedWorks,b.capturedVisits,b.finishedVisits,b.visibleMillis,b.queueDropped,
+            b.authorDiversity,b.topicDiversity,b.topAuthorShare,b.topTopicShare,b.crossDayRepeatShare,b.nightShare,b.weekendShare,
+            b.comparison,b.weekComparison,b.monthComparison,b.insights,b.topicHours,b.typeActions,b.coverage,b.evidenceLevel,e);
+        source.data = new AnalyticsSnapshot(0,0,0,0,0,0,0,List.of(),List.of(),List.of(),List.of(),List.of(),new long[24],List.of(),p);
+        drain();
+        assertNotNull(find("analytics.story.headline"));
+        View paper = ReportPresentation.build(activity,source.data,"7天",0,null,"","",0);
+        assertNotNull(paper.findViewWithTag("analytics.story.headline"));
+        assertFalse("A report containing two AI sessions cannot say it has no retained records", paperText(paper).contains("当前范围暂无保留记录"));
+        ViewGroup body = find("analytics.body");
+        assertNotNull("the first report surface is the discovery, not the recording settings", body.getChildAt(0).findViewWithTag("analytics.story.headline"));
+        assertNotNull(find("analytics.story.all"));
+        assertTrue(find("analytics.analysis.request").isEnabled());
+    }
+
+    @Test public void personalJournalKeepsExactNumbersAcrossFourChaptersAndExport() throws Exception {
+        java.io.File directory = java.nio.file.Files.createTempDirectory(activity.getCacheDir().toPath(), "journal-example").toFile();
+        source.data = com.douai.module.analytics.JournalExample.twoWeeks(directory);
+        drain();
+        assertEquals(24, source.data.totalViews); assertEquals(7, source.data.portrait.browseDays);
+        for(String key : List.of("story.topics","story.rhythm","story.actions","story.changes")) expandSection(key);
+        View phone = find("analytics.body");
+        View actionsChapter=find("analytics.section.body.story.actions");
+        assertNotNull(actionsChapter.findViewWithTag("analytics.analysis.section.features"));
+        assertNull(find("analytics.section.body.features"));
+        View paper = ReportPresentation.build(activity,source.data,"最近 7 天",0,null,"","",0);
+        String exportedText = paperText(paper);
+        for (String label : List.of("模块功能排行", "最近记录", source.data.recent.get(0).label, "使用历程")) {
+            assertTrue("Collapsed statistics still export " + label, exportedText.contains(label));
+        }
+        for(View tree : List.of(phone,paper)) {
+            String text=paperText(tree);
+            assertTrue(text, text.contains("10/10 次（100.0%）"));
+            assertTrue(text, text.contains("12/14 次（85.7%）"));
+            assertTrue(text, text.contains("摄影   #2（7 次）  →  #1（12 次）"));
+            assertNotNull(tree.findViewWithTag("analytics.journal.hour-profiles"));
+            assertNotNull(tree.findViewWithTag("analytics.journal.rank-lines"));
+            assertNotNull(tree.findViewWithTag("analytics.portrait.journal.topics.chart"));
+            assertNotNull(tree.findViewWithTag("analytics.portrait.journal.authors.chart"));
+        }
+        View screen=find("analytics.root");
+        screen.measure(View.MeasureSpec.makeMeasureSpec(360,View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(740,View.MeasureSpec.EXACTLY));
+        screen.layout(0,0,360,740);
+        java.io.File previewDir=new java.io.File("build/reports/portrait-preview");
+        assertTrue(previewDir.isDirectory() || previewDir.mkdirs());
+        Bitmap preview=Bitmap.createBitmap(360,740,Bitmap.Config.ARGB_8888);
+        try(java.io.FileOutputStream output=new java.io.FileOutputStream(new java.io.File(previewDir,"journal-dialog-360.png"))) {
+            Canvas canvas=new Canvas(preview);canvas.drawColor(android.graphics.Color.WHITE);screen.draw(canvas);
+            assertTrue(preview.compress(Bitmap.CompressFormat.PNG,100,output));
+        } finally { preview.recycle(); }
+        ReportImageExport.Document doc=page.captureReportImage(1080,4096);
+        assertNotNull(doc); assertTrue(doc.pdfPageCount()>1); writeReportFiles(doc,"personal-journal-synthetic");
+        assertEquals(0,analysis.requests.size());
+    }
+
+    @Test public void journalBuildsStatisticsOncePerSnapshotOnlyWhenExpanded() throws Exception {
+        File cache = activity.getCacheDir();
+        source.data = JournalExample.twoWeeks(java.nio.file.Files.createTempDirectory(cache.toPath(), "week").toFile());
+        drain();
+        ViewGroup body = find("analytics.body");
+        int initialNodes = nodeCount(body);
+        System.out.println("Journal opening view nodes (Android Views, 7 days): " + initialNodes);
+        assertNotNull(find("analytics.story.headline"));
+        for (String tag : List.of("analytics.portrait.types.chart", "analytics.section.body.authors",
+                "analytics.section.body.features", "analytics.section.body.recent")) assertNull(tag, find(tag));
+        find("analytics.story.all").performClick();
+        View chart = find("analytics.portrait.types.chart");
+        assertNotNull(chart);
+        int expandedNodes = nodeCount(body);
+        assertTrue(expandedNodes > initialNodes);
+        System.out.println("Journal expanded view nodes (Android Views, 7 days): " + expandedNodes);
+        assertEquals("24 次浏览 · 7 天有记录", text("analytics.section.summary.trend"));
+        assertTrue(paperText(find("analytics.section.body.recent")).contains(source.data.recent.get(0).label));
+        assertNotNull(find("analytics.section.body.story.actions").findViewWithTag("analytics.analysis.section.features"));
+        assertNull(find("analytics.section.body.features").findViewWithTag("analytics.analysis.section.features"));
+        expandSection("types");
+        find("analytics.story.all").performClick();
+        assertFalse(chart.isShown());
+        find("analytics.story.all").performClick();
+        assertSame(chart, find("analytics.portrait.types.chart"));
+        assertEquals(expandedNodes, nodeCount(body));
+        assertEquals("Toggling statistics reads no additional snapshots", 1, source.reads);
+
+        source.data = JournalExample.twoWeeks(java.nio.file.Files.createTempDirectory(cache.toPath(), "month").toFile(), 30);
+        find("analytics.range.30").performClick();
+        drain();
+        assertEquals(30, source.lastDays);
+        assertEquals("45 次浏览 · 14 天有记录", text("analytics.section.summary.trend"));
+        assertNotSame(chart, find("analytics.portrait.types.chart"));
+        assertTrue(find("analytics.section.body.types").isShown());
+        find("analytics.story.all").performClick();
+        find("analytics.refresh").performClick();
+        drain();
+        assertNull("Refreshing a collapsed report defers statistics again", find("analytics.portrait.types.chart"));
+        find("analytics.analysis.request").performClick();
+        finishAnalysis();
+        assertEquals(AI_TEXTS[5], text("analytics.analysis.text.features"));
+        assertNull(find("analytics.analysis.section.overview"));
+        find("analytics.story.all").performClick();
+        assertEquals(AI_TEXTS[0], text("analytics.analysis.text.overview"));
+        assertNull("The story keeps ownership of its AI text after opening statistics",
+                find("analytics.section.body.features").findViewWithTag("analytics.analysis.text.features"));
+        assertEquals(1, analysis.requests.size());
+    }
+
+    private static int nodeCount(View view) {
+        int count = 1;
+        if (view instanceof ViewGroup group)
+            for (int i = 0; i < group.getChildCount(); i++) count += nodeCount(group.getChildAt(i));
+        return count;
     }
 
     @Test public void reportUsesSettingsTypographyAndCompactUnoutlinedCards() {
@@ -202,7 +325,9 @@ public final class LocalAnalyticsDialogTest {
         drain();
         View imageShare = find("analytics.report.share.image");
         assertNotNull("The complete report must be shareable as an image before requesting AI", imageShare);
-        assertTrue(text("analytics.report.share.note").contains("一张长图 PNG 或一份 PDF"));
+        assertEquals("Export guidance belongs in Help; this view is reserved for runtime status",
+                "", text("analytics.report.share.note"));
+        assertTrue(imageShare.isEnabled());
         imageShare.performClick();
         ((AlertDialog) ShadowDialog.getLatestDialog()).dismiss();
         drain();
@@ -449,13 +574,10 @@ public final class LocalAnalyticsDialogTest {
 
     @Test public void staleRangeAndDismissedResultsCannotReplaceCurrentReport() {
         find("analytics.range.30").performClick();
-        assertEquals(2, worker.tasks.size());
+        assertEquals(1, worker.tasks.size());
         worker.runNext();
         ShadowLooper.idleMainLooper();
-        assertTrue(text("analytics.status").contains("正在读取"));
-        assertEquals(7, source.lastDays);
-        worker.runNext();
-        ShadowLooper.idleMainLooper();
+        assertEquals(1, source.reads);
         assertEquals(30, source.lastDays);
         assertTrue(text("analytics.status").contains("最近 30 天"));
         find("analytics.range.0").performClick();
@@ -463,6 +585,130 @@ public final class LocalAnalyticsDialogTest {
         page.dialog().dismiss();
         drain();
         assertEquals(pendingStatus, text("analytics.status"));
+        assertEquals("Closing must discard the pending pure read", 1, source.reads);
+    }
+
+    @Test public void rapidRangeChangesRunOnlyStartedAndLatestRead() {
+        source.onRead = () -> {
+            for (int range : new int[]{30, 90, 1, 7, 0}) {
+                find("analytics.range." + range).performClick();
+            }
+            assertEquals("Only one latest read may wait behind the running read", 1, worker.tasks.size());
+        };
+        worker.runNext();
+        ShadowLooper.idleMainLooper();
+        assertTrue(text("analytics.status").contains("正在读取"));
+        drain();
+        assertEquals(List.of(7, 0), source.readRanges);
+        assertTrue(text("analytics.status").contains("全部"));
+    }
+
+    @Test public void delayedRangeWhileFeedbackPopupOpenStillRendersAfterFeedback() throws Exception {
+        Spinner selector = openMiuixFeedbackWithDelayedRange();
+        chooseFeedback();
+        assertEquals(0, source.feedbackWrites);
+        drain();
+        assertEquals(List.of(7, 30), source.readRanges);
+        assertEquals(1, source.feedbackWrites);
+        assertEquals("符合", source.savedFeedback);
+        assertTrue(text("analytics.status").contains("最近 30 天"));
+        assertNotNull(find("analytics.types.chart"));
+        assertFeedbackControlsEnabled();
+        assertTrue(((TextView) pageField("feedbackButton")).getText().toString().contains("符合"));
+    }
+
+    @Test public void closingAfterDelayedRangeAndFeedbackDropsReadButKeepsFeedback() throws Exception {
+        openMiuixFeedbackWithDelayedRange();
+        chooseFeedback();
+        page.close();
+        drain();
+        assertEquals(List.of(7), source.readRanges);
+        assertEquals(1, source.feedbackWrites);
+        assertEquals("符合", source.savedFeedback);
+    }
+
+    @Test public void laterRangeAfterFeedbackReadsAfterMutationWithFreshContext() throws Exception {
+        Spinner selector = openMiuixFeedbackWithDelayedRange();
+        chooseFeedback();
+        deliverRangeSelection(selector, 3);
+        drain();
+        assertEquals(List.of(7, 90), source.readRanges);
+        assertEquals(List.of("read:7:", "feedback:符合", "read:90:符合"), source.contextEvents);
+        assertEquals(1, source.feedbackWrites);
+        assertTrue(text("analytics.status").contains("最近 90 天"));
+        assertFeedbackControlsEnabled();
+        assertTrue(((TextView) pageField("feedbackButton")).getText().toString().contains("符合"));
+        assertEquals("符合", ((LocalPortraitContext.State) pageField("currentContext")).feedback);
+    }
+
+    private Spinner openMiuixFeedbackWithDelayedRange() throws Exception {
+        page.dialog().dismiss();
+        page.close();
+        worker = new ManualExecutor();
+        source.contextEnabled = true;
+        LocalPortraitContext.clear(activity);
+        source.data = fixture();
+        page = new LocalAnalyticsDialog(activity, source, worker, analysis, analysisWorker, true, diagnostics::add);
+        page.dialog().show();
+        drain();
+        ((View) pageField("feedbackButton")).performClick();
+        assertTrue(ShadowDialog.getLatestDialog().isShowing());
+        Spinner selector = (Spinner) pageField("rangeSelector");
+        // Deliver the real listener already dispatched by Miuix, without tapping through the modal.
+        deliverRangeSelection(selector, 2);
+        assertEquals(1, source.reads);
+        assertTrue(text("analytics.status").contains("正在读取"));
+        assertFalse(((View) pageField("refresh")).isEnabled());
+        return selector;
+    }
+
+    private void chooseFeedback() {
+        ((AlertDialog) ShadowDialog.getLatestDialog()).getListView().performItemClick(null, 0, 0);
+        ShadowLooper.idleMainLooper();
+    }
+
+    private void deliverRangeSelection(Spinner selector, int position) {
+        selector.getOnItemSelectedListener().onItemSelected(selector, null, position, position);
+    }
+
+    private Object pageField(String name) throws Exception {
+        java.lang.reflect.Field field = LocalAnalyticsDialog.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(page);
+    }
+
+    private void assertFeedbackControlsEnabled() throws Exception {
+        for (String name : List.of("recording", "refresh", "clear", "purposeButton", "feedbackButton")) {
+            assertTrue(name, ((View) pageField(name)).isEnabled());
+        }
+    }
+
+    @Test public void closingDropsPendingReadsButPreservesConfirmedOptOut() {
+        source.enabled = true;
+        drain();
+        ((Switch) find("analytics.recording")).setChecked(false);
+        find("analytics.range.30").performClick();
+        find("analytics.range.90").performClick();
+        page.close();
+        drain();
+        assertFalse(source.enabled);
+        assertEquals(List.of(false), source.recordingChanges);
+        assertEquals("Only initial and confirmed mutation snapshots may finish", 2, source.reads);
+    }
+
+    @Test public void confirmedClearPrecedesTheLatestRangeRead() {
+        source.data = fixture();
+        drain();
+        find("analytics.clear").performClick();
+        ((AlertDialog) ShadowDialog.getLatestDialog()).getButton(AlertDialog.BUTTON_POSITIVE).performClick();
+        ShadowLooper.idleMainLooper();
+        find("analytics.range.30").performClick();
+        find("analytics.range.90").performClick();
+        drain();
+        assertEquals(1, source.clears);
+        assertEquals(List.of(7, 7, 90), source.readRanges);
+        assertEquals(90, source.lastDays);
+        assertNotNull(find("analytics.empty"));
     }
 
     @Test public void clearRequiresConfirmationAndKeepsRecordingChoice() {
@@ -1141,20 +1387,41 @@ public final class LocalAnalyticsDialogTest {
         int reads;
         int clears;
         int lastDays;
+        Runnable onRead;
+        final List<Integer> readRanges = new ArrayList<>();
+        final List<Boolean> recordingChanges = new ArrayList<>();
         String savedPurpose;
         String savedFeedback;
+        int feedbackWrites;
+        boolean contextEnabled;
+        final List<String> contextEvents = new ArrayList<>();
         AnalyticsSnapshot data = AnalyticsSnapshot.empty();
         @Override public boolean isEnabled() { return enabled; }
-        @Override public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        @Override public void setEnabled(boolean enabled) { this.enabled = enabled; recordingChanges.add(enabled); }
         @Override public AnalyticsSnapshot snapshot(int days) {
             reads++;
             lastDays = days;
+            readRanges.add(days);
+            if (contextEnabled) contextEvents.add("read:" + days + ":" + portraitContext().feedback);
+            Runnable callback = onRead;
+            onRead = null;
+            if (callback != null) callback.run();
             if (failure) throw new IllegalStateException("Test failure");
             return data;
         }
         @Override public void clear() { clears++; data = AnalyticsSnapshot.empty(); }
         @Override public void purpose(String value) { savedPurpose = value; }
-        @Override public void feedback(String value) { savedFeedback = value; }
+        @Override public LocalPortraitContext.State portraitContext() {
+            return contextEnabled ? LocalPortraitContext.current(RuntimeEnvironment.getApplication()) : null;
+        }
+        @Override public void feedback(String value) {
+            savedFeedback = value;
+            feedbackWrites++;
+            if (contextEnabled) {
+                LocalPortraitContext.setFeedback(RuntimeEnvironment.getApplication(), value);
+                contextEvents.add("feedback:" + value);
+            }
+        }
     }
 
     private static final class FakeAnalysisService implements LocalAnalyticsDialog.AnalysisService {

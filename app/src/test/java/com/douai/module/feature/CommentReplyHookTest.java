@@ -1017,6 +1017,37 @@ public final class CommentReplyHookTest {
         assertTrue(history().stream().noneMatch(entry -> "sent".equals(entry.status) || "submitted".equals(entry.status)));
     }
 
+    @Test public void commentReplyRestoresItsPreviewAfterHostRemovesTheGeneratingRingAndSendsOnce() {
+        configure("reply_tip", true);
+        configure("reply_notice_seconds", "3");
+        open();
+        source.events.put(100L, List.of(event("removed-ring", "root", "200", 1001)));
+        CommentRingView[] generatingRing = new CommentRingView[1];
+        generator.duringGenerate = () -> {
+            generatingRing[0] = commentReplyRing();
+            assertNotNull(generatingRing[0]);
+            assertEquals("generating", generatingRing[0].getPhase());
+            ((android.view.ViewGroup) generatingRing[0].getParent()).removeView(generatingRing[0]);
+            assertNull(commentReplyRing());
+        };
+        hook.requestScan();
+        processReplies();
+
+        assertSame("The generated reply must regain its preview in the same Activity", generatingRing[0], commentReplyRing());
+        assertTrue(commentReplyRing().isAttachedToWindow());
+        assertTrue(commentReplyRing().isShown());
+        assertEquals("preview", commentReplyRing().getPhase());
+        assertTrue(sender.sent.isEmpty());
+        advanceMillis(2999);
+        assertTrue(sender.sent.isEmpty());
+        advanceMillis(1);
+        assertEquals(List.of("removed-ring"), sender.sent);
+        assertEquals("sent", history().get(0).status);
+        hook.requestScan();
+        processReplies();
+        assertEquals(List.of("removed-ring"), sender.sent);
+    }
+
     @Test public void commentReplyPreparationKeepsOneRingAcrossWaitingMediaModelSpeechAndTheOriginalPreview() throws Exception {
         configure("reply_tip", true);
         configure("reply_notice_seconds", "3");
@@ -1459,6 +1490,27 @@ public final class CommentReplyHookTest {
         assertEquals(List.of("mode-change"), sender.sent);
     }
 
+    @Test public void changingGlobalModelDoesNotCancelAnIndependentlyBoundCommentReply() throws Exception {
+        try (okhttp3.mockwebserver.MockWebServer global = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer replies = new okhttp3.mockwebserver.MockWebServer();
+             okhttp3.mockwebserver.MockWebServer comments = new okhttp3.mockwebserver.MockWebServer()) {
+            com.douai.module.config.AiModelSettings profiles = AutomationModelFixtures.profiles(global, replies, comments);
+            values.put(com.douai.module.config.AiModelSettings.KEY, profiles.serialize());
+            configure(com.douai.module.config.AiModelSettings.REPLY_MODEL_ID, "reply");
+            open();
+            source.events.put(100L, List.of(event("independent-reply", "root", "200", 1001)));
+            int cancellations = generator.cancels;
+            generator.duringGenerate = () -> configure(com.douai.module.config.AiModelSettings.KEY,
+                    profiles.activate("comment").serialize());
+            hook.requestScan();
+            processReplies();
+            assertEquals("An unrelated global choice must not disconnect the active reply generator", cancellations, generator.cancels);
+            assertEquals(List.of("independent-reply"), generator.ids);
+            assertEquals(List.of("independent-reply"), sender.sent);
+            assertEquals("sent", history().get(0).status);
+        }
+    }
+
     @Test public void legacyIndependentReplyOptionsCannotOverrideParentConfiguration() {
         values.put("comment_reply_daily_limit", "1");
         values.put("comment_reply_user_cooldown_minutes", "100");
@@ -1515,6 +1567,21 @@ public final class CommentReplyHookTest {
         assertEquals(AutomationHistoryStore.COMMENT_REPLY, parentHistory.get(0).kind);
         assertTrue(parentHistory.get(0).input.contains("回复 recorded"));
         assertEquals("sent", parentHistory.get(0).status);
+    }
+
+    @Test public void confirmedReplyHistoryPrefersItsOwnReceiptAndKeepsTheIncomingThreadAsFallback() {
+        sender.publishedId = "published-reply";
+        open();
+        source.events.put(100L, List.of(event("incoming-for-navigation", "thread-root", "200", 1001)));
+        hook.requestScan();
+        processReplies();
+        AutomationHistoryStore.Entry sent = history().get(0);
+        assertEquals("sent", sent.status);
+        assertEquals("100", sent.location.accountId);
+        assertEquals("work", sent.location.awemeId);
+        assertEquals("published-reply", sent.location.commentId);
+        assertEquals("thread-root", sent.location.rootCommentId);
+        assertEquals("incoming-for-navigation", sent.location.messageId);
     }
 
     @Test public void backgroundingFromReplyDetailsDefersEvenWhenDispatcherPausesBeforeTheHook() {
@@ -2161,6 +2228,15 @@ public final class CommentReplyHookTest {
         boolean delaySubmission;
         boolean omitAccepted;
         String outcome = "sent";
+        String publishedId = "";
+        @Override public void send(CommentReplyEvent event, String text, SpeechPreparation.Audio audio, BooleanSupplier valid,
+                                   BooleanSupplier beforeSend, Runnable accepted, Consumer<String> result,
+                                   Consumer<String> publishedCommentId) {
+            send(event, text, audio, valid, beforeSend, accepted, status -> {
+                if ("sent".equals(status) && !publishedId.isEmpty()) publishedCommentId.accept(publishedId);
+                result.accept(status);
+            });
+        }
         @Override public void send(CommentReplyEvent event, String text, BooleanSupplier valid,
                                    BooleanSupplier beforeSend, Runnable accepted, Consumer<String> result) {
             send(event, text, null, valid, beforeSend, accepted, result);

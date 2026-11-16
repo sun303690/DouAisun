@@ -65,9 +65,12 @@ public final class ConfigTransfer {
         try {
             Map<String, ?> source = store.snapshot(); JSONObject values = new JSONObject();
             new MiniMaxSpeechOptions(new LocalOptions(source)).validate();
+            new BreezeSpeechSettings(new LocalOptions(source)).validateOptions();
+            new FishSpeechSettings(new LocalOptions(source)).validateOptions();
             for (Map.Entry<String, ?> entry : new TreeMap<>(source).entrySet()) {
                 String key = entry.getKey(); if (!ConfigKeys.TYPES.containsKey(key)) continue;
                 Object value = entry.getValue(); ConfigKeys.validate(key, value);
+                value = ConfigurationCatalog.normalizedTransferValue(key, value);
                 validateStructured(key, value);
                 if (!includeSecrets && value instanceof String) value = ConfigSecrets.redact(key, (String) value);
                 values.put(key, new JSONObject().put("type", ConfigKeys.TYPES.get(key)).put("value", value));
@@ -146,7 +149,9 @@ public final class ConfigTransfer {
                     if (!(value instanceof Long) || (Long) value < Integer.MIN_VALUE || (Long) value > Integer.MAX_VALUE) throw ConfigJson.invalid();
                     value = ((Long) value).intValue();
                 }
-                ConfigKeys.validate(key, value); validateStructured(key, value);
+                ConfigKeys.validate(key, value);
+                value = ConfigurationCatalog.normalizedTransferValue(key, value);
+                validateStructured(key, value);
                 if (value instanceof String) {
                     reason = Reason.SECRET_POLICY;
                     String text = (String) value; redacted += ConfigSecrets.count(text);
@@ -163,6 +168,12 @@ public final class ConfigTransfer {
             reason = Reason.MERGED_SETTINGS;
             if (mode == Mode.REPLACE) for (String key : ConfigKeys.TYPES.keySet()) result.remove(key);
             result.putAll(incoming);
+            // Importing preferences must not begin recording viewed works on this device.
+            if (before.containsKey("hide_seen_works")) result.put("hide_seen_works", before.get("hide_seen_works"));
+            else result.remove("hide_seen_works");
+            if (!Boolean.TRUE.equals(before.get("feed_filter_enabled")) && Boolean.TRUE.equals(result.get("feed_filter_enabled"))
+                    && Boolean.TRUE.equals(result.get("hide_seen_works")))
+                result.put("hide_seen_works", false);
             int[] missing = {0};
             if (!secrets && mode == Mode.REPLACE) {
                 for (Map.Entry<String, ?> entry : before.entrySet()) {
@@ -188,10 +199,16 @@ public final class ConfigTransfer {
             }
             for (Map.Entry<String, Object> entry : result.entrySet()) if (ConfigKeys.TYPES.containsKey(entry.getKey())) {
                 field = entry.getKey();
-                ConfigKeys.validate(entry.getKey(), entry.getValue()); validateStructured(entry.getKey(), entry.getValue());
+                ConfigKeys.validate(entry.getKey(), entry.getValue());
+                entry.setValue(ConfigurationCatalog.normalizedTransferValue(entry.getKey(), entry.getValue()));
+                validateStructured(entry.getKey(), entry.getValue());
             }
             reason = Reason.MINIMAX_OPTIONS; field = null;
             new MiniMaxSpeechOptions(new LocalOptions(result)).validate();
+            reason = Reason.BREEZE_OPTIONS;
+            new BreezeSpeechSettings(new LocalOptions(result)).validateOptions();
+            reason = Reason.FISH_OPTIONS;
+            new FishSpeechSettings(new LocalOptions(result)).validateOptions();
             reason = Reason.MERGED_SETTINGS;
             return new Preview(before, result, incoming.size(), redacted, missing[0], (String) version, secrets, mode);
         } catch (Exception | LinkageError failure) {
@@ -251,14 +268,22 @@ public final class ConfigTransfer {
         Reason reason = key.endsWith("headers") ? Reason.STRUCTURED_HEADERS
                 : AiModelSettings.KEY.equals(key) ? Reason.STRUCTURED_MODELS
                 : CustomViewLocator.SETTINGS_KEY.equals(key) ? Reason.STRUCTURED_COMPONENTS
-                : key.startsWith("tts_minimax_") ? Reason.MINIMAX_OPTIONS : Reason.STRUCTURED_FIELDS;
+                : key.startsWith("tts_minimax_") ? Reason.MINIMAX_OPTIONS
+                : key.startsWith("tts_breeze_") ? Reason.BREEZE_OPTIONS
+                : key.startsWith("tts_fish_") ? Reason.FISH_OPTIONS : Reason.STRUCTURED_FIELDS;
         try {
             if (SpeechSettings.PROVIDER.equals(key) && value instanceof String) SpeechSettings.validateProvider((String) value);
+            if (SpeechSettings.RANDOM_SOURCES.equals(key) && value instanceof String) SpeechSettings.validateRandomSources((String) value);
+            if (SpeechSettings.RANDOM_MODE.equals(key) && value instanceof String
+                    && !SpeechSettings.RANDOM_OFF.equals(value) && !SpeechSettings.RANDOM_CURRENT.equals(value)
+                    && !SpeechSettings.RANDOM_ALL.equals(value)) throw new IllegalArgumentException("随机音色模式无效");
             if (key.startsWith("tts_minimax_") && value instanceof String) {
                 // Empty single-voice IDs are legal only when the merged settings contain a valid mix.
                 if (SpeechSettings.MINIMAX_VOICE_ID.equals(key)) SpeechSettings.validateMiniMaxVoiceId((String) value, false);
                 else SpeechSettings.validateMiniMaxValue(key, (String) value);
             }
+            if (key.startsWith("tts_breeze_") && value instanceof String) BreezeSpeechSettings.validateValue(key, (String) value);
+            if (key.startsWith("tts_fish_") && value instanceof String) FishSpeechSettings.validateValue(key, (String) value);
             if (!(value instanceof String) || ((String) value).isEmpty()) return;
             String text = (String) value;
             if (AiModelSettings.KEY.equals(key)) {

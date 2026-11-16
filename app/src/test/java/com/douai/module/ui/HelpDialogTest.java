@@ -123,6 +123,39 @@ public final class HelpDialogTest {
         assertTrue(about.isShowing());
     }
 
+    @Test public void playbackHelpFindsModuleOnlyModeAndExplainsFixedPresetsAndRetainedChoices() {
+        AlertDialog help = openHelp();
+        EditText search = help.getWindow().getDecorView().findViewWithTag("help.search");
+        search.setText("仅模块控制倍速");
+        assertTrue(HelpContent.search("仅模块控制倍速").stream().anyMatch(section -> "playback".equals(section.id)));
+        help.getWindow().getDecorView().findViewWithTag("help.topic.playback").performClick();
+        ShadowLooper.idleMainLooper();
+        String text = ((TextView) help.getWindow().getDecorView().findViewWithTag("help.body")).getText().toString();
+        assertTrue(text.contains("0.75x、1x、1.25x、1.5x、2x、3x、4x"));
+        assertTrue(text.contains("不再手动输入数值"));
+        assertTrue(text.contains("默认由模块保持 1x"));
+        assertTrue(text.contains("官方倍速请求不再作为播放目标"));
+        assertTrue(text.contains("原设置保留"));
+        assertTrue(text.contains("由仅模块控制倍速启用"));
+        assertFalse(text.contains("0.25 至 4"));
+    }
+
+    @Test public void modelHelpSeparatesSavingProfilesFromChoosingAFeatureOrGlobalDefault() {
+        HelpContent.Section models = HelpContent.search("模型管理").stream()
+                .filter(section -> "models".equals(section.id)).findFirst().get();
+        StringBuilder body = new StringBuilder();
+        for (HelpContent.Part part : models.parts) body.append(part.title).append('\n').append(part.text);
+        String text = body.toString();
+        assertTrue(text.contains("添加并保存模型"));
+        assertTrue(text.contains("不改变任何功能的模型选择"));
+        assertTrue(text.contains("先选功能"));
+        assertTrue(text.contains("全局默认"));
+        assertTrue(text.contains("本地数据分析"));
+        assertFalse(text.contains("添加并启用"));
+        assertFalse(text.contains("全局启用模型"));
+        assertFalse(text.contains("先启用全局"));
+    }
+
     @Test public void closingSettingsDismissesTheAboutAndHelpBranch() {
         AlertDialog help = openHelp();
         assertTrue(help.isShowing());

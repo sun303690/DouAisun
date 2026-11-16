@@ -37,6 +37,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +49,7 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
     static final String LIST_MANAGER = "com.ss.android.ugc.aweme.im.sdk.module.session.rips.list.MessageListRvLinearLayoutManager";
     static final String CONTACTS_TAG = "DouAi.MessageContacts";
     private static final String FRAGMENT_PACKAGE = "com.ss.android.ugc.aweme.im.sdk.module.session.rips.";
+    private static final HostReflectionCache ACCESSORS = new HostReflectionCache();
     private final Application application;
     private final SettingsStore store;
     private final ContactOpener opener;
@@ -163,6 +165,7 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
         private List<AiModelConfig> cachedContacts = Collections.emptyList();
         private boolean pending;
         private boolean active = true;
+        private final Map<String, String> observations = new HashMap<>();
         private final Runnable refreshTask = () -> { pending = false; if (active) refresh(); };
 
         Monitor(Activity activity) { owner = new WeakReference<>(activity); }
@@ -195,36 +198,56 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
                     cachedSettings = serialized;
                 }
                 List<AiModelConfig> contacts = cachedContacts;
-                if (contacts.isEmpty()) { DouAiLog.event("ai_contacts", "eligibility", "no_enabled_contacts", "configured_count=0"); restore(); return; }
-                View list = uniqueMessageList(activity);
+                if (contacts.isEmpty()) { observe("eligibility", "no_enabled_contacts", "configured_count=0"); restore(); return; }
+                View list = uniqueMessageList(activity, detail -> observe("discovery",
+                        "message_list_inspected", detail));
                 if (insertion != null && (insertion.list != list || !insertion.isIntact())) restore();
-                if (list == null) { DouAiLog.event("ai_contacts", "eligibility", "message_list_not_unique_or_missing", ""); return; }
+                if (list == null) { observe("eligibility", "message_list_not_unique_or_missing", ""); return; }
                 if (insertion == null) {
                     insertion = InlineContacts.attach(activity, list);
                     appliedSettings = null;
                 }
-                if (insertion == null) return;
+                if (insertion == null) {
+                    observe("eligibility", "message_list_container_unsupported",
+                            "parent_class=" + (list.getParent() == null ? "none" : list.getParent().getClass().getName())
+                                    + ";layout_class=" + (list.getLayoutParams() == null ? "none" : list.getLayoutParams().getClass().getName())
+                                    + ";layout_height=" + (list.getLayoutParams() == null ? 0 : list.getLayoutParams().height));
+                    return;
+                }
+                observations.remove("eligibility");
                 if (!serialized.equals(appliedSettings)) {
                     insertion.bind(contacts, id -> openConversation(activity, id));
                     appliedSettings = serialized;
                 }
                 insertion.resize();
-                DouAiLog.event("ai_contacts", "view_applied", "insertion_readback", "intact=" + insertion.isIntact() + ";contact_count=" + contacts.size());
+                observe("view_applied", "insertion_readback", "intact=" + insertion.isIntact()
+                        + ";contact_count=" + contacts.size() + ";attached=" + insertion.wrapper.isAttachedToWindow()
+                        + ";shown=" + insertion.wrapper.isShown() + ";width=" + insertion.wrapper.getWidth()
+                        + ";height=" + insertion.wrapper.getHeight() + ";sibling_z=" + insertion.highestSiblingZ
+                        + ";contact_z=" + insertion.wrapper.getZ());
                 failedSettings = null;
             } catch (ReflectiveOperationException | RuntimeException failure) {
                 restore();
                 String serialized = store.getString(AiModelSettings.KEY, "");
                 if (!serialized.equals(failedSettings)) {
                     failedSettings = serialized;
+                    DouAiLog.failure("ai_contacts", "message_contact_refresh", failure);
                     safeLog("AI message contacts unavailable: " + failure.getClass().getSimpleName());
                 }
             }
+        }
+
+        private void observe(String event, String reason, String evidence) {
+            String state = reason + ";" + evidence;
+            if (state.equals(observations.put(event, state))) return;
+            DouAiLog.event("ai_contacts", event, reason, evidence);
         }
 
         void restore() {
             if (insertion != null) insertion.restore();
             insertion = null;
             appliedSettings = null;
+            observations.remove("view_applied");
         }
 
         void close() {
@@ -245,36 +268,49 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
 
     /** Exact host fragment and layout-manager contracts avoid chat, commerce and generic lists. */
     static View uniqueMessageList(Activity activity) throws ReflectiveOperationException {
-        Method getter;
-        try { getter = activity.getClass().getMethod("getSupportFragmentManager"); }
-        catch (NoSuchMethodException absent) { return null; }
+        return uniqueMessageList(activity, ignored -> { });
+    }
+
+    static View uniqueMessageList(Activity activity, Consumer<String> diagnostic) throws ReflectiveOperationException {
+        Method getter = ACCESSORS.publicNoArgMethod(activity.getClass(), "getSupportFragmentManager");
+        if (getter == null) { diagnostic.accept("fragment_manager_getter=false"); return null; }
         Object manager = getter.invoke(activity);
         List<View> matches = new ArrayList<>();
+        int[] messageFragments = {0};
         Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-        collectMessageLists(manager, matches, visited, 0);
+        collectMessageLists(manager, matches, visited, messageFragments, 0);
+        diagnostic.accept("fragment_manager_getter=true;visible_message_fragments=" + messageFragments[0]
+                + ";session_lists=" + matches.size());
         return matches.size() == 1 ? matches.get(0) : null;
     }
 
     private static void collectMessageLists(Object manager, List<View> matches, Set<Object> visited,
-                                             int depth) throws ReflectiveOperationException {
+                                             int[] messageFragments, int depth) throws ReflectiveOperationException {
         if (manager == null || depth > 12 || !visited.add(manager)) return;
-        Object fragments = manager.getClass().getMethod("getFragments").invoke(manager);
+        Object fragments = invoke(manager, "getFragments");
         if (!(fragments instanceof List<?>)) return;
         for (Object fragment : (List<?>) fragments) {
             if (fragment == null) continue;
-            boolean hidden = Boolean.TRUE.equals(fragment.getClass().getMethod("isHidden").invoke(fragment));
+            boolean hidden = Boolean.TRUE.equals(invoke(fragment, "isHidden"));
             if (hidden) continue;
             if (isMessageFragment(fragment.getClass())) {
-                Object view = fragment.getClass().getMethod("getView").invoke(fragment);
+                Object view = invoke(fragment, "getView");
                 if (view instanceof View && ((View) view).isShown()) {
+                    messageFragments[0]++;
                     collectSessionLists((View) view, matches);
                 }
                 // Children of an identified message fragment are already covered by its view tree.
             } else {
-                Object children = fragment.getClass().getMethod("getChildFragmentManager").invoke(fragment);
-                collectMessageLists(children, matches, visited, depth + 1);
+                Object children = invoke(fragment, "getChildFragmentManager");
+                collectMessageLists(children, matches, visited, messageFragments, depth + 1);
             }
         }
+    }
+
+    private static Object invoke(Object owner, String name) throws ReflectiveOperationException {
+        Method method = ACCESSORS.publicNoArgMethod(owner.getClass(), name);
+        if (method == null) throw new NoSuchMethodException(owner.getClass().getName() + "." + name);
+        return method.invoke(owner);
     }
 
     static boolean isMessageFragment(Class<?> type) {
@@ -302,7 +338,7 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
         }
         if (!recycler) return false;
         try {
-            Object manager = view.getClass().getMethod("getLayoutManager").invoke(view);
+            Object manager = invoke(view, "getLayoutManager");
             return manager != null && LIST_MANAGER.equals(manager.getClass().getName());
         } catch (ReflectiveOperationException | RuntimeException absent) { return false; }
     }
@@ -314,6 +350,7 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
         private ViewGroup.LayoutParams appliedParams;
         private int modelCount;
         private int appliedHeight = -1;
+        private float highestSiblingZ;
         final LinearLayout wrapper;
         final ScrollView scroll;
         final LinearLayout rows;
@@ -322,20 +359,21 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
             this.list = list;
             this.parent = parent;
             originalParams = list.getLayoutParams();
-            int index = parent.indexOfChild(list);
             wrapper = new LinearLayout(activity);
             wrapper.setId(View.generateViewId());
             wrapper.setTag(CONTACTS_TAG);
             wrapper.setOrientation(LinearLayout.VERTICAL);
             scroll = new ScrollView(activity);
             scroll.setFillViewport(false);
+            scroll.setVerticalScrollBarEnabled(true);
+            scroll.setScrollbarFadingEnabled(false);
             rows = new LinearLayout(activity);
             rows.setOrientation(LinearLayout.VERTICAL);
             scroll.addView(rows, new ScrollView.LayoutParams(-1, -2));
             wrapper.addView(scroll, new LinearLayout.LayoutParams(-1, -2));
             // The native recycler keeps its ID, direct parent and place among native siblings.
             // This preserves ConstraintLayout references and native findViewById casts.
-            parent.addView(wrapper, index, copyParams(originalParams));
+            parent.addView(wrapper, copyParams(originalParams));
         }
 
         static InlineContacts attach(Activity activity, View list) {
@@ -455,13 +493,29 @@ public final class AiMessageEntryHook implements Application.ActivityLifecycleCa
         }
 
         void resize() {
+            // Native loading/empty views and inflated stubs share this container with the list.
+            if (wrapper.getParent() == parent && parent.indexOfChild(wrapper) != parent.getChildCount() - 1) {
+                wrapper.bringToFront();
+            }
+            highestSiblingZ = 0;
+            for (int index = 0; index < parent.getChildCount(); index++) {
+                View sibling = parent.getChildAt(index);
+                if (sibling != wrapper) {
+                    float siblingZ = sibling.getZ();
+                    if (Float.isFinite(siblingZ) && siblingZ > highestSiblingZ) highestSiblingZ = siblingZ;
+                }
+            }
+            float contactElevation = highestSiblingZ + 1f;
+            wrapper.setElevation(Float.isFinite(contactElevation) ? contactElevation : highestSiblingZ);
             Activity activity = (Activity) wrapper.getContext();
-            int headerHeight = dp(activity, 64 * Math.min(3, modelCount));
+            int headerHeight = dp(activity, 64 * modelCount);
             ViewGroup.MarginLayoutParams margins = (ViewGroup.MarginLayoutParams) originalParams;
             int available = parent.getHeight() - parent.getPaddingTop() - parent.getPaddingBottom()
                     - margins.topMargin - margins.bottomMargin;
             if (originalParams.height > 0) available = Math.min(available, originalParams.height);
-            if (available > 0) headerHeight = Math.min(headerHeight, Math.max(1, available / 2));
+            // Expand all contacts when they fit, leaving room for at least one native message row.
+            if (available > 0) headerHeight = Math.min(headerHeight,
+                    Math.max(1, available - Math.min(dp(activity, 64), (available + 1) / 2)));
             if (headerHeight == appliedHeight) return;
             scroll.setLayoutParams(new LinearLayout.LayoutParams(-1, headerHeight));
             ViewGroup.LayoutParams headerParams = copyParams(originalParams);
