@@ -89,7 +89,7 @@ public final class LiveRoomInfoHook implements AutoCloseable {
                 long.class, String.class, String.class, boolean.class);
         handles.add(framework.hook(update).intercept(chain -> {
             Object widgetInstance = chain.getThisObject();
-            Object[] args = chain.getArgs();
+            List<Object> args = chain.getArgs();
             Object result = chain.proceed();
             capture(widgetInstance, args);
             return result;
@@ -113,7 +113,7 @@ public final class LiveRoomInfoHook implements AutoCloseable {
      * Captures the count view and the widget data centre after each audience update, and rewrites
      * the rendered count to the exact number when that option is on.
      */
-    private void capture(Object widget, Object[] args) {
+    private void capture(Object widget, List<Object> args) {
         if (widget == null) return;
         try {
             TextView count = countViewOf(widget);
@@ -133,10 +133,10 @@ public final class LiveRoomInfoHook implements AutoCloseable {
      * Overwrites the abbreviated count label with the exact number carried by the first argument.
      * The native update always runs first, so this only replaces the rendered text.
      */
-    private void applyExactCount(TextView view, Object[] args) {
-        if (!exactCountEnabled() || args == null || args.length != 4) return;
-        if (!(args[0] instanceof Number)) return;
-        long count = ((Number) args[0]).longValue();
+    private void applyExactCount(TextView view, List<Object> args) {
+        if (!exactCountEnabled() || args == null || args.size() != 4) return;
+        if (!(args.get(0) instanceof Number)) return;
+        long count = ((Number) args.get(0)).longValue();
         if (count <= 0) return;
         String exact = formatCount(count);
         CharSequence shown = view.getText();
