@@ -81,6 +81,7 @@ import com.douai.module.feature.RefreshConfirmHook;
 import com.douai.module.feature.AutoLikeHook;
 import com.douai.module.feature.AutoFollowHook;
 import com.douai.module.feature.AutoPlayHook;
+import com.douai.module.feature.AutoNextTakeoverHook;
 import com.douai.module.feature.AutoCommentHook;
 import com.douai.module.feature.AutomationDispatcher;
 import com.douai.module.feature.CommentReplyHook;
@@ -179,6 +180,7 @@ public final class DouAiModule extends XposedModule {
     private volatile String videoProxyFailure;
     private volatile LiveRoomInfoHook liveRoomInfoHook;
     private volatile LiveCleanHook liveCleanHook;
+    private volatile AutoNextTakeoverHook autoNextTakeoverHook;
     private volatile boolean hostApplicationCreated;
     private volatile String homeSidebarFailure;
     private volatile XposedInterface.HookHandle applicationCreateHandle;
@@ -821,6 +823,9 @@ public final class DouAiModule extends XposedModule {
             }
             AutoPlayHook autoPlay = autoPlayHook;
             if (autoPlay != null && autoPlayChanged) autoPlay.setSettings(extended, options);
+            if (autoNextTakeoverHook != null && autoPlayChanged) {
+                autoNextTakeoverHook.applyOptions(options);
+            }
             AutoCommentHook autoComment = autoCommentDraftHook;
             if (autoComment != null && commentAutomationChanged) autoComment.setOptions(options);
             if (commentReplyHook != null && commentReplyChanged) commentReplyHook.setOptions(options);
@@ -1140,6 +1145,19 @@ public final class DouAiModule extends XposedModule {
                         ? failure.getClass().getSimpleName() : failure.getMessage();
                 DouAiLog.failure("auto_play", "installation", failure);
                 moduleLog(6, TAG, "DouAi auto-slide hook installation failed", failure);
+            }
+        }
+        if (autoPlayHook != null && autoNextTakeoverHook == null) {
+            try {
+                autoNextTakeoverHook = new AutoNextTakeoverHook(hookFramework(),
+                        localOptions, message -> moduleLog(3, TAG, message));
+                // Only hold the host gate back when the module can actually turn pages itself.
+                autoNextTakeoverHook.setModuleFeedAvailable(true);
+                autoNextTakeoverHook.install(hostScanReport, hostClassLoader);
+                moduleLog(3, TAG, "Host auto-next gate installed; module drives the feed");
+            } catch (Throwable failure) {
+                DouAiLog.failure("auto_next", "installation", failure);
+                moduleLog(6, TAG, "Host auto-next gate installation failed", failure);
             }
         }
         if (autoCommentDraftHook == null) {
