@@ -43,6 +43,7 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
 import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.LiveRoomInfoHook;
 import com.douai.module.feature.VideoProxyHook;
 import com.douai.module.feature.DouyinSearch;
 import com.douai.module.feature.HostDouyinSearch;
@@ -175,6 +176,7 @@ public final class DouAiModule extends XposedModule {
     private volatile String videoQualityFailure;
     private volatile VideoProxyHook videoProxyHook;
     private volatile String videoProxyFailure;
+    private volatile LiveRoomInfoHook liveRoomInfoHook;
     private volatile boolean hostApplicationCreated;
     private volatile String homeSidebarFailure;
     private volatile XposedInterface.HookHandle applicationCreateHandle;
@@ -775,6 +777,10 @@ public final class DouAiModule extends XposedModule {
                     || changes.contains(VideoProxyHook.KEY_WIFI_ONLY))) {
                 videoProxyHook.applyOptions(options);
             }
+            if (liveRoomInfoHook != null && (initial || changes.contains(LiveRoomInfoHook.OPTION)
+                    || changes.contains(LiveRoomInfoHook.OPTION_COUNT))) {
+                liveRoomInfoHook.applyOptions(options);
+            }
             if (commentAiAnalysisHook != null && (initial || changes.affects(Feature.MANUAL_AI))) {
                 commentAiAnalysisHook.setOptions(options);
             }
@@ -1040,6 +1046,20 @@ public final class DouAiModule extends XposedModule {
                         ? failure.getClass().getSimpleName() : failure.getMessage();
                 DouAiLog.failure("video_proxy", "installation", failure);
                 moduleLog(6, TAG, "Local video proxy hook installation failed", failure);
+            }
+        }
+        if (liveRoomInfoHook == null) {
+            try {
+                liveRoomInfoHook = LiveRoomInfoHook.install(hookFramework(), hostClassLoader,
+                        localOptions, message -> moduleLog(3, TAG, message));
+                if (liveRoomInfoHook != null) {
+                    liveRoomInfoHook.applyOptions(localOptions);
+                    moduleLog(3, TAG, "Live room info hook installed; enabled="
+                            + localOptions.enabled(LiveRoomInfoHook.OPTION));
+                }
+            } catch (Throwable failure) {
+                DouAiLog.failure("live_room_info", "installation", failure);
+                moduleLog(6, TAG, "Live room info hook installation failed", failure);
             }
         }
         if (refreshConfirmHook == null) {

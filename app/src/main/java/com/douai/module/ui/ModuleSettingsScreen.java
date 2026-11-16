@@ -586,6 +586,8 @@ public final class ModuleSettingsScreen {
                 addSwitch("首页刷新确认", "",
                         repository.getBoolean("confirm_refresh", false), true,
                         value -> repository.putBoolean("confirm_refresh", value));
+                addLocalSwitch("直播信息面板", "", LocalOptions.LIVE_ROOM_INFO);
+                addLocalSwitch("直播具体人数", "", LocalOptions.LIVE_ROOM_EXACT_COUNT);
                 addDependentSwitch("首页右滑打开侧边栏", "",
                         repository.getBoolean(SidebarSettings.ENABLED, false),
                         value -> repository.putBoolean(SidebarSettings.ENABLED, value), () -> {

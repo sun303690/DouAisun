@@ -30,6 +30,10 @@ public final class LocalOptions {
     public static final String VIDEO_PROXY_CACHE_BUDGET_MB = "video_proxy_cache_budget_mb";
     /** Limits the local video proxy cache to unmetered networks. */
     public static final String VIDEO_PROXY_WIFI_ONLY = "video_proxy_wifi_only";
+    /** Shows the current live room details in a dialog. */
+    public static final String LIVE_ROOM_INFO = "live_room_info";
+    /** Renders the exact live viewer count instead of the short form. */
+    public static final String LIVE_ROOM_EXACT_COUNT = "live_room_exact_count";
 
     public String downloadSaveTree() { return text(DOWNLOAD_SAVE_TREE, "").trim(); }
     public boolean officialDownloadDirect() { return enabled(OFFICIAL_DOWNLOAD_DIRECT); }
