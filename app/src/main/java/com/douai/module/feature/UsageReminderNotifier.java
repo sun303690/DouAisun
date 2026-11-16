@@ -1,7 +1,9 @@
 package com.douai.module.feature;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
@@ -27,17 +29,30 @@ final class UsageReminderNotifier {
         if (vibrate) vibrate(activity);
     }
 
+    /**
+     * Vibrates the device when the host app holds the vibrate permission.
+     *
+     * <p>The module runs inside the host process, so the host manifest decides whether the
+     * permission is granted. The check keeps the call safe when the host does not declare it.
+     */
+    @SuppressLint("MissingPermission")
     private static void vibrate(Context context) {
         try {
+            if (!hasVibratePermission(context)) return;
             Vibrator vibrator = resolveVibrator(context);
             if (vibrator == null || !vibrator.hasVibrator()) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(400L, VibrationEffect.DEFAULT_AMPLITUDE));
-            } else {
-                vibrator.vibrate(400L);
-            }
+            vibrator.vibrate(VibrationEffect.createOneShot(400L, VibrationEffect.DEFAULT_AMPLITUDE));
         } catch (RuntimeException ignored) {
             // Vibration is optional feedback only.
+        }
+    }
+
+    private static boolean hasVibratePermission(Context context) {
+        try {
+            return context.checkCallingOrSelfPermission(android.Manifest.permission.VIBRATE)
+                    == PackageManager.PERMISSION_GRANTED;
+        } catch (RuntimeException ignored) {
+            return false;
         }
     }
 
