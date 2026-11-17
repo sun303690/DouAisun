@@ -10,7 +10,8 @@ public final class FeedFilterPolicy {
     /** First matching rule in the established short-circuit order; no item contents leave this policy. */
     public enum Reason {
         NONE, ADVERTISEMENT, LIVE, IMAGE_POST, RECOMMENDATION_CARD, RECOMMENDATION_MERCHANT,
-        KEYWORD, MINIMUM_DURATION, MINIMUM_LIKES, PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO;
+        KEYWORD, MINIMUM_DURATION, MINIMUM_LIKES, MINIMUM_COMMENTS, MINIMUM_COLLECTS, MINIMUM_SHARES,
+        PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO;
         public boolean hides() { return this != NONE; }
     }
     private FeedFilterPolicy() { }
@@ -58,8 +59,17 @@ public final class FeedFilterPolicy {
         if (options.enabled("hide_mini_games") && game) return Reason.MINI_GAME;
         if (options.enabled("hide_long_videos")) {
             int threshold = Math.max(1, options.integer("maximum_duration_seconds", 120));
-            return hostType == 127 || hostType == 128
-                    || item.durationKnown && item.durationMillis > threshold * 1000L ? Reason.LONG_VIDEO : Reason.NONE;
+            if (hostType == 127 || hostType == 128 || item.durationKnown && item.durationMillis > threshold * 1000L) {
+                return Reason.LONG_VIDEO;
+            }
+        }
+        if (item.engagementKnown) {
+            int minimumComments = Math.max(0, options.integer("min_comments", 0));
+            if (minimumComments > 0 && item.commentCount < minimumComments) return Reason.MINIMUM_COMMENTS;
+            int minimumCollects = Math.max(0, options.integer("min_collects", 0));
+            if (minimumCollects > 0 && item.collectCount < minimumCollects) return Reason.MINIMUM_COLLECTS;
+            int minimumShares = Math.max(0, options.integer("min_shares", 0));
+            if (minimumShares > 0 && item.shareCount < minimumShares) return Reason.MINIMUM_SHARES;
         }
         return Reason.NONE;
     }

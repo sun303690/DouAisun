@@ -10,6 +10,7 @@ import com.douai.module.scan.RuleScanResult;
 
 import io.github.libxposed.api.XposedInterface;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -17,6 +18,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -329,15 +332,75 @@ public final class FeedAdFilterHook implements AutoCloseable {
             }
         }
         long likeCount = -1;
-        if (current.minimumLikesEnabled) {
-            Object statistics = statisticsField.get(item);
-            if (statistics != null) likeCount = diggCountField.getLong(statistics);
+        long commentCount = -1;
+        long collectCount = -1;
+        long shareCount = -1;
+        Object statistics = statisticsField.get(item);
+        if (statistics != null) {
+            if (current.minimumLikesEnabled) likeCount = diggCountField.getLong(statistics);
+            commentCount = count(statistics, "comment_count");
+            collectCount = count(statistics, "collect_count");
+            shareCount = count(statistics, "share_count");
         }
         FeedItem attributes = new FeedItem(ad, live, image,
-                recommendationCard, desc, durationMillis, likeCount);
+                recommendationCard, desc, durationMillis, likeCount,
+                commentCount, collectCount, shareCount);
         return FeedFilterPolicy.reason(attributes, current,
                 recommendationCard, recommendationMerchant,
                 isMiniGame(anchorInfoField.get(item)), type, options);
+    }
+
+    /** Resolved statistic fields per owner, keyed by {@code owner#jsonName}. */
+    private static final Map<String, Field> STATISTIC_FIELDS = new ConcurrentHashMap<>();
+
+    /**
+     * Reads one statistic by its JSON name. The host renames these fields between releases, so a
+     * same-named field wins and {@code @SerializedName} is the fallback; both are cached per class.
+     */
+    private static long count(Object statistics, String jsonName) {
+        Field field = statisticField(statistics.getClass(), jsonName);
+        if (field == null) return -1;
+        try {
+            Object value = field.get(statistics);
+            return value instanceof Number ? ((Number) value).longValue() : -1;
+        } catch (Throwable ignored) {
+            return -1;
+        }
+    }
+
+    private static Field statisticField(Class<?> owner, String jsonName) {
+        String cacheKey = owner.getName() + '#' + jsonName;
+        Field cached = STATISTIC_FIELDS.get(cacheKey);
+        if (cached != null) return cached;
+        Field resolved = resolveStatisticField(owner, jsonName);
+        if (resolved != null) STATISTIC_FIELDS.put(cacheKey, resolved);
+        return resolved;
+    }
+
+    private static Field resolveStatisticField(Class<?> owner, String jsonName) {
+        try {
+            Field direct = owner.getField(jsonName);
+            if (direct.getType() == long.class || direct.getType() == Long.class) return direct;
+        } catch (Throwable ignored) {
+        }
+        for (Field candidate : owner.getFields()) {
+            if (candidate.getType() != long.class && candidate.getType() != Long.class) continue;
+            if (jsonName.equals(serializedName(candidate))) return candidate;
+        }
+        return null;
+    }
+
+    private static String serializedName(Field field) {
+        for (Annotation annotation : field.getAnnotations()) {
+            if (!annotation.annotationType().getName().equals("com.google.gson.annotations.SerializedName")) continue;
+            try {
+                Object value = annotation.annotationType().getMethod("value").invoke(annotation);
+                return value instanceof String ? (String) value : null;
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     static String searchableText(Object aweme, String description) {

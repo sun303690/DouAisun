@@ -1134,6 +1134,15 @@ public final class ModuleSettingsScreen {
                     true, settings.feedFilterEnabled, true,
                     value -> update(s -> withLikes(withFilter(s, parseNonNegative(value) > 0, Filter.LIKES),
                             parseNonNegative(value))));
+            addEditableOption("最低评论数（0不限制）", "",
+                    repository.getString("min_comments", "0"), true, settings.feedFilterEnabled, true,
+                    value -> repository.putString("min_comments", value));
+            addEditableOption("最低收藏数（0不限制）", "",
+                    repository.getString("min_collects", "0"), true, settings.feedFilterEnabled, true,
+                    value -> repository.putString("min_collects", value));
+            addEditableOption("最低分享数（0不限制）", "",
+                    repository.getString("min_shares", "0"), true, settings.feedFilterEnabled, true,
+                    value -> repository.putString("min_shares", value));
             addSwitch("去图集开关", "", settings.hideImagePosts,
                     settings.feedFilterEnabled, true,
                     value -> update(s -> withFilter(s, value, Filter.IMAGE)));
