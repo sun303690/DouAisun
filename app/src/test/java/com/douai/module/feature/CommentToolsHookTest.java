@@ -204,11 +204,11 @@ public final class CommentToolsHookTest {
         preferences.edit().clear().putBoolean("copy_source_data", true).commit();
         Constructor<CommentToolsHook> constructor = CommentToolsHook.class.getDeclaredConstructor(
                 ClassLoader.class, Class.class, Class.class, Class.class, Field.class, Field.class,
-                ExtendedSettings.class, Consumer.class);
+                CommentMediaSaver.class, ExtendedSettings.class, Consumer.class);
         constructor.setAccessible(true);
         return constructor.newInstance(CommentToolsHookTest.class.getClassLoader(), Item.class, Comment.class,
                 null, Item.class.getField("k"), Params.class.getField("LJIIIIZZ"),
-                ExtendedSettings.readFrom(preferences), (Consumer<String>) logs::add);
+                null, ExtendedSettings.readFrom(preferences), (Consumer<String>) logs::add);
     }
 
     private static String source() throws Exception {
