@@ -13,6 +13,7 @@ public final class ExtendedSettings {
     public final boolean autoPlay;
     public final boolean playerGestures;
     public final boolean copyCommentText;
+    public final boolean copyCommentWithoutMention;
     public final boolean commentMediaTools;
     public final boolean copySourceData;
     public final boolean preventMessageRecall;
@@ -34,6 +35,7 @@ public final class ExtendedSettings {
         autoPlay = preferences.getBoolean("auto_play", false);
         playerGestures = preferences.getBoolean("player_gestures", false);
         copyCommentText = preferences.getBoolean("copy_comment_text", false);
+        copyCommentWithoutMention = preferences.getBoolean("comment_copy_without_mention", false);
         commentMediaTools = preferences.getBoolean("comment_media_tools", false);
         copySourceData = preferences.getBoolean("copy_source_data", false);
         preventMessageRecall = preferences.getBoolean("prevent_message_recall", false);
@@ -56,6 +58,7 @@ public final class ExtendedSettings {
         autoPlay = false;
         playerGestures = false;
         copyCommentText = false;
+        copyCommentWithoutMention = false;
         commentMediaTools = false;
         copySourceData = false;
         preventMessageRecall = false;

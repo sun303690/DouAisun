@@ -639,6 +639,7 @@ public final class ModuleSettingsScreen {
                 addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
                 addLocalSwitch("#长按发送转语音（全局）", "", "hash_long_press_voice");
                 addCommentLongPressOption();
+                addLocalSwitch("复制评论去除开头艾特", "仅影响模块长按菜单中的复制评论", "comment_copy_without_mention");
                 addDependentSwitch("彩色评论", "", repository.getBoolean("colored_comment", false),
                         value -> repository.putBoolean("colored_comment", value),
                         () -> addChoiceOption("彩色评论类型", "colored_comment_type", new String[]{"类型 0", "类型 33"},

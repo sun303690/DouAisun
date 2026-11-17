@@ -390,7 +390,8 @@ public final class CommentToolsHook implements AutoCloseable {
             showCommentData(context, action.source);
         } else if (action.text != null) {
             if (!settings.copyCommentText) return;
-            copyText(context, action.text, "评论");
+            copyText(context, settings.copyCommentWithoutMention
+                    ? CommentCopyText.stripLeadingMention(action.text) : action.text, "评论");
         } else if (action.source != null) {
             if (!settings.copySourceData) return;
             String sourceJson = toJson(action.source);
