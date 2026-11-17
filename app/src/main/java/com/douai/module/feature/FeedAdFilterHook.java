@@ -342,9 +342,11 @@ public final class FeedAdFilterHook implements AutoCloseable {
             collectCount = count(statistics, "collect_count");
             shareCount = count(statistics, "share_count");
         }
+        long createTimeSeconds = -1;
+        if (options.integer("max_days", 0) > 0) createTimeSeconds = timeSeconds(item);
         FeedItem attributes = new FeedItem(ad, live, image,
                 recommendationCard, desc, durationMillis, likeCount,
-                commentCount, collectCount, shareCount);
+                commentCount, collectCount, shareCount, createTimeSeconds);
         return FeedFilterPolicy.reason(attributes, current,
                 recommendationCard, recommendationMerchant,
                 isMiniGame(anchorInfoField.get(item)), type, options);
@@ -366,6 +368,34 @@ public final class FeedAdFilterHook implements AutoCloseable {
         } catch (Throwable ignored) {
             return -1;
         }
+    }
+
+    /** Reads {@code create_time}; the host keeps it in seconds and renames the Java field freely. */
+    private static long timeSeconds(Object aweme) {
+        Class<?> owner = aweme.getClass();
+        Field field = timeFields.computeIfAbsent(owner, type -> resolveTimeField(type));
+        if (field == null) return -1;
+        try {
+            Object value = field.get(aweme);
+            return value instanceof Number ? ((Number) value).longValue() : -1;
+        } catch (Throwable ignored) {
+            return -1;
+        }
+    }
+
+    private static final Map<Class<?>, Field> timeFields = new ConcurrentHashMap<>();
+
+    private static Field resolveTimeField(Class<?> owner) {
+        Field byName = resolveStatisticField(owner, "create_time");
+        if (byName != null) return byName;
+        for (String name : new String[]{"createTime", "create_time"}) {
+            try {
+                Field direct = owner.getField(name);
+                if (direct.getType() == long.class || direct.getType() == Long.class) return direct;
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     private static Field statisticField(Class<?> owner, String jsonName) {
@@ -534,7 +564,9 @@ public final class FeedAdFilterHook implements AutoCloseable {
                 || settings.keywordFilterEnabled
                 || settings.minimumDurationEnabled || settings.minimumLikesEnabled
                 || options.enabled("hide_product_cards") || options.enabled("hide_hotspot_rank_cards")
-                || options.enabled("hide_mini_games") || options.enabled("hide_long_videos");
+                || options.enabled("hide_mini_games") || options.enabled("hide_long_videos")
+                || options.integer("min_comments", 0) > 0 || options.integer("min_collects", 0) > 0
+                || options.integer("min_shares", 0) > 0 || options.integer("max_days", 0) > 0;
     }
 
     private static Class<?> resolveClass(HostScanReport report, String ruleId,

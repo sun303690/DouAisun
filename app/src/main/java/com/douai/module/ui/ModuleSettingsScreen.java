@@ -1143,6 +1143,9 @@ public final class ModuleSettingsScreen {
             addEditableOption("最低分享数（0不限制）", "",
                     repository.getString("min_shares", "0"), true, settings.feedFilterEnabled, true,
                     value -> repository.putString("min_shares", value));
+            addEditableOption("仅保留最近几天（0不限制）", "",
+                    repository.getString("max_days", "0"), true, settings.feedFilterEnabled, true,
+                    value -> repository.putString("max_days", value));
             addSwitch("去图集开关", "", settings.hideImagePosts,
                     settings.feedFilterEnabled, true,
                     value -> update(s -> withFilter(s, value, Filter.IMAGE)));

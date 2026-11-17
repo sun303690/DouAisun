@@ -133,4 +133,41 @@ public class FeedFilterPolicyTest {
         assertFalse(FeedFilterPolicy.shouldHide(item, filters, false, false, false, 9001, options));
         assertTrue(FeedFilterPolicy.shouldHide(item, filters, false, false, false, 104, options));
     }
+
+    @Test public void engagementThresholdsOnlyApplyWhenConfiguredAndKnown() {
+        FeatureSettings filters = recommendationSettings(false, false);
+        java.util.Map<String, Object> values = new java.util.HashMap<>();
+        values.put("min_comments", "10");
+        values.put("min_collects", "5");
+        values.put("min_shares", "2");
+        com.douai.module.config.LocalOptions options = new com.douai.module.config.LocalOptions(values);
+        long now = System.currentTimeMillis() / 1000L;
+        FeedItem passing = new FeedItem(false, false, false, false, "", 20_000, 0, 10, 5, 2, now);
+        assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(passing, filters, false, false, false, 0, options));
+        FeedItem fewComments = new FeedItem(false, false, false, false, "", 20_000, 0, 9, 5, 2, now);
+        assertEquals(FeedFilterPolicy.Reason.MINIMUM_COMMENTS, FeedFilterPolicy.reason(fewComments, filters, false, false, false, 0, options));
+        FeedItem fewCollects = new FeedItem(false, false, false, false, "", 20_000, 0, 10, 4, 2, now);
+        assertEquals(FeedFilterPolicy.Reason.MINIMUM_COLLECTS, FeedFilterPolicy.reason(fewCollects, filters, false, false, false, 0, options));
+        FeedItem fewShares = new FeedItem(false, false, false, false, "", 20_000, 0, 10, 5, 1, now);
+        assertEquals(FeedFilterPolicy.Reason.MINIMUM_SHARES, FeedFilterPolicy.reason(fewShares, filters, false, false, false, 0, options));
+        FeedItem unknown = new FeedItem(false, false, false, false, "", 20_000, 0);
+        assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(unknown, filters, false, false, false, 0, options));
+    }
+
+    @Test public void maximumDaysUsesTheHostCreateTimestamp() {
+        FeatureSettings filters = recommendationSettings(false, false);
+        com.douai.module.config.LocalOptions options = new com.douai.module.config.LocalOptions(
+                java.util.Collections.singletonMap("max_days", "7"));
+        long week = 7L * 86_400L;
+        long now = System.currentTimeMillis() / 1000L;
+        FeedItem fresh = new FeedItem(false, false, false, false, "", 20_000, 0, -1, -1, -1, now - week + 3_600L);
+        assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(fresh, filters, false, false, false, 0, options));
+        FeedItem stale = new FeedItem(false, false, false, false, "", 20_000, 0, -1, -1, -1, now - week - 3_600L);
+        assertEquals(FeedFilterPolicy.Reason.OLDER_THAN_DAYS, FeedFilterPolicy.reason(stale, filters, false, false, false, 0, options));
+        FeedItem unknown = new FeedItem(false, false, false, false, "", 20_000, 0);
+        assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(unknown, filters, false, false, false, 0, options));
+        com.douai.module.config.LocalOptions unlimited = new com.douai.module.config.LocalOptions(
+                java.util.Collections.singletonMap("max_days", "0"));
+        assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(stale, filters, false, false, false, 0, unlimited));
+    }
 }

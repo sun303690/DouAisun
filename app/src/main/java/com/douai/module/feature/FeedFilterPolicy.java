@@ -11,7 +11,7 @@ public final class FeedFilterPolicy {
     public enum Reason {
         NONE, ADVERTISEMENT, LIVE, IMAGE_POST, RECOMMENDATION_CARD, RECOMMENDATION_MERCHANT,
         KEYWORD, MINIMUM_DURATION, MINIMUM_LIKES, MINIMUM_COMMENTS, MINIMUM_COLLECTS, MINIMUM_SHARES,
-        PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO;
+        PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO, OLDER_THAN_DAYS;
         public boolean hides() { return this != NONE; }
     }
     private FeedFilterPolicy() { }
@@ -71,7 +71,20 @@ public final class FeedFilterPolicy {
             int minimumShares = Math.max(0, options.integer("min_shares", 0));
             if (minimumShares > 0 && item.shareCount < minimumShares) return Reason.MINIMUM_SHARES;
         }
+        if (item.createTimeKnown) {
+            int maximumDays = Math.max(0, options.integer("max_days", 0));
+            if (maximumDays > 0 && isOlderThanDays(item.createTimeSeconds, maximumDays)) {
+                return Reason.OLDER_THAN_DAYS;
+            }
+        }
         return Reason.NONE;
+    }
+
+    /** The host stores create_time in seconds; both sides of the comparison stay integral. */
+    static boolean isOlderThanDays(long createTimeSeconds, int maximumDays) {
+        if (createTimeSeconds <= 0 || maximumDays <= 0) return false;
+        long cutoffSeconds = (System.currentTimeMillis() - maximumDays * 86_400_000L) / 1000L;
+        return createTimeSeconds < cutoffSeconds;
     }
 
     private static boolean containsKeyword(String text, String configured) {
