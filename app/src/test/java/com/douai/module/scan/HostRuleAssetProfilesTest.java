@@ -33,8 +33,14 @@ public final class HostRuleAssetProfilesTest {
         for (HostAdaptation.Profile profile : HostApkTestProfile.profiles()) {
             HostRuleSet selected = rules(profile);
             assertEquals(profile.versionName, profile.fingerprint, selected.getFingerprint());
-            assertEquals(profile.versionName, 242, selected.getRules().size());
-            assertEquals(profile.versionName, olderIds, ids(selected));
+            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 244 : 242;
+            assertEquals(profile.versionName, expectedCount, selected.getRules().size());
+            Set<String> expectedIds = new HashSet<>(olderIds);
+            if (profile == HostAdaptation.PROFILE_410) {
+                expectedIds.add("comment_interaction_state");
+                expectedIds.add("comment_interaction_builder");
+            }
+            assertEquals(profile.versionName, expectedIds, ids(selected));
             assertTrue("Profiles must not share rule assets", assets.add(profile.rulesAsset));
             assertTrue("Profiles must not share rule fingerprints", fingerprints.add(profile.fingerprint));
         }

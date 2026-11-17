@@ -623,11 +623,11 @@ public final class ModuleSettingsScreen {
                 addOption("互动自动化", "", null, true, this::showAutomationSettings);
                 break;
             case COMMENT:
-                addLocalSwitch("隐藏评论点赞按钮", "仅作用于原生评论交互面板；新打开的面板生效", LocalOptions.COMMENT_HIDE_DIGG);
-                addLocalSwitch("隐藏评论点踩按钮", "仅作用于原生评论交互面板；新打开的面板生效", LocalOptions.COMMENT_HIDE_BURY);
-                addLocalSwitch("隐藏评论回复按钮", "仅作用于原生评论交互面板；新打开的面板生效", LocalOptions.COMMENT_HIDE_REPLY);
-                addLocalSwitch("隐藏评论底部输入栏", "仅作用于原生评论交互面板；新打开的面板生效", LocalOptions.COMMENT_HIDE_INPUT);
-                addLocalSwitch("禁用点击评论回复", "仅作用于原生评论交互面板；新打开的面板生效", LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
+                addLocalSwitch("隐藏评论点赞按钮", "", LocalOptions.COMMENT_HIDE_DIGG);
+                addLocalSwitch("隐藏评论点踩按钮", "", LocalOptions.COMMENT_HIDE_BURY);
+                addLocalSwitch("隐藏评论回复按钮", "", LocalOptions.COMMENT_HIDE_REPLY);
+                addLocalSwitch("隐藏评论底部输入栏", "", LocalOptions.COMMENT_HIDE_INPUT);
+                addLocalSwitch("禁用点击评论回复", "", LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
                 addDependentSwitch("评论自动添加后缀", "", repository.getBoolean("comment_append_suffix", false),
                         value -> repository.putBoolean("comment_append_suffix", value),
                         () -> addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),
