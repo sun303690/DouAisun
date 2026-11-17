@@ -77,6 +77,9 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", LocalOptions.OFFICIAL_DOWNLOAD_DIRECT);
         add(keys, "boolean", LocalOptions.DEBUG_LOGGING);
         add(keys, "boolean", LocalOptions.HASH_LONG_PRESS_VOICE);
+        add(keys, "boolean", LocalOptions.COMMENT_HIDE_DIGG + " " + LocalOptions.COMMENT_HIDE_BURY + " "
+                + LocalOptions.COMMENT_HIDE_REPLY + " " + LocalOptions.COMMENT_HIDE_INPUT + " "
+                + LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
         add(keys, "boolean", LocalOptions.MODULE_ONLY_SPEED);
         add(keys, "boolean", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
         add(keys, "boolean", "hide_seen_works loaded_comment_search_enabled comment_transcript_enabled");
@@ -146,7 +149,10 @@ public final class ConfigurationCatalog {
         depend(Feature.HOST_BEHAVIOR, "remove_splash_ads remove_update_dialog remove_teen_dialog hide_video_black_edges hide_camera_plus disable_double_tap_like prevent_skip_hidden prevent_insert_video block_long_press_speed " + LocalOptions.MODULE_ONLY_SPEED, "");
         depend(Feature.DIRECT_MESSAGE_SPEECH, LocalOptions.HASH_LONG_PRESS_VOICE, "dm_ tts_ voice_catalog_");
         depend(Feature.MEDIA_MODEL, "remove_download_limits", "");
-        depend(Feature.COMMENT_ENHANCEMENTS, "comment_append_suffix comment_suffix colored_comment colored_comment_type", "");
+        depend(Feature.COMMENT_ENHANCEMENTS, "comment_append_suffix comment_suffix colored_comment colored_comment_type "
+                + LocalOptions.COMMENT_HIDE_DIGG + " " + LocalOptions.COMMENT_HIDE_BURY + " "
+                + LocalOptions.COMMENT_HIDE_REPLY + " " + LocalOptions.COMMENT_HIDE_INPUT + " "
+                + LocalOptions.COMMENT_DISABLE_ITEM_CLICK, "");
         depend(Feature.COMMENT_VOICE, "comment_voice_replace comment_voice_path", "");
         depend(Feature.NATIVE_COMMENT_SPEECH, "comment_tts " + LocalOptions.HASH_LONG_PRESS_VOICE, "tts_ voice_catalog_");
         depend(Feature.AUTO_LIKE, "automation_enabled auto_like_enabled", "");

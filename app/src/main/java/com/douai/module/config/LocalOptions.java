@@ -18,6 +18,11 @@ public final class LocalOptions {
     public static final String REPLY_RECOGNIZE_IMAGES = "reply_recognize_images";
     public static final String REPLY_RECOGNIZE_VIDEO = "reply_recognize_video";
     public static final String COMMENT_VOICE = "comment_voice";
+    public static final String COMMENT_HIDE_DIGG = "comment_hide_digg";
+    public static final String COMMENT_HIDE_BURY = "comment_hide_bury";
+    public static final String COMMENT_HIDE_REPLY = "comment_hide_reply";
+    public static final String COMMENT_HIDE_INPUT = "comment_hide_input";
+    public static final String COMMENT_DISABLE_ITEM_CLICK = "comment_disable_item_click";
     public static final String DEBUG_LOGGING = "debug_logging";
     public static final String HASH_LONG_PRESS_VOICE = "hash_long_press_voice";
     /** Receives comment replies as a channel of native_auto_reply, like private/group chat reception. */

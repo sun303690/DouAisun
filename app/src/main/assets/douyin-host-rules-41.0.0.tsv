@@ -54,6 +54,8 @@ auto_next_vm_set_enabled	method_scan	method	Lcom/ss/android/ugc/aweme/feed/plato
 comment_longpress_bind	method_scan	method	Lcom/ss/android/ugc/aweme/comment/ui/longpress/CommentLongPressItemPresenter;		onBind	(Lcom/ss/android/ugc/aweme/kiwi/model/QModel;)V								
 comment_longpress_item_model	method_scan	class	Lcom/ss/android/ugc/aweme/comment/ui/longpress/CommentLongPressItemModel;										LX/11lG;	k
 comment_panel_params	method_scan	class	LX/11lG;										Landroidx/fragment/app/FragmentActivity;|Ljava/lang/String;|Lcom/ss/android/ugc/aweme/comment/model/Comment;	LJFF|LJIIIZ|LJIIIIZZ
+comment_interaction_state	comment_interaction	class	LX/11ur;										Z	isHasItemDigg|isHasItemBury|isHasItemReplyButton|isHasBottomInputBar|isCanItemClick
+comment_interaction_builder	comment_interaction	class	LX/11uz;										Z	LIZIZ|LIZJ|LIZLLL|LJ
 comment_model	method_scan	class	Lcom/ss/android/ugc/aweme/comment/model/Comment;										Ljava/lang/String;|Ljava/util/List;	text|imageList|videoList
 comment_image_model	method_scan	class	Lcom/ss/android/ugc/aweme/comment/model/CommentImageStruct;										Lcom/ss/android/ugc/aweme/base/model/UrlModel;	f
 comment_video_model	method_scan	class	Lcom/ss/android/ugc/aweme/comment/model/CommentVideoStruct;										Lcom/ss/android/ugc/aweme/feed/model/Aweme;	b

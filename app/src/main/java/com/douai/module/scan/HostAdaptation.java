@@ -24,7 +24,7 @@ public final class HostAdaptation {
             RULES_ASSET, VERIFIED_RULES_FINGERPRINT, FEED_RESOURCES);
     public static final Profile PROFILE_410 = new Profile("41.0.0", 410001L, 41009900L,
             "douyin-host-rules-41.0.0.tsv",
-            "98d04bab47391942113cd56b8d187bb2ec27b083126a3b83c349b6bf9923ae55", modernFeedResources());
+            "214928d190a8739fe94d5196df92540ee8f56a37142c3a8065d0a8d02dcd991a", modernFeedResources());
     private static volatile Profile currentProfile;
 
     public static final class Profile {
