@@ -628,6 +628,22 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("隐藏评论回复按钮", "", LocalOptions.COMMENT_HIDE_REPLY);
                 addLocalSwitch("隐藏评论底部输入栏", "", LocalOptions.COMMENT_HIDE_INPUT);
                 addLocalSwitch("禁用点击评论回复", "", LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
+                addDependentSwitch("评论自动添加后缀", "", repository.getBoolean("comment_append_suffix", false),
+                        value -> repository.putBoolean("comment_append_suffix", value),
+                        () -> addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),
+                                false, true, false, value -> repository.putString("comment_suffix", value)));
+                addDependentSwitch("替换语音文件", "", repository.getBoolean("comment_voice_replace", false),
+                        value -> repository.putBoolean("comment_voice_replace", value),
+                        () -> addAudioPathOption("评论语音文件", "comment_voice_path"));
+                addOption("评论转语音", "", null, true, this::showCommentSpeechSettings);
+                addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
+                addLocalSwitch("#长按发送转语音（全局）", "", "hash_long_press_voice");
+                addCommentLongPressOption();
+                addLocalSwitch("复制评论去除开头艾特", "", "comment_copy_without_mention");
+                addDependentSwitch("彩色评论", "", repository.getBoolean("colored_comment", false),
+                        value -> repository.putBoolean("colored_comment", value),
+                        () -> addChoiceOption("彩色评论类型", "colored_comment_type", new String[]{"类型 0", "类型 33"},
+                                new String[]{"0", "33"}, "0"));
                 addLocalSwitch("禁用长按评论", "", LocalOptions.COMMENT_DISABLE_ITEM_LONG_CLICK);
                 addLocalSwitch("禁用点击评论头像", "", LocalOptions.COMMENT_DISABLE_AVATAR_CLICK);
                 addLocalSwitch("隐藏评论外部操作栏", "", LocalOptions.COMMENT_HIDE_EXTERNAL_BAR);
@@ -648,22 +664,6 @@ public final class ModuleSettingsScreen {
                             addEditableOption("白名单用户ID（逗号分隔）", "", repository.getString(LocalOptions.COMMENT_FILTER_ALLOW, ""),
                                     false, true, false, value -> repository.putString(LocalOptions.COMMENT_FILTER_ALLOW, value));
                         });
-                addDependentSwitch("评论自动添加后缀", "", repository.getBoolean("comment_append_suffix", false),
-                        value -> repository.putBoolean("comment_append_suffix", value),
-                        () -> addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),
-                                false, true, false, value -> repository.putString("comment_suffix", value)));
-                addDependentSwitch("替换语音文件", "", repository.getBoolean("comment_voice_replace", false),
-                        value -> repository.putBoolean("comment_voice_replace", value),
-                        () -> addAudioPathOption("评论语音文件", "comment_voice_path"));
-                addOption("评论转语音", "", null, true, this::showCommentSpeechSettings);
-                addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
-                addLocalSwitch("#长按发送转语音（全局）", "", "hash_long_press_voice");
-                addCommentLongPressOption();
-                addLocalSwitch("复制评论去除开头艾特", "", "comment_copy_without_mention");
-                addDependentSwitch("彩色评论", "", repository.getBoolean("colored_comment", false),
-                        value -> repository.putBoolean("colored_comment", value),
-                        () -> addChoiceOption("彩色评论类型", "colored_comment_type", new String[]{"类型 0", "类型 33"},
-                                new String[]{"0", "33"}, "0"));
                 break;
             case STREAK:
                 addDependentSwitch("自动续火花", "",
