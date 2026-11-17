@@ -61,6 +61,7 @@ import com.douai.module.feature.MediaModelHook;
 import com.douai.module.feature.LocalAnalyticsHook;
 import com.douai.module.analytics.LocalAnalytics;
 import com.douai.module.feature.CommentEnhancementsHook;
+import com.douai.module.feature.CommentFilterHook;
 import com.douai.module.feature.CommentInteractionHook;
 import com.douai.module.feature.CommentVoiceHook;
 import com.douai.module.feature.NativeCommentSpeechHook;
@@ -1362,6 +1363,12 @@ public final class DouAiModule extends XposedModule {
                         localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Comment interaction hook failed", failure); }
         }
+        if (commentFilterHook == null) {
+            try {
+                commentFilterHook = CommentFilterHook.install(hookFramework(), hostScanReport, hostClassLoader,
+                        localOptions, message -> moduleLog(3, TAG, message));
+            } catch (Throwable failure) { moduleLog(6, TAG, "Comment filter hook failed", failure); }
+        }
         if (commentVoiceHook == null) {
             try {
                 commentVoiceHook = CommentVoiceHook.install(hookFramework(), hostScanReport, hostClassLoader,
@@ -1527,6 +1534,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.media_model.installed", mediaModelHook != null);
         snapshot.putBoolean("feature.comment_enhancements.installed", commentEnhancementsHook != null);
         snapshot.putBoolean("feature.comment_interaction.installed", commentInteractionHook != null);
+        snapshot.putBoolean("feature.comment_filter.installed", commentFilterHook != null);
         snapshot.putBoolean("feature.comment_voice.installed", commentVoiceHook != null);
         snapshot.putBoolean("feature.comment_tts.installed", nativeCommentSpeechHook != null);
         snapshot.putString("feature.comment_tts.failure", nativeCommentSpeechHookFailure);

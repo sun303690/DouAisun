@@ -23,6 +23,68 @@ public final class LocalOptions {
     public static final String COMMENT_HIDE_REPLY = "comment_hide_reply";
     public static final String COMMENT_HIDE_INPUT = "comment_hide_input";
     public static final String COMMENT_DISABLE_ITEM_CLICK = "comment_disable_item_click";
+    /** Hides the avatar of every comment row inside the native comment panel. */
+    public static final String COMMENT_HIDE_AVATAR = "comment_hide_avatar";
+    /** Hides the nickname of every comment row inside the native comment panel. */
+    public static final String COMMENT_HIDE_NICKNAME = "comment_hide_nickname";
+    /** Hides the body text of every comment row inside the native comment panel. */
+    public static final String COMMENT_HIDE_TEXT = "comment_hide_text";
+    /** Hides the relative timestamp of every comment row inside the native comment panel. */
+    public static final String COMMENT_HIDE_TIME = "comment_hide_time";
+    /** Hides the IP location label of every comment row inside the native comment panel. */
+    public static final String COMMENT_HIDE_IP = "comment_hide_ip";
+    /** Hides the horizontal divider drawn between comment rows. */
+    public static final String COMMENT_HIDE_DIVIDER = "comment_hide_divider";
+    /** Hides the vertical separator drawn beside the comment panel title. */
+    public static final String COMMENT_HIDE_TITLE_SEPARATOR = "comment_hide_title_separator";
+    /** Opacity applied to the whole comment panel, expressed in percent. */
+    public static final String COMMENT_PANEL_OPACITY = "comment_panel_opacity";
+    /** Hides the decorative watermark drawn over the comment panel. */
+    public static final String COMMENT_HIDE_WATERMARK = "comment_hide_watermark";
+    /** Master switch for the native comment viewer filter. */
+    public static final String COMMENT_FILTER_ENABLED = "comment_view_filter_enabled";
+    /** Comma separated keywords that hide matching comments. */
+    public static final String COMMENT_FILTER_KEYWORDS = "comment_view_filter_keywords";
+    /** Comma separated user ids whose comments are hidden. */
+    public static final String COMMENT_FILTER_AUTHORS = "comment_view_filter_authors";
+    /** Comma separated user ids that are always kept even when the filter matches. */
+    public static final String COMMENT_FILTER_ALLOW = "comment_view_filter_allow";
+    /** Hides advertisement comments. */
+    public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
+    /** Hides comments the host marks as hot or highlighted. */
+    public static final String COMMENT_FILTER_HOT = "comment_view_filter_hot";
+    /** Hides the digg count even on the author's own comments. */
+    public static final String COMMENT_HIDE_DIGG_COUNT_EXCLUDE_SELF = "comment_hide_digg_count_exclude_self";
+    /** Hides the external share bar below the comment panel. */
+    public static final String COMMENT_HIDE_EXTERNAL_BAR = "comment_hide_external_bar";
+    /** Forces the comment counter to stay visible. */
+    public static final String COMMENT_SHOW_COMMENT_COUNT = "comment_show_comment_count";
+    /** Skips the avatar verification step before opening a profile. */
+    public static final String COMMENT_DISABLE_AVATAR_VERIFY = "comment_disable_avatar_verify";
+    /** Hides the digg count shown next to every comment. */
+    public static final String COMMENT_HIDE_DIGG_COUNT = "comment_hide_digg_count";
+    /** Blocks long press handling on comment rows. */
+    public static final String COMMENT_DISABLE_ITEM_LONG_CLICK = "comment_disable_item_long_click";
+    /** Blocks avatar clicks that normally open the author profile. */
+    public static final String COMMENT_DISABLE_AVATAR_CLICK = "comment_disable_avatar_click";
+    /** Forces the comment panel title to stay visible. */
+    public static final String COMMENT_FORCE_SHOW_TITLE = "comment_force_show_title";
+    /** Shows the reply counter on comments that carry replies. */
+    public static final String COMMENT_SHOW_REPLY_COUNT = "comment_show_reply_count";
+    /** Keeps the comment input bar usable even when the panel hides it. */
+    public static final String COMMENT_KEEP_INPUT_BAR = "comment_keep_input_bar";
+    /** Hides the image list attached to a comment. */
+    public static final String COMMENT_HIDE_IMAGE_LIST = "comment_hide_image_list";
+    /** Hides the label badges attached to a comment. */
+    public static final String COMMENT_HIDE_LABEL_LIST = "comment_hide_label_list";
+    /** Hides the hot marker on comments the host marks as hot. */
+    public static final String COMMENT_HIDE_HOT = "comment_hide_hot";
+    /** Hides the highlight marker on comments the host marks as highlighted. */
+    public static final String COMMENT_HIDE_HIGHLIGHT = "comment_hide_highlight";
+    /** Hides the author badge on comments. */
+    public static final String COMMENT_HIDE_AUTHOR_BADGE = "comment_hide_author_badge";
+    /** Hides the comment type marker on comments. */
+    public static final String COMMENT_HIDE_COMMENT_TYPE = "comment_hide_comment_type";
     public static final String DEBUG_LOGGING = "debug_logging";
     public static final String HASH_LONG_PRESS_VOICE = "hash_long_press_voice";
     /** Receives comment replies as a channel of native_auto_reply, like private/group chat reception. */

@@ -628,6 +628,26 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("隐藏评论回复按钮", "", LocalOptions.COMMENT_HIDE_REPLY);
                 addLocalSwitch("隐藏评论底部输入栏", "", LocalOptions.COMMENT_HIDE_INPUT);
                 addLocalSwitch("禁用点击评论回复", "", LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
+                addLocalSwitch("禁用长按评论", "", LocalOptions.COMMENT_DISABLE_ITEM_LONG_CLICK);
+                addLocalSwitch("禁用点击评论头像", "", LocalOptions.COMMENT_DISABLE_AVATAR_CLICK);
+                addLocalSwitch("隐藏评论外部操作栏", "", LocalOptions.COMMENT_HIDE_EXTERNAL_BAR);
+                addLocalSwitch("跳过头像实名认证", "", LocalOptions.COMMENT_DISABLE_AVATAR_VERIFY);
+                addLocalSwitch("隐藏点赞数", "", LocalOptions.COMMENT_HIDE_DIGG_COUNT);
+                addLocalSwitch("隐藏点赞数（不含自己）", "", LocalOptions.COMMENT_HIDE_DIGG_COUNT_EXCLUDE_SELF);
+                addLocalSwitch("显示评论总数", "", LocalOptions.COMMENT_SHOW_COMMENT_COUNT);
+                addLocalSwitch("强制显示标题", "", LocalOptions.COMMENT_FORCE_SHOW_TITLE);
+                addDependentSwitch("评论内容过滤器", "", repository.getBoolean(LocalOptions.COMMENT_FILTER_ENABLED, false),
+                        value -> repository.putBoolean(LocalOptions.COMMENT_FILTER_ENABLED, value),
+                        () -> {
+                            addLocalSwitch("过滤广告评论", "", LocalOptions.COMMENT_FILTER_ADS);
+                            addLocalSwitch("过滤热门/高亮评论", "", LocalOptions.COMMENT_FILTER_HOT);
+                            addEditableOption("屏蔽关键词（逗号分隔）", "", repository.getString(LocalOptions.COMMENT_FILTER_KEYWORDS, ""),
+                                    false, true, false, value -> repository.putString(LocalOptions.COMMENT_FILTER_KEYWORDS, value));
+                            addEditableOption("屏蔽用户ID（逗号分隔）", "", repository.getString(LocalOptions.COMMENT_FILTER_AUTHORS, ""),
+                                    false, true, false, value -> repository.putString(LocalOptions.COMMENT_FILTER_AUTHORS, value));
+                            addEditableOption("白名单用户ID（逗号分隔）", "", repository.getString(LocalOptions.COMMENT_FILTER_ALLOW, ""),
+                                    false, true, false, value -> repository.putString(LocalOptions.COMMENT_FILTER_ALLOW, value));
+                        });
                 addDependentSwitch("评论自动添加后缀", "", repository.getBoolean("comment_append_suffix", false),
                         value -> repository.putBoolean("comment_append_suffix", value),
                         () -> addEditableOption("后缀内容", "", repository.getString("comment_suffix", ""),

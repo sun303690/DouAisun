@@ -6,33 +6,61 @@ import com.douai.module.scan.HostScanReport;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import io.github.libxposed.api.XposedInterface;
 
 /** 修改新构建的原生评论交互状态，不改动服务器返回或已打开的评论面板。 */
 public final class CommentInteractionHook implements AutoCloseable {
-    private final Field digg;
-    private final Field bury;
-    private final Field reply;
-    private final Field input;
-    private final Field itemClick;
+    /** 一条开关规则：配置开启时把宿主布尔字段写成指定值。 */
+    private static final class Rule {
+        final Field field;
+        final boolean value;
+        Rule(Field field, boolean value) { this.field = field; this.value = value; }
+    }
+
+    /** 配置键到字段规则的对应表；缺字段只跳过该项，不影响其余开关。 */
+    private final Map<String, Rule> rules = new LinkedHashMap<>();
     private final Consumer<String> log;
     private final List<XposedInterface.HookHandle> handles = new ArrayList<>();
     private volatile LocalOptions options;
 
-    private CommentInteractionHook(Class<?> state, LocalOptions options, Consumer<String> log) throws Exception {
-        this.digg = HostTargets.field(state, "isHasItemDigg");
-        this.bury = HostTargets.field(state, "isHasItemBury");
-        this.reply = HostTargets.field(state, "isHasItemReplyButton");
-        this.input = HostTargets.field(state, "isHasBottomInputBar");
-        this.itemClick = HostTargets.field(state, "isCanItemClick");
-        for (Field field : new Field[]{digg, bury, reply, input, itemClick}) {
-            if (field.getType() != boolean.class) throw new IllegalStateException("Not a boolean: " + field.getName());
-        }
+    private CommentInteractionHook(Class<?> state, LocalOptions options, Consumer<String> log) {
         this.options = options;
         this.log = log == null ? ignored -> { } : log;
+        // 交互类字段：false 即关闭按钮或点击响应。
+        bind(state, "isHasItemDigg", LocalOptions.COMMENT_HIDE_DIGG, false);
+        bind(state, "isHasItemBury", LocalOptions.COMMENT_HIDE_BURY, false);
+        bind(state, "isHasItemReplyButton", LocalOptions.COMMENT_HIDE_REPLY, false);
+        bind(state, "isHasBottomInputBar", LocalOptions.COMMENT_HIDE_INPUT, false);
+        bind(state, "isCanItemClick", LocalOptions.COMMENT_DISABLE_ITEM_CLICK, false);
+        bind(state, "isCanItemLongClick", LocalOptions.COMMENT_DISABLE_ITEM_LONG_CLICK, false);
+        bind(state, "isCanAvatarClick", LocalOptions.COMMENT_DISABLE_AVATAR_CLICK, false);
+        bind(state, "isCanShowExternalBar", LocalOptions.COMMENT_HIDE_EXTERNAL_BAR, false);
+        bind(state, "needAvatarVerify", LocalOptions.COMMENT_DISABLE_AVATAR_VERIFY, false);
+        // 宿主自身的隐藏与强制显示标记，true 才是生效值。
+        bind(state, "hideItemDiggCount", LocalOptions.COMMENT_HIDE_DIGG_COUNT, true);
+        bind(state, "hideItemDiggCountExcludeMySelf", LocalOptions.COMMENT_HIDE_DIGG_COUNT_EXCLUDE_SELF, true);
+        bind(state, "showCommentCount", LocalOptions.COMMENT_SHOW_COMMENT_COUNT, true);
+        bind(state, "isForceShowTitle", LocalOptions.COMMENT_FORCE_SHOW_TITLE, true);
+    }
+
+    private void bind(Class<?> state, String fieldName, String key, boolean value) {
+        Field field;
+        try {
+            field = HostTargets.field(state, fieldName);
+        } catch (NoSuchFieldException missing) {
+            safeLog("Comment field missing: " + fieldName);
+            return;
+        }
+        if (field.getType() != boolean.class) {
+            safeLog("Comment field is not a boolean: " + fieldName);
+            return;
+        }
+        rules.put(key, new Rule(field, value));
     }
 
     public static CommentInteractionHook install(XposedInterface framework, HostScanReport report,
@@ -71,11 +99,12 @@ public final class CommentInteractionHook implements AutoCloseable {
     private void apply(Object state) throws IllegalAccessException {
         if (state == null) return;
         LocalOptions current = options;
-        if (current.enabled(LocalOptions.COMMENT_HIDE_DIGG)) digg.setBoolean(state, false);
-        if (current.enabled(LocalOptions.COMMENT_HIDE_BURY)) bury.setBoolean(state, false);
-        if (current.enabled(LocalOptions.COMMENT_HIDE_REPLY)) reply.setBoolean(state, false);
-        if (current.enabled(LocalOptions.COMMENT_HIDE_INPUT)) input.setBoolean(state, false);
-        if (current.enabled(LocalOptions.COMMENT_DISABLE_ITEM_CLICK)) itemClick.setBoolean(state, false);
+        if (current == null) return;
+        for (Map.Entry<String, Rule> entry : rules.entrySet()) {
+            if (!current.enabled(entry.getKey())) continue;
+            Rule rule = entry.getValue();
+            rule.field.setBoolean(state, rule.value);
+        }
     }
 
     @Override public void close() {
@@ -87,6 +116,8 @@ public final class CommentInteractionHook implements AutoCloseable {
     }
 
     private void safeLog(String message) {
-        try { log.accept(message); } catch (Throwable ignored) { }
+        Consumer<String> sink = log;
+        if (sink == null) return;
+        try { sink.accept(message); } catch (Throwable ignored) { }
     }
 }

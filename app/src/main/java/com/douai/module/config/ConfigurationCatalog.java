@@ -152,7 +152,14 @@ public final class ConfigurationCatalog {
         depend(Feature.COMMENT_ENHANCEMENTS, "comment_append_suffix comment_suffix colored_comment colored_comment_type "
                 + LocalOptions.COMMENT_HIDE_DIGG + " " + LocalOptions.COMMENT_HIDE_BURY + " "
                 + LocalOptions.COMMENT_HIDE_REPLY + " " + LocalOptions.COMMENT_HIDE_INPUT + " "
-                + LocalOptions.COMMENT_DISABLE_ITEM_CLICK, "");
+                + LocalOptions.COMMENT_DISABLE_ITEM_CLICK + " " + LocalOptions.COMMENT_DISABLE_ITEM_LONG_CLICK + " "
+                + LocalOptions.COMMENT_DISABLE_AVATAR_CLICK + " " + LocalOptions.COMMENT_HIDE_EXTERNAL_BAR + " "
+                + LocalOptions.COMMENT_DISABLE_AVATAR_VERIFY + " " + LocalOptions.COMMENT_HIDE_DIGG_COUNT + " "
+                + LocalOptions.COMMENT_HIDE_DIGG_COUNT_EXCLUDE_SELF + " " + LocalOptions.COMMENT_SHOW_COMMENT_COUNT + " "
+                + LocalOptions.COMMENT_FORCE_SHOW_TITLE + " " + LocalOptions.COMMENT_FILTER_ENABLED + " "
+                + LocalOptions.COMMENT_FILTER_KEYWORDS + " " + LocalOptions.COMMENT_FILTER_AUTHORS + " "
+                + LocalOptions.COMMENT_FILTER_ALLOW + " " + LocalOptions.COMMENT_FILTER_ADS + " "
+                + LocalOptions.COMMENT_FILTER_HOT, "");
         depend(Feature.COMMENT_VOICE, "comment_voice_replace comment_voice_path", "");
         depend(Feature.NATIVE_COMMENT_SPEECH, "comment_tts " + LocalOptions.HASH_LONG_PRESS_VOICE, "tts_ voice_catalog_");
         depend(Feature.AUTO_LIKE, "automation_enabled auto_like_enabled", "");
