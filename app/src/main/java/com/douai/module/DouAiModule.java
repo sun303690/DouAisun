@@ -150,6 +150,7 @@ public final class DouAiModule extends XposedModule {
     private volatile String localAnalyticsHookFailure;
     private volatile CommentEnhancementsHook commentEnhancementsHook;
     private volatile CommentInteractionHook commentInteractionHook;
+    private volatile CommentFilterHook commentFilterHook;
     private volatile CommentVoiceHook commentVoiceHook;
     private volatile NativeCommentSpeechHook nativeCommentSpeechHook;
     private volatile HostScanReport hostScanReport;
@@ -810,6 +811,7 @@ public final class DouAiModule extends XposedModule {
             if (mediaModelHook != null && (initial || changes.affects(Feature.MEDIA_MODEL))) mediaModelHook.setOptions(options);
             if (commentEnhancementsHook != null && (initial || changes.affects(Feature.COMMENT_ENHANCEMENTS))) commentEnhancementsHook.setOptions(options);
             if (commentInteractionHook != null && (initial || changes.affects(Feature.COMMENT_ENHANCEMENTS))) commentInteractionHook.setOptions(options);
+            if (commentFilterHook != null && (initial || changes.affects(Feature.COMMENT_ENHANCEMENTS))) commentFilterHook.setOptions(options);
             if (commentVoiceHook != null && (initial || changes.affects(Feature.COMMENT_VOICE))) {
                 commentVoiceHook.setOptions(options);
             }
