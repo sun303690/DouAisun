@@ -1024,7 +1024,7 @@ public final class ModuleSettingsScreen {
                         LocalOptions.DEFAULT_DOWNLOAD_SUBDIRECTORY),
                 false, true, false, value ->
                         repository.putString(LocalOptions.DOWNLOAD_SUBDIRECTORY, value));
-        addSwitch("改回系统相册／音乐", "关闭时保存到上面的子目录",
+        addSwitch("改回系统相册／音乐", "",
                 repository.getBoolean(LocalOptions.DOWNLOAD_SYSTEM_ALBUM, false), true, value ->
                         repository.putBoolean(LocalOptions.DOWNLOAD_SYSTEM_ALBUM, value));
         addEditableOption("路径模板", "不含扩展名，#date# 代表日期，留空不建目录",
@@ -1276,19 +1276,20 @@ public final class ModuleSettingsScreen {
     }
 
     private void buildIpLocationControls() {
-        addTextSetting("IP 属地伪装", repository.getString(LocalOptions.IP_LOCATION, ""),
-                "例如：广东", false, false,
+        addEditableOption("IP 属地伪装", "留空则显示真实属地",
+                repository.getString(LocalOptions.IP_LOCATION, ""), false, true, false,
                 value -> repository.putString(LocalOptions.IP_LOCATION, value == null ? "" : value.trim()));
         addDependentSwitch("同时伪装省市", "",
-                repository.getBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, false),
-                true, false,
+                repository.getBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, false), true, false,
                 value -> repository.putBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, value), () -> {
-                    addTextSetting("伪装省份", repository.getString(LocalOptions.IP_LOCATION_PROVINCE, ""),
-                            "例如：广东", false, false,
-                            value -> repository.putString(LocalOptions.IP_LOCATION_PROVINCE, value == null ? "" : value.trim()));
-                    addTextSetting("伪装城市", repository.getString(LocalOptions.IP_LOCATION_CITY, ""),
-                            "例如：深圳", false, false,
-                            value -> repository.putString(LocalOptions.IP_LOCATION_CITY, value == null ? "" : value.trim()));
+                    addEditableOption("伪装省份", "例如：广东",
+                            repository.getString(LocalOptions.IP_LOCATION_PROVINCE, ""), false, true, false,
+                            value -> repository.putString(LocalOptions.IP_LOCATION_PROVINCE,
+                                    value == null ? "" : value.trim()));
+                    addEditableOption("伪装城市", "例如：深圳",
+                            repository.getString(LocalOptions.IP_LOCATION_CITY, ""), false, true, false,
+                            value -> repository.putString(LocalOptions.IP_LOCATION_CITY,
+                                    value == null ? "" : value.trim()));
                 });
     }
 
@@ -1296,17 +1297,18 @@ public final class ModuleSettingsScreen {
         addDependentSwitch("作品信息条", "", repository.getBoolean(
                         LocalOptions.POST_BAR_ENABLED, false), true, false,
                 value -> repository.putBoolean(LocalOptions.POST_BAR_ENABLED, value), () -> {
-                    addTextSetting("信息条模板", repository.getString(LocalOptions.POST_BAR_TEMPLATE,
-                                    LocalOptions.DEFAULT_POST_BAR_TEMPLATE),
-                            "${time} ${location} ${duration} ${progress} ${originalText}", false, true,
+                    addEditableOption("信息条模板",
+                            "${time} ${location} ${duration} ${progress} ${originalText}",
+                            repository.getString(LocalOptions.POST_BAR_TEMPLATE,
+                                    LocalOptions.DEFAULT_POST_BAR_TEMPLATE), false, true, true,
                             value -> repository.putString(LocalOptions.POST_BAR_TEMPLATE, value));
-                    addTextSetting("信息条字号", repository.getString(LocalOptions.POST_BAR_SIZE,
-                                    LocalOptions.DEFAULT_POST_BAR_SIZE),
-                            "6-32", true, true,
+                    addEditableOption("信息条字号", "6-32",
+                            repository.getString(LocalOptions.POST_BAR_SIZE,
+                                    LocalOptions.DEFAULT_POST_BAR_SIZE), true, true, true,
                             value -> repository.putString(LocalOptions.POST_BAR_SIZE, value.trim()));
-                    addTextSetting("信息条颜色", repository.getString(LocalOptions.POST_BAR_COLOR,
-                                    LocalOptions.DEFAULT_POST_BAR_COLOR),
-                            "#AARRGGBB", false, true,
+                    addEditableOption("信息条颜色", "#RRGGBB 或 #AARRGGBB",
+                            repository.getString(LocalOptions.POST_BAR_COLOR,
+                                    LocalOptions.DEFAULT_POST_BAR_COLOR), false, true, true,
                             value -> repository.putString(LocalOptions.POST_BAR_COLOR, value));
                     addSwitch("彩色信息条", "", repository.getBoolean(LocalOptions.POST_BAR_COLORFUL, false),
                             true, value -> repository.putBoolean(LocalOptions.POST_BAR_COLORFUL, value));
@@ -1942,7 +1944,12 @@ public final class ModuleSettingsScreen {
     }
 
     private String pauseSummary() {
-        long until = new LocalOptions(repository.snapshot()).autoPlayPausedUntil();
+        long until;
+        try {
+            until = Long.parseLong(repository.getString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, "0").trim());
+        } catch (NumberFormatException ignored) {
+            until = 0L;
+        }
         if (until <= 0) return "未暂停";
         long remain = until - System.currentTimeMillis();
         if (remain <= 0) return "未暂停";
