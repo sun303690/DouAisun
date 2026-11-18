@@ -42,8 +42,18 @@ public final class MediaStoreDownloader {
 
     /** Album sub-folder name; kept in one place so every save path agrees. */
     static String album(Context context) {
+        return DownloadPathBuilder.albumSegment(options(context));
+    }
+
+    /** Effective download options for the module preference file. */
+    static LocalOptions options(Context context) {
         return LocalOptions.readFrom(context.getSharedPreferences(
-                SettingsRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)).downloadSubdirectory();
+                SettingsRepository.PREFERENCES_NAME, Context.MODE_PRIVATE));
+    }
+
+    /** Relative MediaStore path for a media row, including the album segment and templated folders. */
+    static String relativePath(Context context, String systemDirectory) {
+        return DownloadPathBuilder.relativePath(options(context), systemDirectory, System.currentTimeMillis());
     }
 
     public static boolean isHttpUrl(String value) {
@@ -144,7 +154,7 @@ public final class MediaStoreDownloader {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, directory + "/" + album(context));
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath(context, directory));
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 target = resolver.insert(collection, values);
                 if (target == null) throw new IllegalStateException("MediaStore 无法创建记录");
@@ -158,7 +168,7 @@ public final class MediaStoreDownloader {
                 transfer.complete();
                 transfer.saved("mediastore", target.toString(), transfer.bytes);
                 target = null;
-                return "媒体已保存到 " + directory + "/" + album(context);
+                return "媒体已保存到 " + relativePath(context, directory);
         } catch (Exception failure) {
             if (target != null) {
                 try {
@@ -237,13 +247,14 @@ public final class MediaStoreDownloader {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + album(context));
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath(context, Environment.DIRECTORY_PICTURES));
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (target == null) throw new IllegalStateException("MediaStore 无法创建记录");
             } else {
                 File parent = new File(Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_PICTURES), album(context));
+                        Environment.DIRECTORY_PICTURES),
+                        DownloadPathBuilder.subPath(options(context), System.currentTimeMillis()));
                 if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
                     throw new IllegalStateException("无法创建图片目录");
                 }
@@ -283,7 +294,7 @@ public final class MediaStoreDownloader {
                     legacyTarget != null ? legacyTarget.getAbsolutePath() : target.toString(), length);
             target = null;
             legacyTarget = null;
-            return document ? "媒体已保存到所选目录" : "媒体已保存到 Pictures/" + album(context);
+            return document ? "媒体已保存到所选目录" : "媒体已保存到 " + relativePath(context, Environment.DIRECTORY_PICTURES);
         } catch (Exception failure) {
             if (document) DownloadDocumentTree.delete(resolver, target);
             else if (target != null) {
@@ -319,20 +330,21 @@ public final class MediaStoreDownloader {
         }
         ContentResolver resolver = context.getContentResolver();
         List<Uri> created = new ArrayList<>();
-        String relativePath = Environment.DIRECTORY_DOWNLOADS + "/" + album(context) + "/" + folder;
+        String bundlePath = DownloadPathBuilder.relativePath(options(context),
+                Environment.DIRECTORY_DOWNLOADS, System.currentTimeMillis()) + '/' + folder;
         try {
             for (ThirdPartyDownloadPlan.Asset asset : plan.assets) {
                 transfer.file(asset.name, plan.assets.size() + 1);
                 HttpURLConnection connection = openBundleMedia(asset.url, transfer);
                 try {
-                    Uri target = createBundleRow(resolver, relativePath, asset.name, asset.mimeType);
+                    Uri target = createBundleRow(resolver, bundlePath, asset.name, asset.mimeType);
                     created.add(target);
                     copyResponse(connection, resolver, target, transfer);
                     transfer.fileDone();
                 } finally { close(connection, transfer); }
             }
             transfer.file(plan.baseName + ".txt", plan.assets.size() + 1);
-            Uri metadata = createBundleRow(resolver, relativePath, plan.baseName + ".txt", "text/plain");
+            Uri metadata = createBundleRow(resolver, bundlePath, plan.baseName + ".txt", "text/plain");
             created.add(metadata);
             try (DownloadTransfer.Streams streams = transfer.streams()) {
                 OutputStream output = streams.add(outputs.open(resolver, metadata));
@@ -431,7 +443,8 @@ public final class MediaStoreDownloader {
 
     private static void saveLegacyBundle(Context context, ThirdPartyDownloadPlan plan, String folder,
                                          DownloadTransfer transfer) throws Exception {
-        File parent = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), album(context));
+        File parent = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                DownloadPathBuilder.subPath(options(context), System.currentTimeMillis()));
         if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
             throw new IllegalStateException("无法创建下载目录");
         }
@@ -541,9 +554,11 @@ public final class MediaStoreDownloader {
         DownloadManager manager = (DownloadManager) context.getSystemService(Context.DOWNLOAD_SERVICE);
         if (manager == null) throw new IllegalStateException("系统下载服务不可用");
         transfer.check();
+        String subPath = DownloadPathBuilder.subPath(options(context), System.currentTimeMillis());
+        String destination = subPath.isEmpty() ? name : subPath + "/" + name;
         long id = manager.enqueue(new DownloadManager.Request(Uri.parse(url)).setTitle(name).setMimeType(mime)
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(directory, album(context) + "/" + name));
+                .setDestinationInExternalPublicDir(directory, destination));
         transfer.evidence("system_download_queued", "download_ref=" + DouAiLog.reference(Long.toString(id))
                 + "; business_result=pending");
         boolean completed = false;
@@ -564,7 +579,7 @@ public final class MediaStoreDownloader {
                         if (bytes <= 0 || total >= 0 && bytes != total) throw new IllegalStateException("系统下载文件不完整");
                         transfer.fileDone(); transfer.complete(); completed = true;
                         transfer.saved("download_manager_status_successful", Long.toString(id), bytes);
-                        return "媒体已保存到 " + directory + "/" + album(context);
+                        return "媒体已保存到 " + relativePath(context, directory);
                     }
                     if (status == DownloadManager.STATUS_FAILED) throw new IllegalStateException("系统下载失败");
                 }

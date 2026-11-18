@@ -91,6 +91,9 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", LocalOptions.COMMENT_REPLY_ENABLED
                 + " comment_reply_tip_enabled comment_reply_failure_notify");
         add(keys, "boolean", ThirdPartyDownloadSettings.DIRECT);
+        add(keys, "boolean", LocalOptions.DOWNLOAD_SYSTEM_ALBUM);
+        add(keys, "string", LocalOptions.DOWNLOAD_SUBDIRECTORY + " "
+                + LocalOptions.DOWNLOAD_PATH_TEMPLATE + " " + LocalOptions.DOWNLOAD_DATE_FORMAT);
         add(keys, "int", "minimum_duration_seconds minimum_like_count");
         add(keys, "string", "keyword video_right_alpha hidden_top_tabs fake_version_name fake_version_code auto_comment_text "
                 + "auto_message_text playback_speed comment_suffix colored_comment_type comment_voice_path dm_voice_path "
@@ -195,6 +198,10 @@ public final class ConfigurationCatalog {
         defaults.put("download_method", DOWNLOAD_METHOD_DEFAULT);
         defaults.put("download_name_template", DOWNLOAD_NAME_DEFAULT);
         defaults.put("download_directory_uri", "");
+        defaults.put(LocalOptions.DOWNLOAD_SUBDIRECTORY, LocalOptions.DEFAULT_DOWNLOAD_SUBDIRECTORY);
+        defaults.put(LocalOptions.DOWNLOAD_SYSTEM_ALBUM, false);
+        defaults.put(LocalOptions.DOWNLOAD_PATH_TEMPLATE, LocalOptions.DEFAULT_DOWNLOAD_PATH_TEMPLATE);
+        defaults.put(LocalOptions.DOWNLOAD_DATE_FORMAT, LocalOptions.DEFAULT_DOWNLOAD_DATE_FORMAT);
         defaults.put("minimum_duration_seconds", 0);
         defaults.put("minimum_like_count", 0);
         defaults.put(AiModelSettings.REPLY_MODEL_ID, "");

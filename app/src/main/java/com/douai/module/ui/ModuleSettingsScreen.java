@@ -1021,6 +1021,19 @@ public final class ModuleSettingsScreen {
                         LocalOptions.DEFAULT_DOWNLOAD_SUBDIRECTORY),
                 false, true, false, value ->
                         repository.putString(LocalOptions.DOWNLOAD_SUBDIRECTORY, value));
+        addSwitch("改回系统相册／音乐", "关闭时保存到上面的子目录",
+                repository.getBoolean(LocalOptions.DOWNLOAD_SYSTEM_ALBUM, false), true, value ->
+                        repository.putBoolean(LocalOptions.DOWNLOAD_SYSTEM_ALBUM, value));
+        addEditableOption("路径模板", "不含扩展名，#date# 代表日期，留空不建目录",
+                repository.getString(LocalOptions.DOWNLOAD_PATH_TEMPLATE,
+                        LocalOptions.DEFAULT_DOWNLOAD_PATH_TEMPLATE),
+                false, true, false, value ->
+                        repository.putString(LocalOptions.DOWNLOAD_PATH_TEMPLATE, value));
+        addEditableOption("日期格式", "例如 yyyy-MM-dd_HH-mm-ss",
+                repository.getString(LocalOptions.DOWNLOAD_DATE_FORMAT,
+                        LocalOptions.DEFAULT_DOWNLOAD_DATE_FORMAT),
+                false, true, false, value ->
+                        repository.putString(LocalOptions.DOWNLOAD_DATE_FORMAT, value));
         addSwitch("直接保存全部媒体", "",
                 repository.getBoolean(LocalOptions.OFFICIAL_DOWNLOAD_DIRECT, false), true, value -> {
                     if (value) master.setChecked(true);

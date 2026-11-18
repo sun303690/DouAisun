@@ -15,6 +15,12 @@ public final class LocalOptions {
     public static final String DOWNLOAD_SAVE_TREE = "download_directory_uri";
     /** Sub-folder created under the album/DCIM tree for every saved media file. */
     public static final String DOWNLOAD_SUBDIRECTORY = "download_subdirectory";
+    /** Restores the system album folders instead of the module album sub-folder. */
+    public static final String DOWNLOAD_SYSTEM_ALBUM = "download_system_album";
+    /** Relative folder template applied below the download root, without a file extension. */
+    public static final String DOWNLOAD_PATH_TEMPLATE = "download_path_template";
+    /** SimpleDateFormat pattern used by the path template for the date placeholder. */
+    public static final String DOWNLOAD_DATE_FORMAT = "download_date_format";
     public static final String OFFICIAL_DOWNLOAD_DIRECT = "download_official_direct";
     public static final String REPLY_VOICE = "reply_voice";
     public static final String REPLY_RECOGNIZE_IMAGES = "reply_recognize_images";
@@ -138,6 +144,65 @@ public final class LocalOptions {
     }
     /** Default album sub-folder used when the user leaves the field empty. */
     public static final String DEFAULT_DOWNLOAD_SUBDIRECTORY = "DouAi";
+    /** Default folder template below the download root; the date placeholder is replaced at save time. */
+    public static final String DEFAULT_DOWNLOAD_PATH_TEMPLATE = "";
+    /** Default date pattern used inside the path template. */
+    public static final String DEFAULT_DOWNLOAD_DATE_FORMAT = "yyyy-MM-dd_HH-mm-ss";
+    /** Keeps the host album folders untouched instead of writing into the module sub-folder. */
+    public boolean downloadSystemAlbum() { return enabled(DOWNLOAD_SYSTEM_ALBUM); }
+    /** Folder template below the download root; the sanitised form never escapes the root. */
+    public String downloadPathTemplate() { return sanitisePathTemplate(text(DOWNLOAD_PATH_TEMPLATE, "")); }
+    /** Date pattern used by the path template; falls back to the default when it is not a valid pattern. */
+    public String downloadDateFormat() { return sanitiseDateFormat(text(DOWNLOAD_DATE_FORMAT, "")); }
+    /**
+     * Pure sanitiser for the relative folder template: every segment is reduced to a name MediaStore
+     * accepts and traversal segments are dropped, so the result can never leave the download root.
+     */
+    public static String sanitisePathTemplate(String raw) {
+        if (raw == null) return DEFAULT_DOWNLOAD_PATH_TEMPLATE;
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return DEFAULT_DOWNLOAD_PATH_TEMPLATE;
+        String[] parts = trimmed.split("/");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            String segment = part.trim();
+            if (segment.isEmpty() || ".".equals(segment) || "..".equals(segment)) continue;
+            StringBuilder clean = new StringBuilder(segment.length());
+            for (int i = 0; i < segment.length() && clean.length() < 40; i++) {
+                char c = segment.charAt(i);
+                if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"'
+                        || c == '<' || c == '>' || c == '|' || c < ' ') continue;
+                clean.append(c);
+            }
+            String name = clean.toString().trim();
+            if (name.isEmpty()) continue;
+            if (out.length() > 0) out.append('/');
+            out.append(name);
+        }
+        return out.toString();
+    }
+    /**
+     * Pure sanitiser for the date pattern: only SimpleDateFormat letters survive, and an empty or
+     * letter-free pattern falls back to the default so the template always renders a usable stamp.
+     */
+    public static String sanitiseDateFormat(String raw) {
+        if (raw == null) return DEFAULT_DOWNLOAD_DATE_FORMAT;
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return DEFAULT_DOWNLOAD_DATE_FORMAT;
+        StringBuilder out = new StringBuilder(trimmed.length());
+        for (int i = 0; i < trimmed.length() && out.length() < 40; i++) {
+            char c = trimmed.charAt(i);
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) out.append(c);
+        }
+        String pattern = out.toString();
+        if (pattern.isEmpty()) return DEFAULT_DOWNLOAD_DATE_FORMAT;
+        try {
+            new java.text.SimpleDateFormat(pattern, java.util.Locale.ROOT);
+            return pattern;
+        } catch (IllegalArgumentException invalid) {
+            return DEFAULT_DOWNLOAD_DATE_FORMAT;
+        }
+    }
     public boolean officialDownloadDirect() { return enabled(OFFICIAL_DOWNLOAD_DIRECT); }
 
     public boolean samePrefix(LocalOptions other, String prefix) {
