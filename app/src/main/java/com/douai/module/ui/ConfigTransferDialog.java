@@ -20,6 +20,7 @@ import android.widget.Toast;
 
 import com.douai.module.config.ConfigTransfer;
 import com.douai.module.config.ConfigBackup;
+import com.douai.module.config.ConfigUndoPoint;
 import com.douai.module.config.BackupLimitException;
 import com.douai.module.config.BackupValidationException;
 import com.douai.module.config.SettingsStore;
@@ -240,10 +241,8 @@ final class ConfigTransferDialog implements AutoCloseable {
             op.stage = Stage.APPLY_DATA; op.trace.stage("apply_data", "");
             if (isUndo) {
                 // The undo point already holds the pre-import state; restore it directly.
-                String encoded = ConfigUndoPoint.read(application);
-                if (encoded == null) throw new IllegalStateException("撤销记录已失效，请重新导入备份");
-                ConfigBackup.Preview rollback = ConfigBackup.inspectConfig(store, encoded,
-                        ConfigTransfer.Mode.REPLACE);
+                ConfigBackup.Preview rollback = ConfigUndoPoint.preview(store, application);
+                if (rollback == null) throw new IllegalStateException("撤销记录已失效，请重新导入备份");
                 ConfigBackup.apply(application, store, rollback, false);
                 ConfigUndoPoint.clear(application);
             } else {

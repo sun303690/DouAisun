@@ -2,6 +2,8 @@ package com.douai.module.config;
 
 import android.content.Context;
 
+import com.douai.module.diagnostics.DouAiLog;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -95,7 +97,7 @@ public final class ConfigUndoPoint {
         String encoded = read(context);
         if (encoded == null) return null;
         try {
-            return ConfigBackup.inspectConfig(store, encoded, ConfigTransfer.Mode.REPLACE);
+            return ConfigBackup.inspect(store, encoded, ConfigTransfer.Mode.REPLACE);
         } catch (RuntimeException unavailable) {
             DouAiLog.failure("config_undo", "preview", unavailable);
             return null;

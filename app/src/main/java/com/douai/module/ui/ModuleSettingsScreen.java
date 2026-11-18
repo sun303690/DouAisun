@@ -622,7 +622,7 @@ public final class ModuleSettingsScreen {
                         });
                 buildPlaybackSpeedControls();
                 addLocalSwitch("锁定最高画质", "", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
-                addOption("临时暂停连播", pauseSummary(), true, this::showAutoPlayPauseDialog);
+                addOption("临时暂停连播", pauseSummary(), null, true, this::showAutoPlayPauseDialog);
                 addOption("互动自动化", "", null, true, this::showAutomationSettings);
                 break;
             case COMMENT:
@@ -1281,6 +1281,7 @@ public final class ModuleSettingsScreen {
                 value -> repository.putString(LocalOptions.IP_LOCATION, value == null ? "" : value.trim()));
         addDependentSwitch("同时伪装省市", "把个人资料里的省份与城市一并替换",
                 repository.getBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, false),
+                true, false,
                 value -> repository.putBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, value), () -> {
                     addTextSetting("伪装省份", repository.getString(LocalOptions.IP_LOCATION_PROVINCE, ""),
                             "例如：广东", false, false,
@@ -1969,9 +1970,11 @@ public final class ModuleSettingsScreen {
             long until = System.currentTimeMillis() + minutes * 60_000L;
             repository.putString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, String.valueOf(until));
         });
-        addOption("立即取消暂停", "清除临时暂停状态", "已暂停", true, () -> {
+        OptionRow[] cancelRow = new OptionRow[1];
+        cancelRow[0] = addOption("立即取消暂停", "清除临时暂停状态", "已暂停", true, () -> {
             repository.putString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, "0");
-            refresh();
+            cancelRow[0].setValue("未暂停");
+            toast("已取消暂停");
         });
         content = previous;
         showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null)
