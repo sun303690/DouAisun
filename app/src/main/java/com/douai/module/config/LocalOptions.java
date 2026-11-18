@@ -25,6 +25,15 @@ public final class LocalOptions {
     public static final String DOWNLOAD_DATE_FORMAT = "download_date_format";
     /** Wall-clock time until which the automatic swipe is paused, in milliseconds. */
     public static final String AUTO_PLAY_PAUSED_UNTIL = "auto_play_paused_until";
+
+    /** The spoofed IP attribution shown next to the account name. */
+    public static final String IP_LOCATION = "ip_location";
+    /** Whether the spoofed attribution also replaces the province and city fields. */
+    public static final String IP_LOCATION_SPOOF_CITY = "ip_location_spoof_city";
+    /** The spoofed province. */
+    public static final String IP_LOCATION_PROVINCE = "ip_location_province";
+    /** The spoofed city. */
+    public static final String IP_LOCATION_CITY = "ip_location_city";
     /** Master switch for the feed information bar. */
     public static final String POST_BAR_ENABLED = "post_bar";
     /** Template rendered by the feed information bar. */
@@ -67,7 +76,7 @@ public final class LocalOptions {
     /** The information bar text size, in sp. */
     public int postBarSize() {
         int size = integer(POST_BAR_SIZE, 12);
-        return size < 8 ? 8 : (size > 48 ? 48 : size);
+        return size < 6 ? 6 : (size > 32 ? 32 : size);
     }
 
     /** The information bar text colour, as {@code #AARRGGBB}. */
@@ -85,6 +94,27 @@ public final class LocalOptions {
 
     /** Tells whether the information bar uses the colourful mode. */
     public boolean postBarColorful() { return enabled(POST_BAR_COLORFUL); }
+
+    /** The spoofed IP attribution shown next to the account name. */
+    public String ipLocation() {
+        String value = text(IP_LOCATION, "").trim();
+        return value.isEmpty() ? "" : value;
+    }
+
+    /** Whether the spoofed attribution also replaces the province and city fields. */
+    public boolean ipLocationSpoofCity() { return enabled(IP_LOCATION_SPOOF_CITY); }
+
+    /** The spoofed province, empty when the province should stay untouched. */
+    public String ipLocationProvince() {
+        String value = text(IP_LOCATION_PROVINCE, "").trim();
+        return value.isEmpty() ? "" : value;
+    }
+
+    /** The spoofed city, empty when the city should stay untouched. */
+    public String ipLocationCity() {
+        String value = text(IP_LOCATION_CITY, "").trim();
+        return value.isEmpty() ? "" : value;
+    }
 
     /**
      * Returns the wall-clock time until which the automatic swipe stays paused.

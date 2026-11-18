@@ -589,6 +589,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("直播信息面板", "", LocalOptions.LIVE_ROOM_INFO);
                 addLocalSwitch("直播具体人数", "", LocalOptions.LIVE_ROOM_EXACT_COUNT);
                 buildPostBarControls();
+                buildIpLocationControls();
                 addLocalSwitch("直播清爽模式", "", LocalOptions.LIVE_CLEAN);
                 addLocalSwitch("隐藏礼物横幅", "", LocalOptions.LIVE_CLEAN_GIFT_TRAY);
                 addLocalSwitch("隐藏礼物特效", "", LocalOptions.LIVE_CLEAN_GIFT_EFFECT);
@@ -1274,17 +1275,33 @@ public final class ModuleSettingsScreen {
         return controls;
     }
 
+    private void buildIpLocationControls() {
+        addTextSetting("IP 属地伪装", repository.getString(LocalOptions.IP_LOCATION, ""),
+                "例如：广东", false, false,
+                value -> repository.putString(LocalOptions.IP_LOCATION, value == null ? "" : value.trim()));
+        addDependentSwitch("同时伪装省市", "把个人资料里的省份与城市一并替换",
+                repository.getBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, false),
+                value -> repository.putBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, value), () -> {
+                    addTextSetting("伪装省份", repository.getString(LocalOptions.IP_LOCATION_PROVINCE, ""),
+                            "例如：广东", false, false,
+                            value -> repository.putString(LocalOptions.IP_LOCATION_PROVINCE, value == null ? "" : value.trim()));
+                    addTextSetting("伪装城市", repository.getString(LocalOptions.IP_LOCATION_CITY, ""),
+                            "例如：深圳", false, false,
+                            value -> repository.putString(LocalOptions.IP_LOCATION_CITY, value == null ? "" : value.trim()));
+                });
+    }
+
     private void buildPostBarControls() {
         addDependentSwitch("作品信息条", "在作品页显示自定义信息行", repository.getBoolean(
                         LocalOptions.POST_BAR_ENABLED, false), true,
                 value -> repository.putBoolean(LocalOptions.POST_BAR_ENABLED, value), () -> {
                     addTextSetting("信息条模板", repository.getString(LocalOptions.POST_BAR_TEMPLATE,
                                     LocalOptions.DEFAULT_POST_BAR_TEMPLATE),
-                            "${time} ${location} ${duration} ${progress}", false, true,
+                            "${time} ${location} ${duration} ${progress} ${originalText}", false, true,
                             value -> repository.putString(LocalOptions.POST_BAR_TEMPLATE, value));
                     addTextSetting("信息条字号", repository.getString(LocalOptions.POST_BAR_SIZE,
-                                    String.valueOf(LocalOptions.DEFAULT_POST_BAR_SIZE)),
-                            "8-48", true, true,
+                                    LocalOptions.DEFAULT_POST_BAR_SIZE),
+                            "6-32", true, true,
                             value -> repository.putString(LocalOptions.POST_BAR_SIZE, value.trim()));
                     addTextSetting("信息条颜色", repository.getString(LocalOptions.POST_BAR_COLOR,
                                     LocalOptions.DEFAULT_POST_BAR_COLOR),

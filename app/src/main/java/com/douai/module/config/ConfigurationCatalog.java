@@ -96,7 +96,9 @@ public final class ConfigurationCatalog {
                 + LocalOptions.DOWNLOAD_PATH_TEMPLATE + " " + LocalOptions.DOWNLOAD_DATE_FORMAT);
         add(keys, "boolean", LocalOptions.POST_BAR_ENABLED + " " + LocalOptions.POST_BAR_COLORFUL);
         add(keys, "string", LocalOptions.POST_BAR_TEMPLATE + " " + LocalOptions.POST_BAR_COLOR);
-        add(keys, "int", LocalOptions.POST_BAR_SIZE);
+        add(keys, "string", LocalOptions.POST_BAR_SIZE + " " + LocalOptions.IP_LOCATION + " "
+                + LocalOptions.IP_LOCATION_PROVINCE + " " + LocalOptions.IP_LOCATION_CITY);
+        add(keys, "boolean", LocalOptions.IP_LOCATION_SPOOF_CITY);
         add(keys, "int", "minimum_duration_seconds minimum_like_count");
         add(keys, "string", "keyword video_right_alpha hidden_top_tabs fake_version_name fake_version_code auto_comment_text "
                 + "auto_message_text playback_speed comment_suffix colored_comment_type comment_voice_path dm_voice_path "
@@ -143,7 +145,7 @@ public final class ConfigurationCatalog {
         depend(Feature.REPLY, "automation_enabled native_auto_reply reply_global reply_targets reply_mode reply_prompt reply_model_id reply_delay_seconds auto_message_text reply_daily_limit reply_user_cooldown_minutes reply_recognize_images reply_recognize_video reply_keywords reply_scope_mode reply_scope_relations reply_scope_fields reply_scope_keywords reply_scope_users reply_filter_mode reply_filter_keywords reply_filter_fields reply_private_chats reply_group_chats reply_group_scope_mode reply_group_targets reply_group_mode reply_group_members reply_random ai_model_settings_v2 streak_enabled streak_targets streak_content streak_content_api streak_start streak_end streak_tip streak_reset_token streak_retry_unknown_token reply_voice", "tts_ voice_catalog_");
         depend(Feature.COMMENT_AUTOMATION, "automation_enabled native_auto_comment comment_mode comment_prompt comment_model_id comment_delay_seconds auto_comment_text comment_daily_limit comment_user_cooldown_minutes comment_recognize_images comment_recognize_video comment_scope_mode comment_scope_relations comment_scope_fields comment_scope_keywords comment_scope_users comment_filter_mode comment_filter_keywords comment_filter_fields ai_model_settings_v2 comment_voice", "tts_ voice_catalog_");
         depend(Feature.COMMENT_REPLY, "native_comment_reply", "");
-        depend(Feature.FEED_UI, "hide_interface video_right_alpha component_hide_enabled component_hide_uniform_enabled component_hide_uniform_alpha component_hide_on_switch component_hide_open_comments_on_show component_hide_show_on_pause component_hide_custom_views", "component_alpha_");
+        depend(Feature.FEED_UI, "hide_interface video_right_alpha component_hide_enabled component_hide_uniform_enabled component_hide_uniform_alpha component_hide_on_switch component_hide_open_comments_on_show component_hide_show_on_pause component_hide_custom_views post_bar post_template post_size post_color post_colorful ip_location", "component_alpha_ ip_location_");
         depend(Feature.PLAYBACK, "auto_speed playback_speed " + LocalOptions.MODULE_ONLY_SPEED, "");
         depend(Feature.VIDEO_QUALITY, LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY, "");
         depend(Feature.AUTO_PLAY, "auto_play smart_swipe pause_auto_on_comments", "");
@@ -197,9 +199,13 @@ public final class ConfigurationCatalog {
         defaults.put("loaded_comment_search_enabled", false);
         defaults.put("comment_transcript_enabled", false);
         defaults.put("hide_hotspot_rank_cards", false);
+        defaults.put(LocalOptions.IP_LOCATION, "");
+        defaults.put(LocalOptions.IP_LOCATION_PROVINCE, "");
+        defaults.put(LocalOptions.IP_LOCATION_CITY, "");
+        defaults.put(LocalOptions.IP_LOCATION_SPOOF_CITY, false);
         defaults.put(LocalOptions.POST_BAR_ENABLED, false);
         defaults.put(LocalOptions.POST_BAR_TEMPLATE, LocalOptions.DEFAULT_POST_BAR_TEMPLATE);
-        defaults.put(LocalOptions.POST_BAR_SIZE, 12);
+        defaults.put(LocalOptions.POST_BAR_SIZE, LocalOptions.DEFAULT_POST_BAR_SIZE);
         defaults.put(LocalOptions.POST_BAR_COLOR, LocalOptions.DEFAULT_POST_BAR_COLOR);
         defaults.put(LocalOptions.POST_BAR_COLORFUL, false);
         defaults.put(PLAYBACK_SPEED, PLAYBACK_SPEED_DEFAULT);
