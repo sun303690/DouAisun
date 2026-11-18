@@ -59,6 +59,7 @@ import com.douai.module.feature.DirectMessageSpeechHook;
 import com.douai.module.feature.HashLongPressVoiceHook;
 import com.douai.module.feature.MediaModelHook;
 import com.douai.module.feature.LocalAnalyticsHook;
+import com.douai.module.feature.PostBarHook;
 import com.douai.module.analytics.LocalAnalytics;
 import com.douai.module.feature.CommentEnhancementsHook;
 import com.douai.module.feature.CommentFilterHook;
@@ -953,6 +954,13 @@ public final class DouAiModule extends XposedModule {
         if (nativeFollowLists == null) {
             nativeFollowLists = NativeFollowLists.install(hostClassLoader, hostScanReport, localOptions,
                     message -> moduleLog(3, TAG, message));
+        }
+        try {
+            PostBarHook postBar = PostBarHook.install(hookFramework(), hostScanReport, hostClassLoader,
+                    localOptions, message -> moduleLog(3, TAG, message));
+            if (postBar != null) moduleLog(3, TAG, "Post bar hook installed");
+        } catch (Throwable failure) {
+            moduleLog(5, TAG, "Post bar hook unavailable: " + HostAdaptationDiagnostics.installationFailure(failure));
         }
         if (automationDispatcher == null) {
             automationDispatcher = new AutomationDispatcher(targetContext, message -> moduleLog(3, TAG, message));

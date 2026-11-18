@@ -24,6 +24,15 @@ public final class ConfigBackup {
         }
     }
 
+    /**
+     * Wraps a configuration-only preview so a restore of the configuration section can reuse the
+     * normal preview flow. The analytics section stays empty because it lives outside the settings
+     * store.
+     */
+    public static Preview of(ConfigTransfer.Preview config) {
+        return new Preview(config, null);
+    }
+
     public static String export(Context context, SettingsStore store, boolean includeSecrets, boolean includeAnalytics) {
         String settings = ConfigTransfer.export(store, includeSecrets);
         if (!includeAnalytics) return settings; // Do not initialize or read analytics on the default path.

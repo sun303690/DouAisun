@@ -117,6 +117,16 @@ public final class AutoPlayHook implements Application.ActivityLifecycleCallback
         return aid == null || !aid.equals(selectedAid) ? null : paused;
     }
 
+    /**
+     * Tells whether the automatic swipe may run right now.
+     * The feature switch and the temporary pause both have to allow it.
+     */
+    private static boolean autoPlayEnabled(ExtendedSettings settings, LocalOptions options) {
+        if (settings == null || !settings.autoPlay) return false;
+        if (options == null) return true;
+        return !options.autoPlayPaused(System.currentTimeMillis());
+    }
+
     public static AutoPlayHook install(XposedInterface framework, HostScanReport report,
                                        ClassLoader loader, Context context, ExtendedSettings settings,
                                        LocalOptions options, Consumer<String> log) throws Exception {
@@ -336,7 +346,7 @@ public final class AutoPlayHook implements Application.ActivityLifecycleCallback
             generation++;
             pendingAdvance = false;
             dismissTransitionFrame(false);
-            diagnostic = settings != null && settings.autoPlay ? "等待当前视频播放完成" : "自动滑动已关闭";
+            diagnostic = autoPlayEnabled(settings, options) ? "等待当前视频播放完成" : "自动滑动已关闭";
         });
     }
 
@@ -477,7 +487,7 @@ public final class AutoPlayHook implements Application.ActivityLifecycleCallback
         if (token == generation && aid != null && aid.equals(selectedAid)) observePlayback("ended");
         ExtendedSettings current = settings;
         View root = activeRoot();
-        if (closed || !group.isActive() || current == null || !current.autoPlay) {
+        if (closed || !group.isActive() || !autoPlayEnabled(current, options)) {
             DouAiLog.event("auto_play", "decision", "disabled_or_not_ready", "advance_invoked=false");
             return;
         }
@@ -570,7 +580,7 @@ public final class AutoPlayHook implements Application.ActivityLifecycleCallback
             Object currentHolder = panel == null ? null : this.currentHolder.invoke(panel);
             Object currentPagerContext = panel == null ? null : pagerContextField.get(panel);
             Object currentScrollState = currentPager == null ? null : scrollState.invoke(currentPager);
-            if (closed || !group.isActive() || settings == null || !settings.autoPlay
+            if (closed || !group.isActive() || !autoPlayEnabled(settings, options)
                     || generation != token || paused || touching || attempted || !ownsDispatcher(panel,dispatcher)
                     || !aid.equals(selectedAid) || selectedHolder.get() == null
                     || activeRoot() != root || currentHolder != selectedHolder.get()

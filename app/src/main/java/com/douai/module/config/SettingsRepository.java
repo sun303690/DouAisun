@@ -131,6 +131,24 @@ public final class SettingsRepository implements SettingsStore {
         return editor;
     }
 
+    @Override public synchronized void clearAll() {
+        DouAiLog.Operation operation = DouAiLog.begin("settings_clear", "config_reset");
+        try {
+            operation.wrap(() -> {
+                boolean committed;
+                try { committed = preferences.edit().clear().commit(); }
+                catch (RuntimeException failure) { DouAiLog.failure("settings_clear", "commit", failure); committed = false; }
+                if (!committed) throw new IllegalStateException("清除配置失败，请检查存储空间后重试");
+                publishCurrentSettings();
+            }).run();
+            operation.finish(DouAiLog.Outcome.SUCCESS, "preferences_cleared", "commit=true; host_propagation_confirmed=false");
+        } catch (RuntimeException failure) {
+            operation.error("transaction", failure);
+            operation.finish(DouAiLog.Outcome.FAILED, "preferences_clear_failed", "host_propagation_confirmed=false");
+            throw failure;
+        }
+    }
+
     public void setFrameworkConfigSync(FrameworkConfigSync sync) {
         if (frameworkConfigSync == sync) return;
         frameworkConfigSync = sync;

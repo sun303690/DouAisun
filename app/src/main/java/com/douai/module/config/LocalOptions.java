@@ -2,6 +2,8 @@ package com.douai.module.config;
 
 import android.content.SharedPreferences;
 
+import com.douai.module.feature.PostBarTemplate;
+
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,6 +23,93 @@ public final class LocalOptions {
     public static final String DOWNLOAD_PATH_TEMPLATE = "download_path_template";
     /** SimpleDateFormat pattern used by the path template for the date placeholder. */
     public static final String DOWNLOAD_DATE_FORMAT = "download_date_format";
+    /** Wall-clock time until which the automatic swipe is paused, in milliseconds. */
+    public static final String AUTO_PLAY_PAUSED_UNTIL = "auto_play_paused_until";
+    /** Master switch for the feed information bar. */
+    public static final String POST_BAR_ENABLED = "post_bar";
+    /** Template rendered by the feed information bar. */
+    public static final String POST_BAR_TEMPLATE = "post_template";
+    /** Text size of the feed information bar, in sp. */
+    public static final String POST_BAR_SIZE = "post_size";
+    /** Text colour of the feed information bar, as {@code #AARRGGBB}. */
+    public static final String POST_BAR_COLOR = "post_color";
+    /** Uses the colourful mode of the feed information bar. */
+    public static final String POST_BAR_COLORFUL = "post_colorful";
+    /** Default information bar template. */
+    public static final String DEFAULT_POST_BAR_TEMPLATE = "${time} ${location} ${progress}";
+    /** Default information bar date pattern. */
+    public static final String DEFAULT_POST_BAR_DATE_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    /** Default information bar text size, in sp. */
+    public static final String DEFAULT_POST_BAR_SIZE = "12";
+    /** Default information bar text colour. */
+    public static final String DEFAULT_POST_BAR_COLOR = "#FFFFFF";
+
+    /** Tells whether the feed information bar is enabled. */
+    public boolean postBarEnabled() { return enabled(POST_BAR_ENABLED); }
+
+    /** The validated information bar template, empty when the stored value is unusable. */
+    public String postBarTemplate() {
+        return postBarTemplate(text(POST_BAR_TEMPLATE, DEFAULT_POST_BAR_TEMPLATE));
+    }
+
+    /**
+     * Pure sanitiser for the information bar template: only the supported placeholders survive and
+     * the result is capped at the maximum rendered length.
+     */
+    public static String postBarTemplate(String raw) {
+        if (raw == null) return "";
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return "";
+        if (trimmed.length() > 256) trimmed = trimmed.substring(0, 256);
+        return PostBarTemplate.isValid(trimmed) ? trimmed : "";
+    }
+
+    /** The information bar text size, in sp. */
+    public int postBarSize() {
+        int size = integer(POST_BAR_SIZE, 12);
+        return size < 8 ? 8 : (size > 48 ? 48 : size);
+    }
+
+    /** The information bar text colour, as {@code #AARRGGBB}. */
+    public String postBarColor() {
+        String raw = text(POST_BAR_COLOR, DEFAULT_POST_BAR_COLOR).trim();
+        if (!raw.startsWith("#")) raw = "#" + raw;
+        if (raw.length() != 7 && raw.length() != 9) return DEFAULT_POST_BAR_COLOR;
+        for (int i = 1; i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            boolean hex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+            if (!hex) return DEFAULT_POST_BAR_COLOR;
+        }
+        return raw.toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /** Tells whether the information bar uses the colourful mode. */
+    public boolean postBarColorful() { return enabled(POST_BAR_COLORFUL); }
+
+    /**
+     * Returns the wall-clock time until which the automatic swipe stays paused.
+     *
+     * @return the deadline in milliseconds, or {@code 0} when the automatic swipe is not paused
+     */
+    public long autoPlayPausedUntil() {
+        Object raw = values.get(AUTO_PLAY_PAUSED_UNTIL);
+        if (raw instanceof Number) return ((Number) raw).longValue();
+        if (raw instanceof String) {
+            try { return Long.parseLong(((String) raw).trim()); }
+            catch (NumberFormatException ignored) { return 0L; }
+        }
+        return 0L;
+    }
+
+    /**
+     * Tells whether the automatic swipe is currently paused.
+     *
+     * @param nowMillis the current wall-clock time
+     * @return {@code true} while the pause deadline is in the future
+     */
+    public boolean autoPlayPaused(long nowMillis) {
+        return autoPlayPausedUntil() > nowMillis;
+    }
     public static final String OFFICIAL_DOWNLOAD_DIRECT = "download_official_direct";
     public static final String REPLY_VOICE = "reply_voice";
     public static final String REPLY_RECOGNIZE_IMAGES = "reply_recognize_images";

@@ -14,6 +14,10 @@ public interface SettingsStore {
     default void replaceSnapshot(java.util.Map<String, ?> expected, java.util.Map<String, ?> replacement) {
         throw new UnsupportedOperationException("此设置入口不支持配置导入");
     }
+    /** Remove every stored value so the module falls back to its defaults. */
+    default void clearAll() {
+        throw new UnsupportedOperationException("此设置入口不支持清除配置");
+    }
     default boolean isInHost() { return false; }
     default void close() { }
 }

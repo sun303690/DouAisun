@@ -94,6 +94,9 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", LocalOptions.DOWNLOAD_SYSTEM_ALBUM);
         add(keys, "string", LocalOptions.DOWNLOAD_SUBDIRECTORY + " "
                 + LocalOptions.DOWNLOAD_PATH_TEMPLATE + " " + LocalOptions.DOWNLOAD_DATE_FORMAT);
+        add(keys, "boolean", LocalOptions.POST_BAR_ENABLED + " " + LocalOptions.POST_BAR_COLORFUL);
+        add(keys, "string", LocalOptions.POST_BAR_TEMPLATE + " " + LocalOptions.POST_BAR_COLOR);
+        add(keys, "int", LocalOptions.POST_BAR_SIZE);
         add(keys, "int", "minimum_duration_seconds minimum_like_count");
         add(keys, "string", "keyword video_right_alpha hidden_top_tabs fake_version_name fake_version_code auto_comment_text "
                 + "auto_message_text playback_speed comment_suffix colored_comment_type comment_voice_path dm_voice_path "
@@ -194,6 +197,11 @@ public final class ConfigurationCatalog {
         defaults.put("loaded_comment_search_enabled", false);
         defaults.put("comment_transcript_enabled", false);
         defaults.put("hide_hotspot_rank_cards", false);
+        defaults.put(LocalOptions.POST_BAR_ENABLED, false);
+        defaults.put(LocalOptions.POST_BAR_TEMPLATE, LocalOptions.DEFAULT_POST_BAR_TEMPLATE);
+        defaults.put(LocalOptions.POST_BAR_SIZE, 12);
+        defaults.put(LocalOptions.POST_BAR_COLOR, LocalOptions.DEFAULT_POST_BAR_COLOR);
+        defaults.put(LocalOptions.POST_BAR_COLORFUL, false);
         defaults.put(PLAYBACK_SPEED, PLAYBACK_SPEED_DEFAULT);
         defaults.put("download_method", DOWNLOAD_METHOD_DEFAULT);
         defaults.put("download_name_template", DOWNLOAD_NAME_DEFAULT);

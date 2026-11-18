@@ -588,6 +588,7 @@ public final class ModuleSettingsScreen {
                         value -> repository.putBoolean("confirm_refresh", value));
                 addLocalSwitch("直播信息面板", "", LocalOptions.LIVE_ROOM_INFO);
                 addLocalSwitch("直播具体人数", "", LocalOptions.LIVE_ROOM_EXACT_COUNT);
+                buildPostBarControls();
                 addLocalSwitch("直播清爽模式", "", LocalOptions.LIVE_CLEAN);
                 addLocalSwitch("隐藏礼物横幅", "", LocalOptions.LIVE_CLEAN_GIFT_TRAY);
                 addLocalSwitch("隐藏礼物特效", "", LocalOptions.LIVE_CLEAN_GIFT_EFFECT);
@@ -620,6 +621,7 @@ public final class ModuleSettingsScreen {
                         });
                 buildPlaybackSpeedControls();
                 addLocalSwitch("锁定最高画质", "", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
+                addOption("临时暂停连播", pauseSummary(), true, this::showAutoPlayPauseDialog);
                 addOption("互动自动化", "", null, true, this::showAutomationSettings);
                 break;
             case COMMENT:
@@ -1272,6 +1274,36 @@ public final class ModuleSettingsScreen {
         return controls;
     }
 
+    private void buildPostBarControls() {
+        addDependentSwitch("作品信息条", "在作品页显示自定义信息行", repository.getBoolean(
+                        LocalOptions.POST_BAR_ENABLED, false), true,
+                value -> repository.putBoolean(LocalOptions.POST_BAR_ENABLED, value), () -> {
+                    addTextSetting("信息条模板", repository.getString(LocalOptions.POST_BAR_TEMPLATE,
+                                    LocalOptions.DEFAULT_POST_BAR_TEMPLATE),
+                            "${time} ${location} ${duration} ${progress}", false, true,
+                            value -> repository.putString(LocalOptions.POST_BAR_TEMPLATE, value));
+                    addTextSetting("信息条字号", repository.getString(LocalOptions.POST_BAR_SIZE,
+                                    String.valueOf(LocalOptions.DEFAULT_POST_BAR_SIZE)),
+                            "8-48", true, true,
+                            value -> repository.putString(LocalOptions.POST_BAR_SIZE, value.trim()));
+                    addTextSetting("信息条颜色", repository.getString(LocalOptions.POST_BAR_COLOR,
+                                    LocalOptions.DEFAULT_POST_BAR_COLOR),
+                            "#AARRGGBB", false, true,
+                            value -> repository.putString(LocalOptions.POST_BAR_COLOR, value));
+                    addSwitch("彩色信息条", "", repository.getBoolean(LocalOptions.POST_BAR_COLORFUL, false),
+                            true, value -> repository.putBoolean(LocalOptions.POST_BAR_COLORFUL, value));
+                });
+    }
+
+    private static int parseIntSafe(String raw, int fallback) {
+        if (raw == null) return fallback;
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
     private void buildPlaybackSpeedControls() {
         ToggleControl[] automatic = new ToggleControl[1];
         Runnable refresh = () -> {
@@ -1889,6 +1921,45 @@ public final class ModuleSettingsScreen {
         AutomationSettingsDialog automation = new AutomationSettingsDialog(context, repository, miuixHome != null,
                 () -> settings = repository.load());
         showOptionDialog(automation.dialog(), automation::close);
+    }
+
+    private String pauseSummary() {
+        long until = new LocalOptions(repository.snapshot()).autoPlayPausedUntil();
+        if (until <= 0) return "未暂停";
+        long remain = until - System.currentTimeMillis();
+        if (remain <= 0) return "未暂停";
+        return "已暂停，剩余 " + formatDurationShort(remain);
+    }
+
+    private static String formatDurationShort(long millis) {
+        long total = millis / 1000;
+        long h = total / 3600, m = (total % 3600) / 60, s = total % 60;
+        if (h > 0) return String.format(java.util.Locale.ROOT, "%d时%d分", h, m);
+        if (m > 0) return String.format(java.util.Locale.ROOT, "%d分%d秒", m, s);
+        return s + "秒";
+    }
+
+    private void showAutoPlayPauseDialog() {
+        LinearLayout previous = content;
+        LinearLayout panel = form();
+        content = panel;
+        addTextSetting("暂停时长（分钟）", "60", "数字，留空取消暂停", true, true, value -> {
+            int minutes = parseIntSafe(value, 0);
+            if (minutes <= 0) {
+                repository.putString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, "0");
+                return;
+            }
+            long until = System.currentTimeMillis() + minutes * 60_000L;
+            repository.putString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, String.valueOf(until));
+        });
+        addOption("立即取消暂停", "清除临时暂停状态", "已暂停", true, () -> {
+            repository.putString(LocalOptions.AUTO_PLAY_PAUSED_UNTIL, "0");
+            refresh();
+        });
+        content = previous;
+        showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null)
+                .setTitle("临时暂停连播").setView(scrolling(panel))
+                .setNegativeButton("返回", null).create());
     }
 
     private void showSystemBarSettings() {

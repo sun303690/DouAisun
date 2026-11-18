@@ -76,11 +76,14 @@ final class ConfigTransferDialog implements AutoCloseable {
     private final Button importButton;
     private final Button confirmButton;
     private final Button cancelButton;
+    private final Button undoButton;
+    private final Button clearButton;
     private volatile boolean closed;
     private AutoCloseable selection;
     private long selectionGeneration;
     private Operation operation;
     private ConfigBackup.Preview preview;
+    private boolean undoPending;
     private String sourceJson;
     private String sourceFileSummary;
 
@@ -130,6 +133,9 @@ final class ConfigTransferDialog implements AutoCloseable {
         confirmButton.setEnabled(false);
         cancelButton = button(context, miuix, body, "取消当前操作", "config.backup.cancel", () -> cancel("已取消，配置未更改。"));
         cancelButton.setEnabled(false);
+        undoButton = button(context, miuix, body, "撤销上次恢复", "config.backup.undo", this::undo);
+        undoButton.setEnabled(ConfigUndoPoint.has(this.application));
+        clearButton = button(context, miuix, body, "清除所有配置", "config.backup.clear", this::clearAll);
         ScrollView scroll = new ScrollView(context);
         scroll.setTag("config.backup.scroll");
         scroll.setFillViewport(false);
@@ -144,6 +150,7 @@ final class ConfigTransferDialog implements AutoCloseable {
     private void choose(boolean export) {
         if (!active() || operation != null || selection != null) return;
         preview = null; sourceJson = null; sourceFileSummary = null; previewText.setText(""); confirmButton.setEnabled(false);
+        undoPending = false;
         resetAnalyticsRestore();
         boolean includeSecrets = secrets.isChecked();
         boolean includeLocalAnalytics = includeAnalytics.isChecked();
@@ -223,6 +230,7 @@ final class ConfigTransferDialog implements AutoCloseable {
         if (!active() || operation != null || preview == null) return;
         ConfigBackup.Preview accepted = preview;
         boolean restoreLocalAnalytics = accepted.includesAnalytics && restoreAnalytics.isChecked();
+        boolean isUndo = undoPending;
         preview = null;
         run(op -> {
             op.check();
@@ -230,13 +238,67 @@ final class ConfigTransferDialog implements AutoCloseable {
             op.applying = true;
             op.check();
             op.stage = Stage.APPLY_DATA; op.trace.stage("apply_data", "");
-            ConfigBackup.apply(application, store, accepted, restoreLocalAnalytics);
+            if (isUndo) {
+                // The undo point already holds the pre-import state; restore it directly.
+                String encoded = ConfigUndoPoint.read(application);
+                if (encoded == null) throw new IllegalStateException("撤销记录已失效，请重新导入备份");
+                ConfigBackup.Preview rollback = ConfigBackup.inspectConfig(store, encoded,
+                        ConfigTransfer.Mode.REPLACE);
+                ConfigBackup.apply(application, store, rollback, false);
+                ConfigUndoPoint.clear(application);
+            } else {
+                // Record the pre-import state so the user can undo this restore later.
+                ConfigUndoPoint.record(application, store);
+                ConfigBackup.apply(application, store, accepted, restoreLocalAnalytics);
+            }
             op.applied = true;
             return null;
-        }, "正在应用备份…", restoreLocalAnalytics
+        }, isUndo ? "正在撤销…" : "正在应用备份…", isUndo
+                ? "已恢复到上次导入前的配置。"
+                : (restoreLocalAnalytics
                 ? "配置已导入，本地分析记录已替换，采集开关保持原状态。需要重新安装 Hook 的项目将在重启抖音后生效。"
-                : "配置已导入，本地分析数据保持原样。需要重新安装 Hook 的项目将在重启抖音后生效。");
+                : "配置已导入，本地分析数据保持原样。需要重新安装 Hook 的项目将在重启抖音后生效。"));
         cancelButton.setEnabled(false);
+    }
+
+    /**
+     * Restores the configuration snapshot that was captured before the last import. The undo point is
+     * consumed on success so a second tap cannot roll back twice.
+     */
+    private void undo() {
+        if (!active() || operation != null || preview != null) return;
+        ConfigBackup.Preview rollback = ConfigUndoPoint.preview(store, application);
+        if (rollback == null) {
+            status.setText("没有可撤销的恢复记录。");
+            return;
+        }
+        preview = rollback;
+        undoPending = true;
+        updatePreview();
+        status.setText("已载入上次恢复前的配置，确认后写回。");
+        confirmButton.setEnabled(true);
+    }
+
+    /** Removes every stored value so the module falls back to its defaults. */
+    private void clearAll() {
+        if (!active() || operation != null || preview != null) return;
+        new MiuixDialogBuilder(activity, false).setTitle("清除所有配置")
+                .setMessage("将删除全部 DouAi 配置并恢复默认值，此操作不可撤销。")
+                .setPositiveButton("清除", (dialog, which) -> {
+                    if (!active()) return;
+                    run(op -> {
+                        op.check();
+                        op.applying = true;
+                        op.check();
+                        op.stage = Stage.APPLY_DATA; op.trace.stage("apply_data", "clear_all");
+                        store.clearAll();
+                        ConfigUndoPoint.clear(application);
+                        op.applied = true;
+                        return null;
+                    }, "正在清除配置…", "配置已清除，模块已恢复默认设置。");
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private enum Stage { EXPORT_DATA, WRITE_FILE, READ_FILE, DECODE_FILE, VALIDATE_DATA, APPLY_DATA }
@@ -277,6 +339,7 @@ final class ConfigTransferDialog implements AutoCloseable {
                         ? "导入未完成，配置或本地分析数据可能已变化。请重新选择文件并核对预览。"
                         : op.failureMessage;
                 status.setText(message + (op.fileSummary == null ? "" : "\n" + op.fileSummary));
+                undoButton.setEnabled(ConfigUndoPoint.has(application));
                 if (done && ready != null) {
                     sourceJson = op.importJson; sourceFileSummary = op.fileSummary; preview = ready;
                     restoreAnalytics.setVisibility(ready.includesAnalytics ? View.VISIBLE : View.GONE);
