@@ -130,7 +130,9 @@ public final class ModuleSettingsReferenceTest {
                         "去推荐商家开关", "去商品/购物卡片开关", "去热点榜单卡开关", "去小游戏开关", "去长视频开关", "最长时长（秒）",
                         "最低点赞数（0不限制）", "最低评论数（0不限制）", "最低收藏数（0不限制）", "最低分享数（0不限制）",
                         "仅保留最近几天（0不限制）", "去图集开关", "屏蔽关键词", "过滤短视频", "最短时长（秒）"},
-                {"DOWNLOAD", "启用下载菜单", "下载方式", "保存位置", "下载任务", "直接保存全部媒体", "自定义文件名", "文件名模板", "去除下载限制", "无水印下载图集或者视频"},
+                {"DOWNLOAD", "启用下载菜单", "下载方式", "保存位置", "下载任务",
+                        "保存子目录", "改回系统相册／音乐", "路径模板", "日期格式",
+                        "直接保存全部媒体", "自定义文件名", "文件名模板", "去除下载限制", "无水印下载图集或者视频"},
                 {"AUTOPLAY", "自动滑动到下一个视频", "打开评论时,不滑动视频", "滑动智能判断上下",
                         "仅模块控制倍速", "自动倍速播放", "倍速数值", "锁定最高画质", "互动自动化"},
                 {"AUTO_REPLY", "开启自动回复", "回复模式", "回复内容", "素材识别", "语音回复", "接收私聊", "私聊范围", "接收群聊", "群聊范围",
@@ -154,13 +156,26 @@ public final class ModuleSettingsReferenceTest {
                 {"VIDEO_PROXY", "启用原画代理", "代理并发连接数", "代理缓存上限", "仅 WiFi 下缓存"},
                 {"EXTENSION", "AI 模型设置", "文本转语音设置", "本地数据分析", "配置备份"}
         };
+        StringBuilder mismatches = new StringBuilder();
         for (String[] reference : references) {
-            View page = openCategory(reference[0]);
-            assertEquals(reference[0], Arrays.asList(Arrays.copyOfRange(reference, 1, reference.length)),
-                    settingTitles(page));
-            assertEquals(reference[0] + " must open editors from a single row", 0,
-                    collect(page, EditText.class).size());
+            String category = reference[0];
+            View page = openCategory(category);
+            List<String> expected = Arrays.asList(Arrays.copyOfRange(reference, 1, reference.length));
+            List<String> actual = settingTitles(page);
+            if (!expected.equals(actual)) {
+                mismatches.append(category).append('\n')
+                        .append("  expected: ").append(expected).append('\n')
+                        .append("  actual  : ").append(actual).append('\n');
+            }
+            int inlineEditors = collect(page, EditText.class).size();
+            if (inlineEditors != 0) {
+                mismatches.append(category).append(" must open editors from a single row, inline EditText=")
+                        .append(inlineEditors).append('\n');
+            }
             screen.dismissChildPages();
+        }
+        if (mismatches.length() > 0) {
+            fail(mismatches.toString());
         }
     }
 
