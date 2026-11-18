@@ -1016,6 +1016,11 @@ public final class ModuleSettingsScreen {
     }
 
     private void buildOfficialDownloadControls(ToggleControl master) {
+        addEditableOption("保存子目录", "留空使用默认 DouAi",
+                repository.getString(LocalOptions.DOWNLOAD_SUBDIRECTORY,
+                        LocalOptions.DEFAULT_DOWNLOAD_SUBDIRECTORY),
+                false, true, false, value ->
+                        repository.putString(LocalOptions.DOWNLOAD_SUBDIRECTORY, value));
         addSwitch("直接保存全部媒体", "",
                 repository.getBoolean(LocalOptions.OFFICIAL_DOWNLOAD_DIRECT, false), true, value -> {
                     if (value) master.setChecked(true);

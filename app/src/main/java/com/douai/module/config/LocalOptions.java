@@ -13,6 +13,8 @@ public final class LocalOptions {
     public static final String MODULE_ONLY_SPEED = "module_only_speed";
     public static final String LOCK_HIGHEST_VIDEO_QUALITY = "lock_highest_video_quality";
     public static final String DOWNLOAD_SAVE_TREE = "download_directory_uri";
+    /** Sub-folder created under the album/DCIM tree for every saved media file. */
+    public static final String DOWNLOAD_SUBDIRECTORY = "download_subdirectory";
     public static final String OFFICIAL_DOWNLOAD_DIRECT = "download_official_direct";
     public static final String REPLY_VOICE = "reply_voice";
     public static final String REPLY_RECOGNIZE_IMAGES = "reply_recognize_images";
@@ -111,6 +113,31 @@ public final class LocalOptions {
     public static final String LIVE_CLEAN_AD = "live_clean_ad";
 
     public String downloadSaveTree() { return text(DOWNLOAD_SAVE_TREE, "").trim(); }
+    /** Album sub-folder, sanitised and falling back to the historical default {@code DouAi}. */
+    public String downloadSubdirectory() { return sanitiseSubdirectory(text(DOWNLOAD_SUBDIRECTORY, "")); }
+    /**
+     * Pure sanitiser for the album sub-folder name: strips characters that MediaStore rejects and
+     * drops path separators so the value can never escape the album it is appended to.
+     */
+    public static String sanitiseSubdirectory(String raw) {
+        if (raw == null) return DEFAULT_DOWNLOAD_SUBDIRECTORY;
+        String trimmed = raw.trim();
+        if (trimmed.isEmpty()) return DEFAULT_DOWNLOAD_SUBDIRECTORY;
+        StringBuilder out = new StringBuilder(trimmed.length());
+        for (int i = 0; i < trimmed.length() && out.length() < 40; i++) {
+            char c = trimmed.charAt(i);
+            if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"'
+                    || c == '<' || c == '>' || c == '|' || c < ' ') continue;
+            out.append(c);
+        }
+        String cleaned = out.toString().trim();
+        if (cleaned.isEmpty() || ".".equals(cleaned) || "..".equals(cleaned)) {
+            return DEFAULT_DOWNLOAD_SUBDIRECTORY;
+        }
+        return cleaned;
+    }
+    /** Default album sub-folder used when the user leaves the field empty. */
+    public static final String DEFAULT_DOWNLOAD_SUBDIRECTORY = "DouAi";
     public boolean officialDownloadDirect() { return enabled(OFFICIAL_DOWNLOAD_DIRECT); }
 
     public boolean samePrefix(LocalOptions other, String prefix) {

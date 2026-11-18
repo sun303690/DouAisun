@@ -13,6 +13,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.widget.Toast;
+import com.douai.module.config.LocalOptions;
+import com.douai.module.config.SettingsRepository;
 import com.douai.module.diagnostics.DouAiLog;
 
 import java.io.InputStream;
@@ -37,6 +39,12 @@ public final class MediaStoreDownloader {
     static OutputStreams outputs = (resolver, target) -> resolver.openOutputStream(target, "w");
 
     private MediaStoreDownloader() { }
+
+    /** Album sub-folder name; kept in one place so every save path agrees. */
+    static String album(Context context) {
+        return LocalOptions.readFrom(context.getSharedPreferences(
+                SettingsRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)).downloadSubdirectory();
+    }
 
     public static boolean isHttpUrl(String value) {
         if (value == null) return false;
@@ -136,7 +144,7 @@ public final class MediaStoreDownloader {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, directory + "/DouAi");
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, directory + "/" + album(context));
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 target = resolver.insert(collection, values);
                 if (target == null) throw new IllegalStateException("MediaStore 无法创建记录");
@@ -150,7 +158,7 @@ public final class MediaStoreDownloader {
                 transfer.complete();
                 transfer.saved("mediastore", target.toString(), transfer.bytes);
                 target = null;
-                return "媒体已保存到 " + directory + "/DouAi";
+                return "媒体已保存到 " + directory + "/" + album(context);
         } catch (Exception failure) {
             if (target != null) {
                 try {
@@ -229,13 +237,13 @@ public final class MediaStoreDownloader {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/DouAi");
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/" + album(context));
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
                 target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (target == null) throw new IllegalStateException("MediaStore 无法创建记录");
             } else {
                 File parent = new File(Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_PICTURES), "DouAi");
+                        Environment.DIRECTORY_PICTURES), album(context));
                 if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
                     throw new IllegalStateException("无法创建图片目录");
                 }
@@ -275,7 +283,7 @@ public final class MediaStoreDownloader {
                     legacyTarget != null ? legacyTarget.getAbsolutePath() : target.toString(), length);
             target = null;
             legacyTarget = null;
-            return document ? "媒体已保存到所选目录" : "媒体已保存到 Pictures/DouAi";
+            return document ? "媒体已保存到所选目录" : "媒体已保存到 Pictures/" + album(context);
         } catch (Exception failure) {
             if (document) DownloadDocumentTree.delete(resolver, target);
             else if (target != null) {
@@ -311,7 +319,7 @@ public final class MediaStoreDownloader {
         }
         ContentResolver resolver = context.getContentResolver();
         List<Uri> created = new ArrayList<>();
-        String relativePath = Environment.DIRECTORY_DOWNLOADS + "/DouAi/" + folder;
+        String relativePath = Environment.DIRECTORY_DOWNLOADS + "/" + album(context) + "/" + folder;
         try {
             for (ThirdPartyDownloadPlan.Asset asset : plan.assets) {
                 transfer.file(asset.name, plan.assets.size() + 1);
@@ -423,7 +431,7 @@ public final class MediaStoreDownloader {
 
     private static void saveLegacyBundle(Context context, ThirdPartyDownloadPlan plan, String folder,
                                          DownloadTransfer transfer) throws Exception {
-        File parent = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "DouAi");
+        File parent = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), album(context));
         if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
             throw new IllegalStateException("无法创建下载目录");
         }
@@ -535,7 +543,7 @@ public final class MediaStoreDownloader {
         transfer.check();
         long id = manager.enqueue(new DownloadManager.Request(Uri.parse(url)).setTitle(name).setMimeType(mime)
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(directory, "DouAi/" + name));
+                .setDestinationInExternalPublicDir(directory, album(context) + "/" + name));
         transfer.evidence("system_download_queued", "download_ref=" + DouAiLog.reference(Long.toString(id))
                 + "; business_result=pending");
         boolean completed = false;
@@ -556,7 +564,7 @@ public final class MediaStoreDownloader {
                         if (bytes <= 0 || total >= 0 && bytes != total) throw new IllegalStateException("系统下载文件不完整");
                         transfer.fileDone(); transfer.complete(); completed = true;
                         transfer.saved("download_manager_status_successful", Long.toString(id), bytes);
-                        return "媒体已保存到 " + directory + "/DouAi";
+                        return "媒体已保存到 " + directory + "/" + album(context);
                     }
                     if (status == DownloadManager.STATUS_FAILED) throw new IllegalStateException("系统下载失败");
                 }
