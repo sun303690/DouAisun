@@ -881,7 +881,7 @@ class MiuixHostSettingsTest {
         compose.onNodeWithTag("settings.search").performTextReplacement("评论相关")
         compose.onNodeWithTag("settings.category.7").performClick()
         compose.runOnIdle { assertTrue(store.getBoolean("comment_voice_replace", false)) }
-        compose.onNodeWithTag("settings.toggle.替换语音文件").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("settings.toggle.替换语音文件").assertIsDisplayed()
         compose.onNodeWithTag("settings.option.评论语音文件").assertIsEnabled().performClick()
         compose.onNodeWithTag("settings.input.文件路径").assertIsDisplayed()
             .performTextReplacement("/storage/emulated/0/Music/replacement.mp3")
