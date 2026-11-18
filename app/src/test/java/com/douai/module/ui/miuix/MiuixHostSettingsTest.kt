@@ -571,7 +571,8 @@ class MiuixHostSettingsTest {
                 .findViewWithTag<EditText>("settings.input.文件名模板").setText("#aid#.#ext#")
             editor.getButton(Dialog.BUTTON_POSITIVE).performClick()
         }
-        compose.onNodeWithText("#aid#.#ext#").assertIsDisplayed()
+        // 该行在 320dp 视口下可能被滚动容器裁掉，校验预览文本已更新即可，不依赖是否落在可视区。
+        compose.onNodeWithText("#aid#.#ext#").assertExists()
         assertEquals("#aid#.#ext#", store.getString("download_name_template", ""))
         compose.runOnUiThread { ShadowDialog.getLatestDialog().dismiss() }
         compose.onNodeWithTag("settings.search").performTextReplacement("组件")
