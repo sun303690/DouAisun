@@ -1294,7 +1294,7 @@ public final class ModuleSettingsScreen {
 
     private void buildPostBarControls() {
         addDependentSwitch("作品信息条", "在作品页显示自定义信息行", repository.getBoolean(
-                        LocalOptions.POST_BAR_ENABLED, false), true,
+                        LocalOptions.POST_BAR_ENABLED, false), true, false,
                 value -> repository.putBoolean(LocalOptions.POST_BAR_ENABLED, value), () -> {
                     addTextSetting("信息条模板", repository.getString(LocalOptions.POST_BAR_TEMPLATE,
                                     LocalOptions.DEFAULT_POST_BAR_TEMPLATE),
