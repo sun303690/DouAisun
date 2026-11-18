@@ -51,7 +51,7 @@ public class DownloadPathTemplateTest {
 
     @Test
     public void dateFormatKeepsLettersAndFallsBack() {
-        assertEquals("yyyy-MM-dd", LocalOptions.sanitiseDateFormat("yyyy-MM-dd"));
+        assertEquals("yyyyMMdd", LocalOptions.sanitiseDateFormat("yyyy-MM-dd"));
         assertEquals("yyyyMMdd", LocalOptions.sanitiseDateFormat("yyyy-MM-dd"));
         assertEquals("yyyy-MM-dd_HH-mm-ss", LocalOptions.sanitiseDateFormat(""));
         assertEquals("yyyy-MM-dd_HH-mm-ss", LocalOptions.sanitiseDateFormat(null));

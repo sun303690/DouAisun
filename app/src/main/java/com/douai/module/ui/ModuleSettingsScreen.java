@@ -1279,7 +1279,7 @@ public final class ModuleSettingsScreen {
         addTextSetting("IP 属地伪装", repository.getString(LocalOptions.IP_LOCATION, ""),
                 "例如：广东", false, false,
                 value -> repository.putString(LocalOptions.IP_LOCATION, value == null ? "" : value.trim()));
-        addDependentSwitch("同时伪装省市", "把个人资料里的省份与城市一并替换",
+        addDependentSwitch("同时伪装省市", "",
                 repository.getBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, false),
                 true, false,
                 value -> repository.putBoolean(LocalOptions.IP_LOCATION_SPOOF_CITY, value), () -> {
@@ -1293,7 +1293,7 @@ public final class ModuleSettingsScreen {
     }
 
     private void buildPostBarControls() {
-        addDependentSwitch("作品信息条", "在作品页显示自定义信息行", repository.getBoolean(
+        addDependentSwitch("作品信息条", "", repository.getBoolean(
                         LocalOptions.POST_BAR_ENABLED, false), true, false,
                 value -> repository.putBoolean(LocalOptions.POST_BAR_ENABLED, value), () -> {
                     addTextSetting("信息条模板", repository.getString(LocalOptions.POST_BAR_TEMPLATE,

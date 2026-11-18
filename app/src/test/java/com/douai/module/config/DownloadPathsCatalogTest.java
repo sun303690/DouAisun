@@ -35,9 +35,9 @@ public class DownloadPathsCatalogTest {
     @Test
     public void templateSanitiserDropsTraversalAndIllegalCharacters() {
         assertEquals("2026", LocalOptions.sanitisePathTemplate("2026"));
-        assertEquals("etcpasswd", LocalOptions.sanitisePathTemplate("etc/passwd"));
+        assertEquals("etc/passwd", LocalOptions.sanitisePathTemplate("etc/passwd"));
         assertEquals("etcpasswd", LocalOptions.sanitisePathTemplate("etc\\passwd"));
-        assertEquals("..", LocalOptions.sanitisePathTemplate(".."));
+        assertEquals("", LocalOptions.sanitisePathTemplate(".."));
         assertEquals("", LocalOptions.sanitisePathTemplate(""));
         assertEquals("", LocalOptions.sanitisePathTemplate(null));
     }

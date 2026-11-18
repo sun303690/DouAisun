@@ -93,6 +93,10 @@ kotlin {
 }
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    testLogging {
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        events("failed")
+    }
     // Original-host and packaged-APK contracts must rerun when their configured input changes.
     for (variable in listOf("DOUAI_TEST_APK", "DOUAI_VERIFY_RELEASE_APK")) {
         inputs.files(providers.environmentVariable(variable).map { listOf(rootProject.file(it)) }.orElse(emptyList()))
