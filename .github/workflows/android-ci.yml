@@ -39,17 +39,55 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Configure release signing
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.DOUAI_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.DOUAI_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.DOUAI_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.DOUAI_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -eu
+          if [ -z "${KEYSTORE_B64:-}" ] || [ -z "${STORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "release signing secrets are not configured; this run produces an unsigned APK" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/douai-release.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          chmod 600 "$keystore"
+          {
+            echo "DOUAI_RELEASE_STORE_FILE=$keystore"
+            echo "DOUAI_RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "DOUAI_RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "DOUAI_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "release signing enabled with alias '$KEY_ALIAS'" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Test local verification tools
         run: python3 -B -m unittest discover -s tools/tests -v
 
-      - name: Assemble unsigned minified Release APK
+      - name: Assemble minified Release APK
         run: ./gradlew :app:assembleRelease --console=plain
 
       - name: Run unit tests and Release APK contracts
         id: unit_tests
-        env:
-          DOUAI_VERIFY_RELEASE_APK: ${{ github.workspace }}/app/build/outputs/apk/release/app-release-unsigned.apk
-        run: ./gradlew :app:testDebugUnitTest --console=plain
+        shell: bash
+        run: |
+          set -eu
+          apk=""
+          for candidate in app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/app-release-unsigned.apk; do
+            if [ -f "$candidate" ]; then apk="$candidate"; break; fi
+          done
+          if [ -z "$apk" ]; then
+            echo "no release APK produced" >&2
+            ls -l app/build/outputs/apk/release || true
+            exit 1
+          fi
+          echo "verifying $apk"
+          DOUAI_VERIFY_RELEASE_APK="$GITHUB_WORKSPACE/$apk" ./gradlew :app:testDebugUnitTest --console=plain
 
       - name: Report all host contracts
         if: always() && steps.unit_tests.outcome != 'skipped'
@@ -66,11 +104,29 @@ jobs:
         if: always() && steps.release_lint.outcome != 'skipped'
         run: python3 -B tools/lint_budget.py check --report app/build/reports/lint-results-release.xml --output app/build/reports/lint-budget.json
 
-      - name: Upload release APK for local signing
+      - name: Report APK signature and digest
+        if: always()
+        shell: bash
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk 2>/dev/null | head -n 1)
+          if [ -z "$apk" ]; then
+            echo "no APK to inspect" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "### ${apk##*/}" >> "$GITHUB_STEP_SUMMARY"
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/*/ 2>/dev/null | sort -V | tail -n 1)
+          if "$build_tools/apksigner" verify --print-certs "$apk" >> "$GITHUB_STEP_SUMMARY" 2>&1; then
+            echo "APK is signed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "APK is unsigned" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          sha256sum "$apk" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk-${{ github.sha }}
+          name: douai-release-${{ github.sha }}
           if-no-files-found: error
           retention-days: 14
           path: |
