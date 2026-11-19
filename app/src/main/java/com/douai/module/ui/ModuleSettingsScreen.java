@@ -120,6 +120,7 @@ public final class ModuleSettingsScreen {
             new SearchEntry("component-hide", "组件隐藏", "组件隐藏 > 隐藏与透明度", "界面 隐藏 透明度 自定义控件 暂停显示", SearchDestination.COMPONENT_HIDE),
             new SearchEntry("streak", "自动续火花", "自动续火花 > 选择用户", "续火花 好友 定时 结果未知 重试", SearchDestination.STREAK),
             new SearchEntry("message-recall", "消息防撤回", "消息管理 > 消息防撤回", "私信 防撤回 撤回背景 消息记录", SearchDestination.MESSAGE),
+            new SearchEntry("close-friend", "密友过滤", "消息管理 > 密友过滤", "私信 会话列表 隐藏 密友 用户ID 过滤", SearchDestination.MESSAGE),
             new SearchEntry("gestures", "长按与双击手势", "界面相关 > 长按事件与双击事件", "手势 长按 双击 悬浮条 工具栏", SearchDestination.GESTURES),
             new SearchEntry("comment-tools", "评论工具", "评论相关 > 长按操作", "复制评论 评论图片 复制源数据 查看评论数据 评论解析 JSON 语音摘要 彩色评论 后缀 替换语音 查评论 搜索评论 转写", SearchDestination.COMMENT),
             new SearchEntry("comment-voice-file", "评论语音文件", "评论相关 > 评论语音文件", "替换语音 音频 文件路径 选择文件", SearchDestination.COMMENT, "settings.option.评论语音文件"),
@@ -711,6 +712,13 @@ public final class ModuleSettingsScreen {
                                     value -> repository.putBoolean("recall_other", value));
                             addColorOption();
                         });
+                addDependentSwitch("密友过滤", "从私信列表隐藏指定用户的单聊会话",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_FILTER, false),
+                        value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_FILTER, value),
+                        () -> addEditableOption("密友用户ID（逗号或换行分隔）", "",
+                                repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, ""),
+                                false, true, false,
+                                value -> repository.putString(LocalOptions.CLOSE_FRIEND_UIDS, value)));
                 addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
                         value -> repository.putBoolean("dm_voice_replace", value),
                         () -> addAudioPathOption("私聊语音文件", "dm_voice_path"));

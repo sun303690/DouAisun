@@ -176,6 +176,10 @@ public final class LocalOptions {
     public static final String COMMENT_FILTER_AUTHORS = "comment_view_filter_authors";
     /** Comma separated user ids that are always kept even when the filter matches. */
     public static final String COMMENT_FILTER_ALLOW = "comment_view_filter_allow";
+    /** Master switch for hiding close friends (by peer uid) from the chat session list. */
+    public static final String CLOSE_FRIEND_FILTER = "close_friend_filter";
+    /** Comma or newline separated peer uids hidden from the chat session list. */
+    public static final String CLOSE_FRIEND_UIDS = "close_friend_uids";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

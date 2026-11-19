@@ -85,6 +85,7 @@ public final class HostFeatureCatalog {
             feature("recall_background", "撤回背景色", "feature.recall_background.installed",
                     "adv_im_cell_bind", "adv_im_cell_message", "adv_im_message_uuid",
                     "media_account_service", "media_current_user"),
+            feature("close_friend", "密友过滤", "feature.close_friend.installed", "adv_session_list_render"),
             feature("comment_enhancements", "评论后缀及颜色", "feature.comment_enhancements.installed", "comment_request_factory"),
             feature("comment_voice", "评论语音替换", "feature.comment_voice.installed",
                     "comment_audio_upload", "comment_uploader_path", "comment_uploader_listener", "comment_audio_notify"),

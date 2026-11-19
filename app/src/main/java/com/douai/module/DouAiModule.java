@@ -53,6 +53,7 @@ import com.douai.module.feature.PlaybackBehaviorHooks;
 import com.douai.module.feature.ProfileSpoofHook;
 import com.douai.module.feature.NativeMessagingHooks;
 import com.douai.module.feature.NativeFollowLists;
+import com.douai.module.feature.CloseFriendHook;
 import com.douai.module.feature.RecallHighlightHook;
 import com.douai.module.feature.FeedGestureToolsHook;
 import com.douai.module.feature.DirectMessageSpeechHook;
@@ -138,6 +139,7 @@ public final class DouAiModule extends XposedModule {
     private volatile NativeFollowLists nativeFollowLists;
     private volatile AutomationDispatcher automationDispatcher;
     private volatile RecallHighlightHook recallHighlightHook;
+    private volatile CloseFriendHook closeFriendHook;
     private volatile FeedGestureToolsHook feedGestureToolsHook;
     private volatile CommentAiAnalysisHook commentAiAnalysisHook;
     private volatile DouyinSearch manualAiSearch;
@@ -760,6 +762,7 @@ public final class DouAiModule extends XposedModule {
             boolean autoPlayChanged = initial || changes.affects(Feature.AUTO_PLAY);
             boolean gestureChanged = initial || changes.affects(Feature.GESTURE);
             boolean messageRecallChanged = initial || changes.affects(Feature.MESSAGE_RECALL);
+            boolean closeFriendChanged = initial || changes.affects(Feature.CLOSE_FRIEND);
             boolean spoofChanged = initial || changes.affects(Feature.SPOOF);
 
             if (nativeFollowLists != null && (initial || changes.affects(Feature.FOLLOW_LISTS))) {
@@ -813,6 +816,7 @@ public final class DouAiModule extends XposedModule {
             if (ipLocationSpoofHook != null && (initial || feedUiChanged)) ipLocationSpoofHook.setOptions(options);
             if (nativeMessagingHooks != null && (replyChanged || messageRecallChanged)) nativeMessagingHooks.setOptions(options);
             if (recallHighlightHook != null && messageRecallChanged) recallHighlightHook.setOptions(options);
+            if (closeFriendHook != null && closeFriendChanged) closeFriendHook.setOptions(options);
             if (directMessageSpeechHook != null && (initial || changes.affects(Feature.DIRECT_MESSAGE_SPEECH))) {
                 directMessageSpeechHook.setOptions(options);
             }
@@ -1372,6 +1376,12 @@ public final class DouAiModule extends XposedModule {
                         targetContext, localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Recall background hook failed", failure); }
         }
+        if (closeFriendHook == null) {
+            try {
+                closeFriendHook = CloseFriendHook.install(hookFramework(), hostScanReport, hostClassLoader,
+                        localOptions, message -> moduleLog(3, TAG, message));
+            } catch (Throwable failure) { moduleLog(6, TAG, "Close friend filter hook failed", failure); }
+        }
         if (mediaModelHook == null) {
             try {
                 mediaModelHook = MediaModelHook.install(hookFramework(), hostScanReport, hostClassLoader,
@@ -1566,6 +1576,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.comment_tts.installed", nativeCommentSpeechHook != null);
         snapshot.putString("feature.comment_tts.failure", nativeCommentSpeechHookFailure);
         snapshot.putBoolean("feature.recall_background.installed", recallHighlightHook != null && recallHighlightHook.isActive());
+        snapshot.putBoolean("feature.close_friend.installed", closeFriendHook != null && closeFriendHook.isActive());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);
         snapshot.putBoolean("feature.hash_long_press_voice.installed", hashLongPressVoiceHook != null);

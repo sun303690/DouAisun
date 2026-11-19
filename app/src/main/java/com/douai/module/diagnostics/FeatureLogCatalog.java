@@ -70,6 +70,7 @@ public final class FeatureLogCatalog {
         add(entries, "diagnostics", "诊断及日志管理", "DebugLogChannel/DebugLogDialog", Feature.DIAGNOSTICS, "diagnostics_installed", "always");
         add(entries, "local_analytics", "本地浏览及行为分析", "LocalAnalyticsHook/LocalAnalytics", null, "feature.local_analytics.installed", "local_analytics_enabled");
         add(entries, "recall_background", "撤回消息背景", "RecallHighlightHook", Feature.MESSAGE_RECALL, "feature.recall_background.installed", "prevent_message_recall");
+        add(entries, "close_friend", "密友过滤", "CloseFriendHook", Feature.CLOSE_FRIEND, "feature.close_friend.installed", "close_friend_filter");
         add(entries, "home_navigation", "首页导航组件隐藏", "HomeNavigationHideController", Feature.FEED_UI, "home_navigation_hook_installed", "home_navigation_enabled");
         add(entries, "short_progress", "短视频进度条", "ShortVideoProgressHook", Feature.FEED_UI, "short_progress_installed", "short_progress_enabled");
         add(entries, "hash_long_press_voice", "井号长按语音", "HashLongPressVoiceHook", null, "feature.hash_long_press_voice.installed", "hash_long_press_voice");

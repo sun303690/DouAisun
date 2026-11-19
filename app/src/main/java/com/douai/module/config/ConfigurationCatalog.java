@@ -20,7 +20,7 @@ public final class ConfigurationCatalog {
         PLAYBACK, VIDEO_QUALITY, AUTO_PLAY, GESTURE, MESSAGE_RECALL, SPOOF, FOLLOW_LISTS, AUTOMATION_DISPATCH,
         HOST_BEHAVIOR, DIRECT_MESSAGE_SPEECH, MEDIA_MODEL, COMMENT_ENHANCEMENTS,
         COMMENT_VOICE, NATIVE_COMMENT_SPEECH, AUTO_LIKE, AUTO_FOLLOW, AUTO_MESSAGE, SIDEBAR,
-        COMMENT_TOOLS, IMMERSIVE, VERSION, TOP_TABS, REFRESH, DIAGNOSTICS, MANUAL_AI
+        COMMENT_TOOLS, IMMERSIVE, VERSION, TOP_TABS, REFRESH, DIAGNOSTICS, MANUAL_AI, CLOSE_FRIEND
     }
 
     /** A missing default means the owning domain still resolves a context-dependent/legacy default. */
@@ -84,6 +84,8 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
         add(keys, "boolean", "hide_seen_works loaded_comment_search_enabled comment_transcript_enabled");
         add(keys, "string", "seen_work_days");
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_FILTER);
+        add(keys, "string", LocalOptions.CLOSE_FRIEND_UIDS);
         add(keys, "boolean", CommentAiSettings.TAKEOVER + " " + CommentAiSettings.SEARCH);
         add(keys, "boolean", SidebarSettings.ENABLED);
         add(keys, "string", SidebarSettings.ITEMS);
@@ -151,6 +153,7 @@ public final class ConfigurationCatalog {
         depend(Feature.AUTO_PLAY, "auto_play smart_swipe pause_auto_on_comments", "");
         depend(Feature.GESTURE, "playback_speed toolbar_enabled long_press_action double_tap_action intercept_native_long_press remove_watermark download_custom_name download_name_template remove_download_limits download_method download_directory_uri " + LocalOptions.MODULE_ONLY_SPEED, "long_press_ double_tap_ toolbar_ third_party_");
         depend(Feature.MESSAGE_RECALL, "prevent_message_recall recall_self recall_other recall_background", "");
+        depend(Feature.CLOSE_FRIEND, "close_friend_filter close_friend_uids", "");
         depend(Feature.SPOOF, "spoof_version fake_version_name fake_version_code spoof_profile profile_like_count profile_following_count profile_follower_count profile_mutual_count", "");
         depend(Feature.FOLLOW_LISTS, "reply_scope_mode comment_scope_mode reply_private_chats reply_global reply_scope_relations reply_targets reply_group_targets reply_group_members comment_scope_relations comment_scope_users relation_lists_refresh_token", "");
         depend(Feature.AUTOMATION_DISPATCH, "reply_tip comment_tip reply_notice_seconds comment_notice_seconds streak_tip reply_save_history comment_save_history", "");

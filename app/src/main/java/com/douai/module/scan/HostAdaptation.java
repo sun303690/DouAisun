@@ -12,19 +12,19 @@ public final class HostAdaptation {
     public static final long VERIFIED_VERSION_CODE = 400801L;
     public static final long VERIFIED_UPDATE_VERSION_CODE = 40809900L;
     public static final String VERIFIED_RULES_FINGERPRINT =
-            "7b1cdd08e2b976b8a2fa7a7896df67072d18c577743d9f3088e2d3b1ae3653d1";
+            "15e70d6c5a4a5d952d292c68a4a6b94025e288f47bf27948d545417762297e07";
     private static final Map<Integer, String> FEED_RESOURCES = feedResources();
 
     private HostAdaptation() { }
 
     public static final Profile PROFILE_406 = new Profile("40.6.0", 400601L, -1L,
             "douyin-host-rules-40.6.0.tsv",
-            "ecda2db82b867d00f65adf5ac588a45217bc3e9313dbc3713b8ae38a52fcb9f0", legacyFeedResources());
+            "256f98d6c705aee6463cdd62b9871147b784229ff477bf44e70070579b3d0d8d", legacyFeedResources());
     public static final Profile PROFILE_408 = new Profile("40.8.0", 400801L, 40809900L,
             RULES_ASSET, VERIFIED_RULES_FINGERPRINT, FEED_RESOURCES);
     public static final Profile PROFILE_410 = new Profile("41.0.0", 410001L, 41009900L,
             "douyin-host-rules-41.0.0.tsv",
-            "214928d190a8739fe94d5196df92540ee8f56a37142c3a8065d0a8d02dcd991a", modernFeedResources());
+            "91c6771a75d8f98a40709ffbd12222dd3f00a14a63d2ae9e7f71194b014054a4", modernFeedResources());
     private static volatile Profile currentProfile;
 
     public static final class Profile {
