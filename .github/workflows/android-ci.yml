@@ -20,16 +20,16 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
 
@@ -37,7 +37,7 @@ jobs:
         run: sdkmanager "platforms;android-37.0"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v5
 
       - name: Configure release signing
         id: signing
@@ -163,7 +163,7 @@ jobs:
 
       - name: Upload release APK
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: douai-release-${{ github.sha }}
           if-no-files-found: error
@@ -173,7 +173,7 @@ jobs:
 
       - name: Preserve verification reports and R8 mapping
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: verification-${{ github.sha }}-${{ github.run_attempt }}
           if-no-files-found: warn
