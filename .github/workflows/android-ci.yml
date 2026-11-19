@@ -50,6 +50,7 @@ jobs:
           KEYSTORE_ASSET_ID: '765494043'
           KEYSTORE_ASSET_SHA256: 'd6d6aedfd0720180992891e186b6dd5333ee1526d5908863f9616a7194f8f7b3'
           CREDENTIALS_ASSET_ID: '765510627'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -eu
           keystore="$RUNNER_TEMP/douai-release.jks"
@@ -58,7 +59,7 @@ jobs:
 
           download_asset() {
             local asset_id="$1" out="$2"
-            curl -sSL -H "Accept: application/octet-stream" -H "Authorization: Bearer $GITHUB_TOKEN" \
+            curl -sSL -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" \
               -o "$out" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
           }
 
