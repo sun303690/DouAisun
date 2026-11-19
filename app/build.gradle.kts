@@ -128,7 +128,7 @@ dependencies {
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.4")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.18.1")
+    testImplementation("org.robolectric:robolectric:4.15.1")
     testImplementation("androidx.constraintlayout:constraintlayout:2.2.2")
     testImplementation("androidx.compose.ui:ui-test-junit4-android:1.12.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.12.1")
