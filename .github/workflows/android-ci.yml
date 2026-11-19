@@ -103,6 +103,9 @@ jobs:
           echo "signed=true" >> "$GITHUB_OUTPUT"
           echo "release signing enabled with alias '$KEY_ALIAS' from $source_desc" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Prefetch Robolectric SDK jars
+        run: python3 -B tools/prefetch_robolectric_sdks.py --local-repo "${HOME}/.m2/repository"
+
       - name: Test local verification tools
         run: python3 -B -m unittest discover -s tools/tests -v
 
