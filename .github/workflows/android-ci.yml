@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  releases: read
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
@@ -47,15 +48,41 @@ jobs:
           STORE_PASSWORD: ${{ secrets.DOUAI_RELEASE_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.DOUAI_RELEASE_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.DOUAI_RELEASE_KEY_PASSWORD }}
+          KEYSTORE_ASSET_ID: '765494043'
+          KEYSTORE_ASSET_SHA256: 'd6d6aedfd0720180992891e186b6dd5333ee1526d5908863f9616a7194f8f7b3'
+          CREDENTIALS_ASSET_ID: '765510627'
         run: |
           set -eu
-          if [ -z "${KEYSTORE_B64:-}" ] || [ -z "${STORE_PASSWORD:-}" ] || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "release signing secrets are not configured; this run produces an unsigned APK" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
           keystore="$RUNNER_TEMP/douai-release.jks"
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          credentials="$RUNNER_TEMP/signing-credentials.txt"
+          source_desc=""
+
+          download_asset() {
+            local asset_id="$1" out="$2"
+            curl -sSL -H "Accept: application/octet-stream" -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -o "$out" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+          }
+
+          if [ -n "${KEYSTORE_B64:-}" ] && [ -n "${STORE_PASSWORD:-}" ] && [ -n "${KEY_ALIAS:-}" ] && [ -n "${KEY_PASSWORD:-}" ]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+            source_desc="repository secrets"
+          else
+            echo "release signing secrets are incomplete; falling back to the protected keystore asset" >> "$GITHUB_STEP_SUMMARY"
+            download_asset "$KEYSTORE_ASSET_ID" "$keystore"
+            actual=$(sha256sum "$keystore" | cut -d' ' -f1)
+            if [ "$actual" != "$KEYSTORE_ASSET_SHA256" ]; then
+              echo "::error::keystore asset digest mismatch (expected $KEYSTORE_ASSET_SHA256, got $actual)" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            download_asset "$CREDENTIALS_ASSET_ID" "$credentials"
+            source_desc="protected assets $KEYSTORE_ASSET_ID/$CREDENTIALS_ASSET_ID"
+            {
+              read -r STORE_PASSWORD
+              read -r KEY_ALIAS
+              read -r KEY_PASSWORD
+            } < "$credentials"
+          fi
+
           chmod 600 "$keystore"
           {
             echo "DOUAI_RELEASE_STORE_FILE=$keystore"
@@ -64,7 +91,7 @@ jobs:
             echo "DOUAI_RELEASE_KEY_PASSWORD=$KEY_PASSWORD"
           } >> "$GITHUB_ENV"
           echo "signed=true" >> "$GITHUB_OUTPUT"
-          echo "release signing enabled with alias '$KEY_ALIAS'" >> "$GITHUB_STEP_SUMMARY"
+          echo "release signing enabled with alias '$KEY_ALIAS' from $source_desc" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Test local verification tools
         run: python3 -B -m unittest discover -s tools/tests -v
@@ -118,7 +145,9 @@ jobs:
           if "$build_tools/apksigner" verify --print-certs "$apk" >> "$GITHUB_STEP_SUMMARY" 2>&1; then
             echo "APK is signed" >> "$GITHUB_STEP_SUMMARY"
           else
+            echo "::error::Release APK is not signed; refusing to publish an installable artifact" >> "$GITHUB_STEP_SUMMARY"
             echo "APK is unsigned" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
           sha256sum "$apk" >> "$GITHUB_STEP_SUMMARY"
 
