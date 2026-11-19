@@ -1,0 +1,41 @@
+name: Signing Probe
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe release asset access
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEYSTORE_ASSET_ID: '765494043'
+          CREDENTIALS_ASSET_ID: '765510627'
+        run: |
+          set -u
+          echo "token length: ${#GH_TOKEN}"
+          echo "== list releases =="
+          curl -s -o /tmp/rel.json -w "http=%{http_code}\n" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases"
+          head -c 400 /tmp/rel.json; echo
+          for id in "$KEYSTORE_ASSET_ID" "$CREDENTIALS_ASSET_ID"; do
+            echo "== asset $id =="
+            code=$(curl -sSL -o "/tmp/asset-$id.bin" -w "%{http_code}" \
+              -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${id}")
+            echo "http=$code size=$(stat -c %s "/tmp/asset-$id.bin" 2>/dev/null || echo 0)"
+            sha256sum "/tmp/asset-$id.bin" 2>/dev/null || true
+            head -c 200 "/tmp/asset-$id.bin" 2>/dev/null | tr -d '\0'; echo
+          done
+          echo "== probe repo contents =="
+          curl -s -o /dev/null -w "contents_http=%{http_code}\n" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/README.md"

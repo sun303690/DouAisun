@@ -118,21 +118,21 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 }
 
 dependencies {
-    androidTestImplementation("androidx.test:runner:1.5.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     compileOnly("io.github.libxposed:api:102.0.0")
     implementation("io.github.libxposed:service:102.0.0")
-    implementation("com.android.tools.smali:smali-dexlib2:3.0.9")
+    implementation("com.android.tools.smali:smali-dexlib2:3.0.10")
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.4")
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.4")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    testImplementation("androidx.compose.ui:ui-test-junit4-android:1.12.0")
-    debugImplementation("androidx.compose.ui:ui-test-manifest:1.12.0")
+    testImplementation("org.robolectric:robolectric:4.18.1")
+    testImplementation("androidx.constraintlayout:constraintlayout:2.2.2")
+    testImplementation("androidx.compose.ui:ui-test-junit4-android:1.12.1")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.12.1")
     testImplementation("io.github.libxposed:api:102.0.0")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    testImplementation("com.google.code.gson:gson:2.10.1")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+    testImplementation("com.google.code.gson:gson:2.15.0")
 }
