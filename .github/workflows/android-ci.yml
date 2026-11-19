@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.ref }}
@@ -59,8 +59,14 @@ jobs:
 
           download_asset() {
             local asset_id="$1" out="$2"
-            curl -sSL -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" \
-              -o "$out" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+            local code
+            code=$(curl -sSL -w '%{http_code}' -o "$out" \
+              -H "Accept: application/octet-stream" -H "Authorization: Bearer $GH_TOKEN" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}")
+            if [ "$code" != "200" ] && [ "$code" != "302" ]; then
+              echo "::error::failed to download release asset $asset_id (http $code): $(head -c 300 "$out")" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
           }
 
           if [ -n "${KEYSTORE_B64:-}" ] && [ -n "${STORE_PASSWORD:-}" ] && [ -n "${KEY_ALIAS:-}" ] && [ -n "${KEY_PASSWORD:-}" ]; then
@@ -75,6 +81,10 @@ jobs:
               exit 1
             fi
             download_asset "$CREDENTIALS_ASSET_ID" "$credentials"
+            if [ "$(wc -c < "$credentials")" -lt 10 ]; then
+              echo "::error::credentials asset looks empty" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
             source_desc="protected assets $KEYSTORE_ASSET_ID/$CREDENTIALS_ASSET_ID"
             {
               read -r STORE_PASSWORD
