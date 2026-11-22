@@ -565,6 +565,7 @@ public final class FeedAdFilterHook implements AutoCloseable {
                 || settings.minimumDurationEnabled || settings.minimumLikesEnabled
                 || options.enabled("hide_product_cards") || options.enabled("hide_hotspot_rank_cards")
                 || options.enabled("hide_mini_games") || options.enabled("hide_long_videos")
+                || options.enabled("skip_ordinary_videos")
                 || options.integer("min_comments", 0) > 0 || options.integer("min_collects", 0) > 0
                 || options.integer("min_shares", 0) > 0 || options.integer("max_days", 0) > 0;
     }

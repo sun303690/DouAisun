@@ -11,7 +11,7 @@ public final class FeedFilterPolicy {
     public enum Reason {
         NONE, ADVERTISEMENT, LIVE, IMAGE_POST, RECOMMENDATION_CARD, RECOMMENDATION_MERCHANT,
         KEYWORD, MINIMUM_DURATION, MINIMUM_LIKES, MINIMUM_COMMENTS, MINIMUM_COLLECTS, MINIMUM_SHARES,
-        PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO, OLDER_THAN_DAYS;
+        PRODUCT_CARD, HOTSPOT_RANK_CARD, MINI_GAME, LONG_VIDEO, OLDER_THAN_DAYS, ORDINARY_VIDEO;
         public boolean hides() { return this != NONE; }
     }
     private FeedFilterPolicy() { }
@@ -76,6 +76,12 @@ public final class FeedFilterPolicy {
             if (maximumDays > 0 && isOlderThanDays(item.createTimeSeconds, maximumDays)) {
                 return Reason.OLDER_THAN_DAYS;
             }
+        }
+        // Ported from douyim: keep only ads, image posts and lives; every other clip is skipped.
+        // Placed last so a specific reason (product card, game, long video…) still wins for the log.
+        if (options.enabled("skip_ordinary_videos")
+                && !item.advertisement && !item.live && !item.imagePost) {
+            return Reason.ORDINARY_VIDEO;
         }
         return Reason.NONE;
     }

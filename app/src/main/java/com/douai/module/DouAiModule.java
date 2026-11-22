@@ -1755,7 +1755,8 @@ public final class DouAiModule extends XposedModule {
                 || localOptions.enabled("hide_product_cards")
                 || localOptions.enabled("hide_hotspot_rank_cards")
                 || HostAdaptation.PROFILE_410.equals(HostAdaptation.currentProfile()) && localOptions.enabled("hide_seen_works")
-                || localOptions.enabled("hide_mini_games") || localOptions.enabled("hide_long_videos"));
+                || localOptions.enabled("hide_mini_games") || localOptions.enabled("hide_long_videos")
+                || localOptions.enabled("skip_ordinary_videos"));
     }
 
     private XposedInterface hookFramework() {

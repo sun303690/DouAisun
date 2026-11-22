@@ -323,7 +323,7 @@ public final class DownloadActionHook implements AutoCloseable {
             actions.add(new MenuAction("下载音频", MenuAction.AUDIO, audioUrl,
                     MediaNaming.forAweme(aweme, options, "audio", 0, "mp3")));
         }
-        String playbackUrl = findPlaybackVideoUrl(aweme);
+        String playbackUrl = findPlaybackVideoUrl(aweme, options);
         if (playbackUrl != null) {
             actions.add(new MenuAction("保存播放源视频", MenuAction.PLAY_VIDEO, playbackUrl,
                     MediaNaming.forAweme(aweme, options, "video", 0, "mp4")));
@@ -428,7 +428,7 @@ public final class DownloadActionHook implements AutoCloseable {
             }
         }
         if (!assets.isEmpty()) return assets;
-        String url = findPlaybackVideoUrl(aweme);
+        String url = findPlaybackVideoUrl(aweme, options);
         if (url == null && !clean) {
             url = firstUrlValue(jsonValue(jsonValue(aweme, "video"), "download_addr"));
         }
@@ -482,13 +482,115 @@ public final class DownloadActionHook implements AutoCloseable {
     }
 
     static String findPlaybackVideoUrl(Object aweme) {
+        return findPlaybackVideoUrl(aweme, null);
+    }
+
+    /**
+     * Picks the playback source for a download. With a fixed quality target the closest gear to
+     * that height wins and H.264 is preferred inside the winning gear (ported from douyim's
+     * {@code orderPlayUrlsByQuality}/{@code sortByCompatibility}); with "auto" the host order is
+     * left untouched, so the default path is byte-for-byte the previous behaviour.
+     */
+    static String findPlaybackVideoUrl(Object aweme, LocalOptions options) {
         if (aweme == null) return null;
         try {
             Object video = fieldByJsonName(aweme, "video");
-            return video == null ? null : playbackUrl(video);
+            if (video == null) return null;
+            int target = VideoQualityHook.pinnedHeight(options);
+            if (target <= 0 || target == Integer.MAX_VALUE) return playbackUrl(video);
+            String ordered = pickupUrl(video, target);
+            return ordered != null ? ordered : playbackUrl(video);
         } catch (ReflectiveOperationException | RuntimeException ignored) {
             return null;
         }
+    }
+
+    private static final class Source {
+        final String url;
+        final int height;
+        final int codecRank;
+        Source(String url, int height, int codecRank) {
+            this.url = url;
+            this.height = height;
+            this.codecRank = codecRank;
+        }
+    }
+
+    /** 0 = H.264, 1 = unknown, 2 = HEVC, 3 = bytevc1 — mirrors douyim's codecRank. */
+    private static int codecRank(String key) {
+        if ("play_addr".equals(key) || "play_addr_h264".equals(key)) return 0;
+        if ("play_addr_265".equals(key)) return 2;
+        if ("play_addr_bytevc1".equals(key)) return 3;
+        return 1;
+    }
+
+    /**
+     * Pure selection rule, extracted so the ordering is testable on the JVM: each candidate is a
+     * triple (url, height, codecRank). The closest height wins; ties go to the larger height, and
+     * to the lower codec rank.
+     */
+    static String pickSource(int target, Object... candidates) {
+        if (target <= 0 || candidates == null) return null;
+        String bestUrl = null;
+        int bestDistance = Integer.MAX_VALUE, bestRank = Integer.MAX_VALUE, bestHeight = -1;
+        for (int i = 0; i + 2 < candidates.length; i += 3) {
+            String url = (String) candidates[i];
+            int height = (Integer) candidates[i + 1];
+            int rank = (Integer) candidates[i + 2];
+            if (url == null) continue;
+            int distance = height > 0 ? Math.abs(height - target) : Integer.MAX_VALUE - 1;
+            boolean better = distance < bestDistance
+                    || (distance == bestDistance && height > bestHeight)
+                    || (distance == bestDistance && height == bestHeight && rank < bestRank);
+            if (better) {
+                bestUrl = url;
+                bestDistance = distance;
+                bestHeight = height;
+                bestRank = rank;
+            }
+        }
+        return bestUrl;
+    }
+
+    private static String pickupUrl(Object video, int target) throws ReflectiveOperationException {
+        List<Source> sources = new ArrayList<>();
+        for (String key : new String[]{"play_addr", "play_addr_h264", "play_addr_265",
+                "play_addr_bytevc1", "play_addr_lowbr"}) {
+            Object model = fieldByJsonName(video, key);
+            String url = firstUrl(model);
+            if (url != null) sources.add(new Source(url, heightOf(model, video), codecRank(key)));
+        }
+        Object bitRates = fieldByJsonName(video, "bit_rate");
+        if (bitRates instanceof Iterable<?>) {
+            for (Object bitRate : (Iterable<?>) bitRates) {
+                if (bitRate == null) continue;
+                int gearHeight = heightOf(bitRate, video);
+                for (String key : new String[]{"play_addr", "play_addr_h264", "play_addr_265",
+                        "play_addr_bytevc1"}) {
+                    String url = firstUrl(fieldByJsonName(bitRate, key));
+                    if (url != null) sources.add(new Source(url, gearHeight, codecRank(key)));
+                }
+            }
+        }
+        if (sources.isEmpty()) return null;
+        Object[] flattened = new Object[sources.size() * 3];
+        for (int i = 0; i < sources.size(); i++) {
+            Source source = sources.get(i);
+            flattened[i * 3] = source.url;
+            flattened[i * 3 + 1] = source.height;
+            flattened[i * 3 + 2] = source.codecRank;
+        }
+        return pickSource(target, flattened);
+    }
+
+    /** A gear carries its own height; a bare play_addr carries it on the url model itself. */
+    private static int heightOf(Object node, Object video) throws ReflectiveOperationException {
+        for (Object candidate : new Object[]{node, video}) {
+            if (candidate == null) continue;
+            Object raw = fieldByJsonName(candidate, "height");
+            if (raw instanceof Number && ((Number) raw).intValue() > 0) return ((Number) raw).intValue();
+        }
+        return 0;
     }
 
     private static String playbackUrl(Object video) throws ReflectiveOperationException {

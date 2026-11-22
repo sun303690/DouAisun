@@ -33,6 +33,10 @@ public final class VideoQualityHook implements AutoCloseable {
         abstract String source(Object component) throws Exception;
         abstract List<?> supported(Object component) throws Exception;
         abstract Object highest(List<?> levels) throws Exception;
+        /** Ported from douyim's pinning: the level closest below a fixed height, exact first. */
+        abstract Object atHeight(List<?> levels, int targetHeight) throws Exception;
+        /** Pixel height the host associates with a level, 0 when unknown. */
+        abstract int heightOf(Object level) throws Exception;
         abstract Object current(Object component) throws Exception;
         abstract boolean apply(Object component, Object target) throws Exception;
     }
@@ -143,7 +147,37 @@ public final class VideoQualityHook implements AutoCloseable {
 
     private boolean enabled() {
         LocalOptions current = options;
-        return !closed && current != null && current.enabled(LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
+        return !closed && current != null && (current.enabled(LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY)
+                || pinnedHeight(current) > 0);
+    }
+
+    /** 0 means "follow the native player", mirroring douyim's {@code targetHeight == 0}. */
+    static int pinnedHeight(LocalOptions current) {
+        if (current == null) return 0;
+        String value = current.text(LocalOptions.VIDEO_QUALITY_TARGET, "");
+        if (value == null) return 0;
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || "auto".equals(trimmed)) return 0;
+        if ("max".equals(trimmed)) return Integer.MAX_VALUE;
+        try {
+            int parsed = Integer.parseInt(trimmed);
+            return parsed > 0 ? parsed : 0;
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    /**
+     * An explicit target wins over the legacy switch so a user who picks 720p never silently gets
+     * the maximum. Auto/empty delegates to the switch, and the switch alone keeps the old maximum
+     * behaviour. Both paths resolve to a native level; nothing is invented.
+     */
+    private Object choose(List<?> levels) throws Exception {
+        int target = pinnedHeight(options);
+        if (target <= 0) return access.highest(levels);
+        if (target == Integer.MAX_VALUE) return access.highest(levels);
+        Object pinned = access.atHeight(levels, target);
+        return pinned != null ? pinned : access.highest(levels);
     }
 
     public boolean isActive() { return !closed && playerInstalled && hooks.isActive(); }
@@ -191,24 +225,30 @@ public final class VideoQualityHook implements AutoCloseable {
                 }
                 if (source == null) { errors = 0; schedule(POLL_MS); return; }
                 List<?> levels = access.supported(owner);
-                Object highest = access.highest(levels);
-                if (!Objects.equals(highest, target)) { target = highest; attempts = 0; }
-                if (highest == null) {
+                Object desired = choose(levels);
+                if (!Objects.equals(desired, target)) { target = desired; attempts = 0; }
+                if (desired == null) {
                     event("not_supported", "native_strategy_retained=true");
                 } else {
                     Object current = access.current(owner);
-                    Object observedBest = current == null ? null : access.highest(java.util.Arrays.asList(current, highest));
-                    if (current != null && Objects.equals(observedBest, current)) {
+                    boolean pinned = pinnedHeight(options) > 0;
+                    // In max mode any level at or above the best is done; a fixed target must match
+                    // exactly, otherwise a native 1080p pick would silently defeat the user's 720p.
+                    boolean satisfied = current != null && (Objects.equals(current, desired)
+                            || (!pinned && access.heightOf(current) >= access.heightOf(desired)
+                            && access.heightOf(current) > 0));
+                    if (satisfied) {
                         attempts = 0;
-                        event("highest_observed", "native_readback=at_least_target;physical_playback=unverified");
+                        event("target_observed", "native_readback=at_least_target;physical_playback=unverified");
                     } else if (current != null && now - changedAt >= 500 && attempts < MAX_ATTEMPTS
                             && (attempts == 0 || now - attemptedAt >= RETRY_MS)
                             && enabled() && access.visible(owner) && source.equals(access.source(owner))) {
                         attemptedAt = now;
                         attempts++;
-                        boolean requested = access.apply(owner, highest);
-                        event(requested ? "highest_requested" : "player_unavailable",
+                        boolean requested = access.apply(owner, desired);
+                        event(requested ? "target_requested" : "player_unavailable",
                                 "attempt=" + attempts + ";supported_count=" + (levels == null ? 0 : levels.size())
+                                        + ";target_height=" + access.heightOf(desired)
                                         + ";native_readback=pending");
                     } else if (attempts >= MAX_ATTEMPTS) {
                         event("retry_limit", "native_fallback_retained=true;readback=unconfirmed");

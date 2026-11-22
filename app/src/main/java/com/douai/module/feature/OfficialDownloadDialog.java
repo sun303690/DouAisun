@@ -402,7 +402,7 @@ final class OfficialDownloadDialog implements AutoCloseable {
     }
 
     private String motionUrl(Object source) {
-        String video = DownloadActionHook.findPlaybackVideoUrl(source);
+        String video = DownloadActionHook.findPlaybackVideoUrl(source, options);
         if (video == null && !options.enabled("remove_watermark", true)) {
             video = DownloadActionHook.firstUrlValue(DownloadActionHook.jsonValue(
                     DownloadActionHook.jsonValue(source, "video"), "download_addr"));

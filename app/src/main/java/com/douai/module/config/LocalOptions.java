@@ -14,6 +14,8 @@ public final class LocalOptions {
     public static final String INTERCEPT_NATIVE_LONG_PRESS = "intercept_native_long_press";
     public static final String MODULE_ONLY_SPEED = "module_only_speed";
     public static final String LOCK_HIGHEST_VIDEO_QUALITY = "lock_highest_video_quality";
+    /** Fixed quality target ported from douyim: "" native, "max" highest, or a pixel height. */
+    public static final String VIDEO_QUALITY_TARGET = "video_quality_target";
     public static final String DOWNLOAD_SAVE_TREE = "download_directory_uri";
     /** Sub-folder created under the album/DCIM tree for every saved media file. */
     public static final String DOWNLOAD_SUBDIRECTORY = "download_subdirectory";

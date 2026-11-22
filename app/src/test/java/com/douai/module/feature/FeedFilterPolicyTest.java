@@ -154,6 +154,36 @@ public class FeedFilterPolicyTest {
         assertEquals(FeedFilterPolicy.Reason.NONE, FeedFilterPolicy.reason(unknown, filters, false, false, false, 0, options));
     }
 
+    @Test public void skipOrdinaryVideosKeepsOnlyAdsLivesAndImagePosts() {
+        FeatureSettings filters = recommendationSettings(false, false);
+        com.douai.module.config.LocalOptions options = new com.douai.module.config.LocalOptions(
+                java.util.Collections.singletonMap("skip_ordinary_videos", true));
+        assertTrue(FeedFilterPolicy.shouldHide(item(false, false, false, false, "", 20, 0),
+                filters, false, false, false, 0, options));
+        assertFalse(FeedFilterPolicy.shouldHide(item(false, true, false, false, "", 20, 0),
+                filters, false, false, false, 0, options));
+        assertFalse(FeedFilterPolicy.shouldHide(item(false, false, true, false, "", 20, 0),
+                filters, false, false, false, 0, options));
+        // A disabled master switch still wins over the new rule.
+        com.douai.module.config.LocalOptions off = new com.douai.module.config.LocalOptions(
+                java.util.Collections.singletonMap("skip_ordinary_videos", "false"));
+        assertFalse(FeedFilterPolicy.shouldHide(item(false, false, false, false, "", 20, 0),
+                filters, false, false, false, 0, off));
+    }
+
+    @Test public void skipOrdinaryVideosYieldsToMoreSpecificReasons() {
+        FeatureSettings filters = recommendationSettings(false, false);
+        java.util.Map<String, Object> values = new java.util.HashMap<>();
+        values.put("skip_ordinary_videos", true);
+        values.put("hide_product_cards", true);
+        com.douai.module.config.LocalOptions options = new com.douai.module.config.LocalOptions(values);
+        assertEquals(FeedFilterPolicy.Reason.PRODUCT_CARD,
+                FeedFilterPolicy.reason(item(false, false, false, false, "", 20, 0), filters, false, false, false, 112, options));
+        assertEquals(FeedFilterPolicy.Reason.ORDINARY_VIDEO,
+                FeedFilterPolicy.reason(item(false, false, false, false, "", 20, 0), filters, false, false, false, 0, options));
+        assertFalse(FeedFilterPolicy.Reason.ORDINARY_VIDEO.hides() == false);
+    }
+
     @Test public void maximumDaysUsesTheHostCreateTimestamp() {
         FeatureSettings filters = recommendationSettings(false, false);
         com.douai.module.config.LocalOptions options = new com.douai.module.config.LocalOptions(

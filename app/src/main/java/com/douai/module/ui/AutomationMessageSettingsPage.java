@@ -501,6 +501,9 @@ final class AutomationMessageSettingsPage implements AutoCloseable {
                 if (AutomationScopePolicy.targets(repository.getString("comment_scope_users", "")).isEmpty()
                         && AutomationScopePolicy.targets(repository.getString("comment_scope_relations", "")).isEmpty()) {
                     scopeNotice(panel, "whitelist".equals(mode) ? "名单为空，不会对任何作者的作品评论。" : "名单为空，不排除任何作者。");
+                } else if ("whitelist".equals(mode)
+                        && AutomationScopePolicy.targets(repository.getString("comment_scope_users", "")).isEmpty()) {
+                    scopeNotice(panel, "仅按关注关系筛选；关系数据未就绪时暂不限制作者，避免全部被拒。");
                 }
             }
             String filter = ContentScopePolicy.filterMode("comment", scopeOptions);

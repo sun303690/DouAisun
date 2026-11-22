@@ -623,6 +623,9 @@ public final class ModuleSettingsScreen {
                         });
                 buildPlaybackSpeedControls();
                 addLocalSwitch("锁定最高画质", "", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
+                addChoiceOption("清晰度档位", LocalOptions.VIDEO_QUALITY_TARGET,
+                        new String[]{"跟随宿主（默认）", "最高可用", "2160p", "1440p", "1080p", "720p", "540p", "480p", "360p"},
+                        new String[]{"", "max", "2160", "1440", "1080", "720", "540", "480", "360"}, "");
                 addOption("临时暂停连播", pauseSummary(), null, true, this::showAutoPlayPauseDialog);
                 addOption("互动自动化", "", null, true, this::showAutomationSettings);
                 break;
@@ -1177,6 +1180,9 @@ public final class ModuleSettingsScreen {
             addSwitch("去小游戏开关", "",
                     repository.getBoolean("hide_mini_games", false), settings.feedFilterEnabled, true,
                     value -> repository.putBoolean("hide_mini_games", value));
+            addSwitch("只保留广告/图文/直播（跳过普通视频）", "移植自抖仙人：开启后普通视频全部跳过",
+                    repository.getBoolean("skip_ordinary_videos", false), settings.feedFilterEnabled, true,
+                    value -> repository.putBoolean("skip_ordinary_videos", value));
             addDependentSwitch("去长视频开关", "",
                     repository.getBoolean("hide_long_videos", false), settings.feedFilterEnabled, true,
                     value -> repository.putBoolean("hide_long_videos", value),

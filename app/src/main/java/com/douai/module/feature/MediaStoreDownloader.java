@@ -79,12 +79,90 @@ public final class MediaStoreDownloader {
     }
     static boolean download(Context sourceContext,String url,String fileName,boolean audio,String tree,Consumer<String> log,
             com.douai.module.analytics.LocalAnalytics.FlowOperation flow,int taskIndex) {
+        if (audio) return downloadAudio(sourceContext, url, fileName, tree, log, flow, taskIndex);
         return download(sourceContext, url, fileName,
-                audio ? "audio/mpeg" : "video/mp4",
-                audio ? Environment.DIRECTORY_MUSIC : Environment.DIRECTORY_MOVIES,
-                audio ? MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                        : MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                "video/mp4", Environment.DIRECTORY_MOVIES,
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                 tree, log, flow, taskIndex);
+    }
+
+    /**
+     * Audio saves download to a private temporary file first, then publish a real MP3: the host's
+     * audio URL may be an AAC/M4A stream, so the container is probed and re-encoded when needed.
+     */
+    private static boolean downloadAudio(Context sourceContext, String url, String fileName,
+                                         String tree, Consumer<String> log,
+                                         com.douai.module.analytics.LocalAnalytics.FlowOperation flow,
+                                         int taskIndex) {
+        if (sourceContext == null || fileName == null || fileName.isEmpty()
+                || fileName.contains("/") || fileName.contains("\\") || !isHttpUrl(url)) {
+            DouAiLog.begin("media_download", "user_download").finish(DouAiLog.Outcome.SKIPPED,
+                    "invalid_input", "context=" + (sourceContext != null) + "; valid_url=" + isHttpUrl(url));
+            return false;
+        }
+        Context context = sourceContext.getApplicationContext();
+        if (context == null) context = sourceContext;
+        Context targetContext = context;
+        String key = url + '\n' + fileName + '\n' + MediaStore.Audio.Media.EXTERNAL_CONTENT_URI + '\n' + tree;
+        if (DownloadTasks.submit(targetContext, key, fileName, transfer -> {
+            transfer.file(fileName, 1);
+            return saveAudioTask(targetContext, url, fileName, tree, transfer);
+        }, log, flow, taskIndex) == null) {
+            safeLog(log, "Media save request was deduplicated or the queue is full");
+            toast(sourceContext, "媒体正在保存或下载队列已满");
+            return false;
+        }
+        toast(sourceContext, "已加入下载任务，可在设置中查看进度或取消");
+        return true;
+    }
+
+    private static String saveAudioTask(Context context, String url, String name, String tree,
+                                        DownloadTransfer transfer) throws Exception {
+        File dir = new File(context.getCacheDir(), "douai-audio");
+        if (!dir.isDirectory() && !dir.mkdirs() && !dir.isDirectory()) {
+            throw new IllegalStateException("无法创建临时目录");
+        }
+        String stem = Long.toHexString(System.nanoTime());
+        File source = new File(dir, stem + ".src");
+        File encoded = null;
+        try {
+            transfer.phase("正在下载音频");
+            downloadTemporary(url, source, transfer);
+            transfer.check();
+            String mime = AudioTranscoder.probeAudioMime(source);
+            if (mime == null) throw new IllegalStateException("当前音频没有可转码的音轨");
+            if (mime.contains("mpeg")) {
+                transfer.phase("正在保存");
+                return saveLocalAudio(context, source, name, tree, transfer);
+            }
+            transfer.phase("正在转码为 MP3");
+            encoded = new File(dir, stem + ".mp3");
+            AudioTranscoder.Guard guard = () -> {
+                try {
+                    transfer.check();
+                } catch (java.io.IOException passthrough) {
+                    throw passthrough;
+                } catch (Exception stopped) {
+                    throw new java.io.InterruptedIOException(String.valueOf(stopped.getMessage()));
+                }
+            };
+            try {
+                AudioTranscoder.toMp3(source, encoded, guard);
+            } catch (java.io.IOException failure) {
+                // Restore the real cancellation/timeout type so the task reports "cancelled".
+                transfer.check();
+                throw failure;
+            }
+            transfer.check();
+            transfer.phase("正在保存");
+            return saveLocalAudio(context, encoded, name, tree, transfer);
+        } finally {
+            source.delete();
+            if (encoded != null) encoded.delete();
+            // Keep the cache directory tidy without removing files another task may be writing.
+            File[] leftovers = dir.listFiles();
+            if (leftovers != null && leftovers.length == 0) dir.delete();
+        }
     }
 
     public static boolean downloadImage(Context sourceContext, String url, String fileName,
@@ -222,12 +300,29 @@ public final class MediaStoreDownloader {
     /** Final task step: copies encoded motion-photo bytes and commits cancellation before publication. */
     static String saveLocalImage(Context context, File source, String fileName, String mimeType,
                                  String tree, DownloadTransfer transfer) throws Exception {
+        return saveLocalFile(context, source, fileName, mimeType, "image/",
+                Environment.DIRECTORY_PICTURES, MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                "图片", tree, transfer);
+    }
+
+    /** Same commit discipline as {@link #saveLocalImage}, for a locally produced MP3 file. */
+    static String saveLocalAudio(Context context, File source, String fileName,
+                                 String tree, DownloadTransfer transfer) throws Exception {
+        return saveLocalFile(context, source, fileName, "audio/mpeg", "audio/",
+                Environment.DIRECTORY_MUSIC, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                "音频", tree, transfer);
+    }
+
+    private static String saveLocalFile(Context context, File source, String fileName,
+                                        String mimeType, String mimePrefix, String directory,
+                                        Uri collection, String kind, String tree,
+                                        DownloadTransfer transfer) throws Exception {
         if (context == null || source == null || !source.isFile()
                 || source.length() <= 0 || source.length() > MAX_DOWNLOAD_BYTES) {
-            throw new IllegalArgumentException("待保存图片为空、无效或过大");
+            throw new IllegalArgumentException("待保存" + kind + "为空、无效或过大");
         }
-        if (mimeType == null || !mimeType.matches("image/[A-Za-z0-9.+-]+")) {
-            throw new IllegalArgumentException("图片格式无效");
+        if (mimeType == null || !mimeType.startsWith(mimePrefix)) {
+            throw new IllegalArgumentException(kind + "格式无效");
         }
         String name = MediaNaming.sanitize(fileName == null ? "" : fileName, "");
         if (name.isEmpty()) throw new IllegalArgumentException("文件名无效");
@@ -247,16 +342,15 @@ public final class MediaStoreDownloader {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath(context, Environment.DIRECTORY_PICTURES));
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath(context, directory));
                 values.put(MediaStore.MediaColumns.IS_PENDING, 1);
-                target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                target = resolver.insert(collection, values);
                 if (target == null) throw new IllegalStateException("MediaStore 无法创建记录");
             } else {
-                File parent = new File(Environment.getExternalStoragePublicDirectory(
-                        Environment.DIRECTORY_PICTURES),
+                File parent = new File(Environment.getExternalStoragePublicDirectory(directory),
                         DownloadPathBuilder.subPath(options(context), System.currentTimeMillis()));
                 if (!parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) {
-                    throw new IllegalStateException("无法创建图片目录");
+                    throw new IllegalStateException("无法创建" + kind + "目录");
                 }
                 int dot = name.lastIndexOf('.');
                 String stem = dot > 0 ? name.substring(0, dot) : name;
@@ -294,7 +388,7 @@ public final class MediaStoreDownloader {
                     legacyTarget != null ? legacyTarget.getAbsolutePath() : target.toString(), length);
             target = null;
             legacyTarget = null;
-            return document ? "媒体已保存到所选目录" : "媒体已保存到 " + relativePath(context, Environment.DIRECTORY_PICTURES);
+            return document ? "媒体已保存到所选目录" : "媒体已保存到 " + relativePath(context, directory);
         } catch (Exception failure) {
             if (document) DownloadDocumentTree.delete(resolver, target);
             else if (target != null) {

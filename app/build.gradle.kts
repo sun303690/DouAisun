@@ -25,8 +25,8 @@ android {
         applicationId = "io.github.yudigaga.douai"
         minSdk = 28
         targetSdk = 35
-        versionCode = 178
-        versionName = "0.2.77"
+        versionCode = 179
+        versionName = "0.2.78"
         require(versionName.orEmpty().matches(Regex("""[0-9]+\.[0-9]\.(?:0|[1-9][0-9]?)"""))) {
             "Version must carry at patch 100 and minor 10 (0.1.99 -> 0.2.0; 0.9.99 -> 1.0.0)."
         }
@@ -123,6 +123,9 @@ dependencies {
     compileOnly("io.github.libxposed:api:102.0.0")
     implementation("io.github.libxposed:service:102.0.0")
     implementation("com.android.tools.smali:smali-dexlib2:3.0.9")
+    // Ported from douyim: pure-Java MP3 encoder so the audio download is a real .mp3.
+    // Kept as a local jar because the offline build has no access to the sciss repository.
+    implementation(files("libs/jump3r-1.0.5.jar"))
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("top.yukonga.miuix.kmp:miuix-ui-android:0.9.4")
     implementation("top.yukonga.miuix.kmp:miuix-preference-android:0.9.4")

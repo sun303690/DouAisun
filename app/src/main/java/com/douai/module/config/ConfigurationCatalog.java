@@ -68,6 +68,7 @@ public final class ConfigurationCatalog {
                 + "pause_auto_on_comments smart_swipe comment_append_suffix comment_voice_replace comment_tts colored_comment "
                 + "streak_enabled streak_tip recall_self recall_other dm_voice_replace dm_tts spoof_profile download_custom_name "
                 + "remove_download_limits filter_interrupt hide_mini_games hide_long_videos hide_product_cards "
+                + "skip_ordinary_videos "
                 + "hide_hotspot_rank_cards native_auto_reply native_auto_comment "
                 + "reply_voice comment_voice reply_private_chats reply_group_chats reply_global comment_recognize_images "
                 + "comment_recognize_video reply_tip comment_tip reply_save_history comment_save_history "
@@ -82,6 +83,7 @@ public final class ConfigurationCatalog {
                 + LocalOptions.COMMENT_DISABLE_ITEM_CLICK);
         add(keys, "boolean", LocalOptions.MODULE_ONLY_SPEED);
         add(keys, "boolean", LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY);
+        add(keys, "string", LocalOptions.VIDEO_QUALITY_TARGET);
         add(keys, "boolean", "hide_seen_works loaded_comment_search_enabled comment_transcript_enabled");
         add(keys, "string", "seen_work_days");
         add(keys, "boolean", LocalOptions.CLOSE_FRIEND_FILTER);
@@ -141,7 +143,7 @@ public final class ConfigurationCatalog {
         }
         TRANSFER_TYPES = Collections.unmodifiableMap(keys);
         // These groups replace updateConfiguration's inline lists. Prefixes retain future/legacy keys.
-        depend(Feature.FEED_FILTER, "feed_filter_enabled hide_ads hide_lives hide_image_posts hide_recommendation_cards hide_recommendation_merchants keyword_filter_enabled keyword minimum_duration_enabled minimum_duration_seconds minimum_likes_enabled minimum_like_count filter_interrupt hide_mini_games hide_long_videos hide_product_cards hide_hotspot_rank_cards maximum_duration_seconds "
+        depend(Feature.FEED_FILTER, "feed_filter_enabled hide_ads hide_lives hide_image_posts hide_recommendation_cards hide_recommendation_merchants keyword_filter_enabled keyword minimum_duration_enabled minimum_duration_seconds minimum_likes_enabled minimum_like_count filter_interrupt hide_mini_games hide_long_videos hide_product_cards skip_ordinary_videos hide_hotspot_rank_cards maximum_duration_seconds "
                 + "min_comments min_collects min_shares max_days hide_seen_works seen_work_days", "");
         depend(Feature.DOWNLOAD, "download_enabled remove_watermark download_custom_name download_name_template remove_download_limits download_method download_directory_uri", "third_party_");
         depend(Feature.REPLY, "automation_enabled native_auto_reply reply_global reply_targets reply_mode reply_prompt reply_model_id reply_delay_seconds auto_message_text reply_daily_limit reply_user_cooldown_minutes reply_recognize_images reply_recognize_video reply_keywords reply_scope_mode reply_scope_relations reply_scope_fields reply_scope_keywords reply_scope_users reply_filter_mode reply_filter_keywords reply_filter_fields reply_private_chats reply_group_chats reply_group_scope_mode reply_group_targets reply_group_mode reply_group_members reply_random ai_model_settings_v2 streak_enabled streak_targets streak_content streak_content_api streak_start streak_end streak_tip streak_reset_token streak_retry_unknown_token reply_voice", "tts_ voice_catalog_");
@@ -149,7 +151,7 @@ public final class ConfigurationCatalog {
         depend(Feature.COMMENT_REPLY, "native_comment_reply", "");
         depend(Feature.FEED_UI, "hide_interface video_right_alpha component_hide_enabled component_hide_uniform_enabled component_hide_uniform_alpha component_hide_on_switch component_hide_open_comments_on_show component_hide_show_on_pause component_hide_custom_views post_bar post_template post_size post_color post_colorful ip_location", "component_alpha_ ip_location_");
         depend(Feature.PLAYBACK, "auto_speed playback_speed " + LocalOptions.MODULE_ONLY_SPEED, "");
-        depend(Feature.VIDEO_QUALITY, LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY, "");
+        depend(Feature.VIDEO_QUALITY, LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY + " " + LocalOptions.VIDEO_QUALITY_TARGET, "");
         depend(Feature.AUTO_PLAY, "auto_play smart_swipe pause_auto_on_comments", "");
         depend(Feature.GESTURE, "playback_speed toolbar_enabled long_press_action double_tap_action intercept_native_long_press remove_watermark download_custom_name download_name_template remove_download_limits download_method download_directory_uri " + LocalOptions.MODULE_ONLY_SPEED, "long_press_ double_tap_ toolbar_ third_party_");
         depend(Feature.MESSAGE_RECALL, "prevent_message_recall recall_self recall_other recall_background", "");
@@ -191,6 +193,7 @@ public final class ConfigurationCatalog {
         defaults.put(LocalOptions.HASH_LONG_PRESS_VOICE, false);
         defaults.put(LocalOptions.MODULE_ONLY_SPEED, false);
         defaults.put(LocalOptions.LOCK_HIGHEST_VIDEO_QUALITY, false);
+        defaults.put(LocalOptions.VIDEO_QUALITY_TARGET, "");
         defaults.put(CommentAiSettings.TAKEOVER, false);
         defaults.put(CommentAiSettings.SEARCH, false);
         defaults.put(CommentAiSettings.MODEL_ID, "");

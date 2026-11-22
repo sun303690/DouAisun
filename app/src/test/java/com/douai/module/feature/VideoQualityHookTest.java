@@ -357,6 +357,19 @@ public final class VideoQualityHookTest {
             }
             return best;
         }
+        @Override Object atHeight(List<?> levels, int targetHeight) {
+            Level exact = null, atMost = null, above = null;
+            if (levels != null) for (Object value : levels) {
+                if (!(value instanceof Level) || value == Level.AUTO) continue;
+                Level level = (Level) value;
+                if (level.pixels == targetHeight) { exact = level; break; }
+                if (level.pixels < targetHeight) {
+                    if (atMost == null || level.pixels > atMost.pixels) atMost = level;
+                } else if (above == null || level.pixels < above.pixels) above = level;
+            }
+            return exact != null ? exact : atMost != null ? atMost : above;
+        }
+        @Override int heightOf(Object level) { return level instanceof Level ? ((Level) level).pixels : 0; }
         @Override Object current(Object component) {
             Runnable change = onCurrentRead;
             onCurrentRead = null;
