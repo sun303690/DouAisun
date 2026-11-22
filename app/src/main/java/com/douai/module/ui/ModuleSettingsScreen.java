@@ -716,7 +716,7 @@ public final class ModuleSettingsScreen {
                                     value -> repository.putBoolean("recall_other", value));
                             addColorOption();
                         });
-                addDependentSwitch("密友过滤", "从私信列表隐藏指定用户的单聊会话",
+                addDependentSwitch("密友过滤", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_FILTER, false),
                         value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_FILTER, value),
                         () -> addEditableOption("密友用户ID（逗号或换行分隔）", "",
