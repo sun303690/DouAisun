@@ -4,6 +4,7 @@
         android:protectionLevel="signature" />
     <uses-permission android:name="${applicationId}.permission.REQUEST_SCAN_DIAGNOSTICS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <queries>
         <package android:name="com.ss.android.ugc.aweme" />
         <intent>

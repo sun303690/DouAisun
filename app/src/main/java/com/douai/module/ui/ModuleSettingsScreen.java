@@ -723,7 +723,7 @@ public final class ModuleSettingsScreen {
                                 repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, ""),
                                 false, true, false,
                                 value -> repository.putString(LocalOptions.CLOSE_FRIEND_UIDS, value)));
-                addSwitch("密友会话标题加粗", "密友来信后会话标题加粗提醒",
+                addSwitch("密友会话标题加粗", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, value));
                 addDependentSwitch("密友来信震动", "",

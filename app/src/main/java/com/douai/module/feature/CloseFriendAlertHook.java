@@ -127,6 +127,7 @@ public final class CloseFriendAlertHook {
     }
 
     /** Screen and background events drive the auto hide scopes. */
+    @android.annotation.SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void bindLifecycle() {
         Application app = currentApplication();
         if (app == null) {
@@ -359,11 +360,7 @@ public final class CloseFriendAlertHook {
         try {
             Vibrator vibrator = vibrator(context);
             if (vibrator == null || !vibrator.hasVibrator()) return false;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
-            } else {
-                vibrator.vibrate(duration);
-            }
+            vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE));
             return true;
         } catch (Throwable ignored) {
             return false;
@@ -505,14 +502,17 @@ public final class CloseFriendAlertHook {
                 v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                 return true;
             });
-            view.setOnTouchListener((v, event) -> {
-                if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                    titleHoldStarted();
-                } else if (event.getActionMasked() == MotionEvent.ACTION_UP
-                        || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-                    titleHoldEnded();
+            // The title view is reused across rebinds; the touch hook only reports hold duration.
+            view.setOnTouchListener(new android.view.View.OnTouchListener() {
+                @Override public boolean onTouch(android.view.View v, MotionEvent event) {
+                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        titleHoldStarted();
+                    } else if (event.getActionMasked() == MotionEvent.ACTION_UP
+                            || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        titleHoldEnded();
+                    }
+                    return false;
                 }
-                return false;
             });
             view.setOnClickListener(v -> onTitleTap());
         }
