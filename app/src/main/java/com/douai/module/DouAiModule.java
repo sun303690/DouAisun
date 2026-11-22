@@ -55,6 +55,7 @@ import com.douai.module.feature.ProfileSpoofHook;
 import com.douai.module.feature.NativeMessagingHooks;
 import com.douai.module.feature.NativeFollowLists;
 import com.douai.module.feature.CloseFriendHook;
+import com.douai.module.feature.CloseFriendAlertHook;
 import com.douai.module.feature.RecallHighlightHook;
 import com.douai.module.feature.FeedGestureToolsHook;
 import com.douai.module.feature.DirectMessageSpeechHook;
@@ -141,6 +142,7 @@ public final class DouAiModule extends XposedModule {
     private volatile AutomationDispatcher automationDispatcher;
     private volatile RecallHighlightHook recallHighlightHook;
     private volatile CloseFriendHook closeFriendHook;
+    private volatile CloseFriendAlertHook closeFriendAlertHook;
     private volatile FeedGestureToolsHook feedGestureToolsHook;
     private volatile CommentAiAnalysisHook commentAiAnalysisHook;
     private volatile DouyinSearch manualAiSearch;
@@ -1403,6 +1405,12 @@ public final class DouAiModule extends XposedModule {
                 closeFriendHook = CloseFriendHook.install(hookFramework(), hostScanReport, hostClassLoader,
                         localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Close friend filter hook failed", failure); }
+        }
+        if (closeFriendAlertHook == null) {
+            try {
+                closeFriendAlertHook = CloseFriendAlertHook.install(hookFramework(), hostClassLoader, hostScanReport,
+                        localOptions, message -> moduleLog(3, TAG, message));
+            } catch (Throwable failure) { moduleLog(6, TAG, "Close friend alert hook failed", failure); }
         }
         if (mediaModelHook == null) {
             try {

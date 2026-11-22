@@ -723,6 +723,25 @@ public final class ModuleSettingsScreen {
                                 repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, ""),
                                 false, true, false,
                                 value -> repository.putString(LocalOptions.CLOSE_FRIEND_UIDS, value)));
+                addSwitch("密友会话标题加粗", "密友来信后会话标题加粗提醒",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, value));
+                addDependentSwitch("密友来信震动", "",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_VIBRATE, false),
+                        value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_VIBRATE, value),
+                        () -> addEditableOption("震动时长（毫秒）", "",
+                                Integer.toString(parseIntSafe(repository.getString(LocalOptions.CLOSE_FRIEND_VIBRATE_MS, "120"), 120)),
+                                true, true, false,
+                                value -> repository.putString(LocalOptions.CLOSE_FRIEND_VIBRATE_MS,
+                                        Integer.toString(parseIntSafe(value, 120)))));
+                addDependentSwitch("密友会话自动隐藏", "",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_AUTO_HIDE, false),
+                        value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_AUTO_HIDE, value),
+                        () -> addEditableOption("隐藏时机（background / screen / chat_leave，逗号分隔）", "",
+                                repository.getString(LocalOptions.CLOSE_FRIEND_AUTO_SCOPE, "background,screen"),
+                                false, true, false,
+                                value -> repository.putString(LocalOptions.CLOSE_FRIEND_AUTO_SCOPE, value)));
+
                 addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
                         value -> repository.putBoolean("dm_voice_replace", value),
                         () -> addAudioPathOption("私聊语音文件", "dm_voice_path"));

@@ -213,6 +213,17 @@ public final class NativeMessagingHooks implements AutoCloseable {
         return hook;
     }
 
+    /** Set by CloseFriendAlertHook so incoming messages reach the alert engine. */
+    private static volatile IncomingMessageListener incomingMessageListener;
+
+    public interface IncomingMessageListener {
+        void onIncomingMessage(String conversationId, String senderUid);
+    }
+
+    public static void setIncomingMessageListener(IncomingMessageListener listener) {
+        incomingMessageListener = listener;
+    }
+
     public boolean supports(String key) {
         return "prevent_message_recall".equals(key) ? recall.isActive() : receive.isActive();
     }
@@ -589,7 +600,10 @@ public final class NativeMessagingHooks implements AutoCloseable {
                 for (Object message : messages) {
                     try {
                         ContentValues values = incomingSnapshot.copy(message);
-                        if (values != null) onIncoming(values, "global");
+                        if (values != null) {
+                            onIncoming(values, "global");
+                            notifyCloseFriend(values);
+                        }
                     } catch (ReflectiveOperationException | RuntimeException invalid) {
                         safeLog("Automatic reply receipt skipped source=global reason=invalid_message");
                     }
@@ -603,6 +617,16 @@ public final class NativeMessagingHooks implements AutoCloseable {
             } catch (Exception ignored) { }
             log.accept("Native IM receive and sender contracts registered; global receipts and cold conversations enabled");
         } catch (Throwable failure) { receive.fail(failure); }
+    }
+
+    private void notifyCloseFriend(ContentValues values) {
+        IncomingMessageListener listener = incomingMessageListener;
+        if (listener == null) return;
+        try {
+            Long sender = values.getAsLong("sender");
+            listener.onIncomingMessage(values.getAsString("conversation_id"),
+                    sender == null || sender <= 0L ? null : Long.toString(sender));
+        } catch (Throwable ignored) { }
     }
 
     private void captureSdk(Object receiver) {

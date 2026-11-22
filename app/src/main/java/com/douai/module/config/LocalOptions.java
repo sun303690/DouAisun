@@ -182,6 +182,34 @@ public final class LocalOptions {
     public static final String CLOSE_FRIEND_FILTER = "close_friend_filter";
     /** Comma or newline separated peer uids hidden from the chat session list. */
     public static final String CLOSE_FRIEND_UIDS = "close_friend_uids";
+    /** Bold the session title and raise its font weight when a close friend sends a new message. */
+    public static final String CLOSE_FRIEND_TITLE_BOLD = "close_friend_title_bold";
+    /** Vibrate once when a close friend message arrives. */
+    public static final String CLOSE_FRIEND_VIBRATE = "close_friend_vibrate";
+    /** Vibration duration in milliseconds for close friend alerts. */
+    public static final String CLOSE_FRIEND_VIBRATE_MS = "close_friend_vibrate_ms";
+    /** Suppress banner style in-app push for close friend messages. */
+    public static final String CLOSE_FRIEND_HIDE_BANNER = "close_friend_hide_banner";
+    /** Cancel system notifications that belong to a close friend conversation. */
+    public static final String CLOSE_FRIEND_HIDE_NOTIFICATION = "close_friend_hide_notification";
+    /** Hide incoming close friend in-app calls. */
+    public static final String CLOSE_FRIEND_HIDE_CALL = "close_friend_hide_call";
+    /** Mute ringing and vibration for incoming close friend calls. */
+    public static final String CLOSE_FRIEND_CALL_SILENT = "close_friend_call_silent";
+    /** Hide close friend conversations from the top of the list only after they are read. */
+    public static final String CLOSE_FRIEND_HIDE_READ = "close_friend_hide_read";
+    /** Font weight used when a close friend message bolds the chat title, 500 to 900. */
+    public static final String CLOSE_FRIEND_BOLD_WEIGHT = "close_friend_bold_weight";
+    /** Hold duration in milliseconds on the chat title that reveals hidden close friends. */
+    public static final String CLOSE_FRIEND_TITLE_HOLD_MS = "close_friend_title_hold_ms";
+    /** Consecutive taps on the chat title that hides close friends again. */
+    public static final String CLOSE_FRIEND_TITLE_HIDE_TAPS = "close_friend_title_hide_taps";
+    /** Skip the vibration while the ringer is silent or the device is in do not disturb. */
+    public static final String CLOSE_FRIEND_VIBRATE_SKIP_SILENT = "close_friend_vibrate_skip_silent";
+    /** Master switch for hiding close friends automatically on a lifecycle event. */
+    public static final String CLOSE_FRIEND_AUTO_HIDE = "close_friend_auto_hide";
+    /** Comma separated lifecycle triggers that hide close friends, e.g. background,screen,chat_leave. */
+    public static final String CLOSE_FRIEND_AUTO_SCOPE = "close_friend_auto_scope";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */
