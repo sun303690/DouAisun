@@ -43,6 +43,7 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
 import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.ImmersivePlaybackUi;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
 import com.douai.module.feature.VideoProxyHook;
@@ -200,6 +201,8 @@ public final class DouAiModule extends XposedModule {
     private volatile String versionHookFailure;
     private volatile String topTabHookFailure;
     private volatile String feedUiHookFailure;
+    private volatile ImmersivePlaybackUi immersivePlaybackUi;
+    private volatile String immersiveHookFailure;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
     private volatile String autoFollowHookFailure;
@@ -880,6 +883,10 @@ public final class DouAiModule extends XposedModule {
             if (topTabHook != null && (initial || changes.affects(Feature.TOP_TABS))) topTabHook.setSettings(extended);
             FeedUiHideHook uiHook = feedUiHideHook;
             if (uiHook != null && feedUiChanged) uiHook.setSettings(extended);
+            ImmersivePlaybackUi immersiveHook = immersivePlaybackUi;
+            if (immersiveHook != null && (initial || changes.affects(Feature.IMMERSIVE))) {
+                immersiveHook.setSettings(extended);
+            }
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1081,6 +1088,21 @@ public final class DouAiModule extends XposedModule {
                         ? failure.getClass().getSimpleName() : failure.getMessage();
                 DouAiLog.failure("feed_ui", "installation", failure);
                 moduleLog(6, TAG, "Feed UI visibility hook installation failed", failure);
+            }
+        }
+        if (immersivePlaybackUi == null) {
+            try {
+                immersivePlaybackUi = ImmersivePlaybackUi.install(hookFramework(), hostScanReport,
+                        hostClassLoader, targetContext, extendedSettings,
+                        message -> moduleLog(3, TAG, message));
+                immersiveHookFailure = null;
+                moduleLog(3, TAG, "Immersive playback hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.immersivePlayback));
+            } catch (Throwable failure) {
+                immersiveHookFailure = failure.getMessage() == null
+                        ? failure.getClass().getSimpleName() : failure.getMessage();
+                DouAiLog.failure("immersive_playback", "installation", failure);
+                moduleLog(6, TAG, "Immersive playback hook installation failed", failure);
             }
         }
         if (videoProxyHook == null) {

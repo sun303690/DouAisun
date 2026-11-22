@@ -122,6 +122,7 @@ public final class ModuleSettingsScreen {
             new SearchEntry("message-recall", "消息防撤回", "消息管理 > 消息防撤回", "私信 防撤回 撤回背景 消息记录", SearchDestination.MESSAGE),
             new SearchEntry("close-friend", "密友过滤", "消息管理 > 密友过滤", "私信 会话列表 隐藏 密友 用户ID 过滤", SearchDestination.MESSAGE),
             new SearchEntry("gestures", "长按与双击手势", "界面相关 > 长按事件与双击事件", "手势 长按 双击 悬浮条 工具栏", SearchDestination.GESTURES),
+            new SearchEntry("immersive-playback", "沉浸纯净播放", "界面相关 > 沉浸式全屏", "沉浸 纯净 播放 隐藏 文字 图标 进度条 弹幕", SearchDestination.GESTURES, "settings.toggle.沉浸纯净播放"),
             new SearchEntry("comment-tools", "评论工具", "评论相关 > 长按操作", "复制评论 评论图片 复制源数据 查看评论数据 评论解析 JSON 语音摘要 彩色评论 后缀 替换语音 查评论 搜索评论 转写", SearchDestination.COMMENT),
             new SearchEntry("comment-voice-file", "评论语音文件", "评论相关 > 评论语音文件", "替换语音 音频 文件路径 选择文件", SearchDestination.COMMENT, "settings.option.评论语音文件"),
             new SearchEntry("message-voice-file", "私聊语音文件", "消息管理 > 私聊语音文件", "私信 替换语音 音频 文件路径 选择文件", SearchDestination.MESSAGE, "settings.option.私聊语音文件"),
@@ -1180,7 +1181,7 @@ public final class ModuleSettingsScreen {
             addSwitch("去小游戏开关", "",
                     repository.getBoolean("hide_mini_games", false), settings.feedFilterEnabled, true,
                     value -> repository.putBoolean("hide_mini_games", value));
-            addSwitch("只保留广告/图文/直播（跳过普通视频）", "移植自抖仙人：开启后普通视频全部跳过",
+            addSwitch("只保留广告/图文/直播（跳过普通视频）", "",
                     repository.getBoolean("skip_ordinary_videos", false), settings.feedFilterEnabled, true,
                     value -> repository.putBoolean("skip_ordinary_videos", value));
             addDependentSwitch("去长视频开关", "",
@@ -2011,6 +2012,9 @@ public final class ModuleSettingsScreen {
                 value -> repository.putBoolean("remove_black_edges", value));
         addSwitch("隐藏导航栏", "", repository.getBoolean("hide_navigation_bar", false), true,
                 value -> repository.putBoolean("hide_navigation_bar", value));
+        addSwitch("沉浸纯净播放", "",
+                repository.getBoolean("immersive_playback", false), true,
+                value -> repository.putBoolean("immersive_playback", value));
         content = previous;
         showOptionDialog(new MiuixDialogBuilder(context, miuixHome != null).setTitle("沉浸式全屏").setView(panel)
                 .setNegativeButton("返回", null).create());

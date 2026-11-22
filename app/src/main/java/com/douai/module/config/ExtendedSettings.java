@@ -19,6 +19,7 @@ public final class ExtendedSettings {
     public final boolean preventMessageRecall;
     public final boolean confirmRefresh;
     public final boolean spoofVersion;
+    public final boolean immersivePlayback;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -41,6 +42,7 @@ public final class ExtendedSettings {
         preventMessageRecall = preferences.getBoolean("prevent_message_recall", false);
         confirmRefresh = preferences.getBoolean("confirm_refresh", false);
         spoofVersion = preferences.getBoolean("spoof_version", false);
+        immersivePlayback = preferences.getBoolean("immersive_playback", false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -64,6 +66,7 @@ public final class ExtendedSettings {
         preventMessageRecall = false;
         confirmRefresh = false;
         spoofVersion = false;
+        immersivePlayback = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

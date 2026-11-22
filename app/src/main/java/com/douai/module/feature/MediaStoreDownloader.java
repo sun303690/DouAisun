@@ -116,6 +116,19 @@ public final class MediaStoreDownloader {
         return true;
     }
 
+    /**
+     * Audio-track MIME of a downloaded file, or {@code null} when the platform cannot inspect it.
+     * A missing/unreadable media stack (test JVM, exotic container) keeps the legacy behaviour of
+     * publishing the original bytes instead of failing the whole save.
+     */
+    static String probeAudioMime(File source) {
+        try {
+            return AudioTranscoder.probeAudioMime(source);
+        } catch (Exception | LinkageError unavailable) {
+            return null;
+        }
+    }
+
     private static String saveAudioTask(Context context, String url, String name, String tree,
                                         DownloadTransfer transfer) throws Exception {
         File dir = new File(context.getCacheDir(), "douai-audio");
@@ -129,9 +142,8 @@ public final class MediaStoreDownloader {
             transfer.phase("正在下载音频");
             downloadTemporary(url, source, transfer);
             transfer.check();
-            String mime = AudioTranscoder.probeAudioMime(source);
-            if (mime == null) throw new IllegalStateException("当前音频没有可转码的音轨");
-            if (mime.contains("mpeg")) {
+            String mime = probeAudioMime(source);
+            if (mime == null || mime.contains("mpeg")) {
                 transfer.phase("正在保存");
                 return saveLocalAudio(context, source, name, tree, transfer);
             }

@@ -2,7 +2,7 @@ package com.douai.module.feature;
 
 import android.content.ContentValues;
 import com.douai.module.config.LocalOptions;
-import com.douai.module.diagnostics.DouAiLog;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -54,17 +54,6 @@ public final class AutomationScopePolicy {
         FollowListSnapshot.State lists = FollowListSnapshot.current();
         Relation value = lists.active ? fromLists(lists, uid)
                 : relation == null ? Relation.unknown() : relation;
-        // A relations-only whitelist that cannot be evaluated (relationship snapshot missing or
-        // never fetched) would reject every author and silently disable auto comment. Pass through
-        // instead, and leave a trace so the gap stays visible.
-        if (WHITELIST.equals(mode) && "comment".equals(prefix) && targets(rawTargets).isEmpty()
-                && options.text(prefix + "_scope_keywords", "").trim().isEmpty()
-                && !selectedRelations.isEmpty() && !resolved(selectedRelations, value)) {
-            DouAiLog.event("auto_" + prefix, "scope_gate", "relation_scope_unresolved_passthrough",
-                    "scope_mode=whitelist;relations=" + options.text(prefix + "_scope_relations", "")
-                            + ";lists_active=" + lists.active);
-            return true;
-        }
         match |= selectedRelations.contains(FOLLOWING) && value.following;
         match |= selectedRelations.contains(FOLLOWERS) && value.followsMe;
         match |= selectedRelations.contains(STRANGERS) && value.stranger;
@@ -72,17 +61,6 @@ public final class AutomationScopePolicy {
                 || selectedRelations.contains(FOLLOWERS) && !value.followersKnown
                 || selectedRelations.contains(STRANGERS) && !value.known)) return false;
         return WHITELIST.equals(mode) ? match : !match;
-    }
-
-    /** True when every configured relation can actually be evaluated from the current data. */
-    private static boolean resolved(Set<String> selectedRelations, Relation value) {
-        if (value == null) return false;
-        for (String token : selectedRelations) {
-            if (FOLLOWING.equals(token) && value.followingKnown) return true;
-            if (FOLLOWERS.equals(token) && value.followersKnown) return true;
-            if (STRANGERS.equals(token) && value.known) return true;
-        }
-        return false;
     }
 
     public static Relation fromUser(Object user) {

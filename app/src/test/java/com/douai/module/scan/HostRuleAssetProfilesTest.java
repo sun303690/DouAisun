@@ -14,13 +14,13 @@ public final class HostRuleAssetProfilesTest {
         assertNotEquals(HostAdaptation.PROFILE_406.rulesAsset, HostAdaptation.PROFILE_408.rulesAsset);
         HostRuleSet older = rules(HostAdaptation.PROFILE_406);
         HostRuleSet newer = rules(HostAdaptation.PROFILE_408);
-        assertEquals("ecda2db82b867d00f65adf5ac588a45217bc3e9313dbc3713b8ae38a52fcb9f0",
+        assertEquals("256f98d6c705aee6463cdd62b9871147b784229ff477bf44e70070579b3d0d8d",
                 older.getFingerprint());
         assertEquals(HostAdaptation.PROFILE_406.fingerprint, older.getFingerprint());
         assertEquals(HostAdaptation.PROFILE_408.fingerprint, newer.getFingerprint());
         assertNotEquals(older.getFingerprint(), newer.getFingerprint());
-        assertEquals(242, older.getRules().size());
-        assertEquals(242, newer.getRules().size());
+        assertEquals(243, older.getRules().size());
+        assertEquals(243, newer.getRules().size());
         Set<String> olderIds = ids(older), newerIds = ids(newer);
         assertEquals(olderIds, newerIds);
         for (HostFeatureCatalog.Feature feature : HostFeatureCatalog.getFeatures()) {
@@ -33,7 +33,7 @@ public final class HostRuleAssetProfilesTest {
         for (HostAdaptation.Profile profile : HostApkTestProfile.profiles()) {
             HostRuleSet selected = rules(profile);
             assertEquals(profile.versionName, profile.fingerprint, selected.getFingerprint());
-            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 244 : 242;
+            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 245 : 243;
             assertEquals(profile.versionName, expectedCount, selected.getRules().size());
             Set<String> expectedIds = new HashSet<>(olderIds);
             if (profile == HostAdaptation.PROFILE_410) {

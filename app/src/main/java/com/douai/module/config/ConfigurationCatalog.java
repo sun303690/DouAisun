@@ -63,7 +63,7 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", "download_enabled remove_watermark feed_filter_enabled hide_ads hide_lives hide_image_posts "
                 + "hide_recommendation_cards hide_recommendation_merchants keyword_filter_enabled minimum_duration_enabled "
                 + "minimum_likes_enabled automation_enabled auto_like_enabled auto_follow_enabled auto_comment_enabled auto_message_enabled "
-                + "hide_interface hide_top_tabs remove_black_edges hide_navigation_bar auto_play player_gestures copy_comment_text comment_copy_without_mention "
+                + "hide_interface hide_top_tabs remove_black_edges hide_navigation_bar immersive_playback auto_play player_gestures copy_comment_text comment_copy_without_mention "
                 + "comment_media_tools copy_source_data prevent_message_recall confirm_refresh spoof_version auto_speed "
                 + "pause_auto_on_comments smart_swipe comment_append_suffix comment_voice_replace comment_tts colored_comment "
                 + "streak_enabled streak_tip recall_self recall_other dm_voice_replace dm_tts spoof_profile download_custom_name "
@@ -179,7 +179,7 @@ public final class ConfigurationCatalog {
         depend(Feature.AUTO_FOLLOW, "automation_enabled auto_follow_enabled", "");
         depend(Feature.AUTO_MESSAGE, "automation_enabled auto_message_enabled native_auto_reply auto_message_text hide_interface", "");
         depend(Feature.COMMENT_TOOLS, "copy_comment_text comment_copy_without_mention comment_media_tools copy_source_data loaded_comment_search_enabled comment_transcript_enabled", "");
-        depend(Feature.IMMERSIVE, "remove_black_edges hide_navigation_bar", "");
+        depend(Feature.IMMERSIVE, "remove_black_edges hide_navigation_bar immersive_playback", "");
         depend(Feature.VERSION, "spoof_version fake_version_name fake_version_code", "");
         depend(Feature.TOP_TABS, "hide_top_tabs hidden_top_tabs", "");
         depend(Feature.REFRESH, "confirm_refresh", "");
@@ -205,6 +205,7 @@ public final class ConfigurationCatalog {
         defaults.put("loaded_comment_search_enabled", false);
         defaults.put("comment_transcript_enabled", false);
         defaults.put("hide_hotspot_rank_cards", false);
+        defaults.put("immersive_playback", false);
         defaults.put(LocalOptions.IP_LOCATION, "");
         defaults.put(LocalOptions.IP_LOCATION_PROVINCE, "");
         defaults.put(LocalOptions.IP_LOCATION_CITY, "");
