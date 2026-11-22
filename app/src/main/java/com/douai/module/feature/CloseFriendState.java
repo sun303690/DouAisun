@@ -2,6 +2,7 @@ package com.douai.module.feature;
 
 import com.douai.module.config.LocalOptions;
 
+import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Locale;
@@ -11,9 +12,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Shared close-friend state between the alert engine, the session list filter and the settings screen.
  *
- * <p>The auto-hide window and the manual "reveal" window live here instead of inside a single hook so a
- * session row filter installed by a different feature class can ask the same question without owning a
- * reference to the alert engine.
+ * <p>Three questions are answered here so the filter, the title decorator and the settings screen
+ * never disagree:
+ *
+ * <ul>
+ *   <li>which peer uids are close friends ({@link #uids});</li>
+ *   <li>should the session list hide them right now ({@link #isHidingActive});</li>
+ *   <li>has the user asked for them to be visible ({@link #isRevealing}).</li>
+ * </ul>
+ *
+ * <p>The reveal flag is sticky on purpose: the host adapter caches the list it was handed, so a
+ * timed window of a few seconds would expire long before the next list rebuild. A sticky flag
+ * keeps the rows visible across every later list submission until the user hides them again.
  */
 public final class CloseFriendState {
 
@@ -22,12 +32,18 @@ public final class CloseFriendState {
     public static final String SCOPE_SCREEN = "screen";
     public static final String SCOPE_CHAT_LEAVE = "chat_leave";
 
+    /** Explicit "hide now" request, set by the auto-hide scopes and by the hide action. */
     private static volatile boolean autoHidden;
+    /** Sticky reveal flag; wins over {@link #autoHidden} until the user hides again. */
+    private static volatile boolean revealed;
+    /** Timed reveal window kept from the legacy long-press behaviour. */
     private static volatile long revealUntilMs;
     /** Set by an incoming message from a close friend, cleared when the chat page is opened. */
     private static volatile long unreadAtMs;
     private static volatile String cachedRaw = "";
     private static volatile Set<String> cachedUids = Collections.emptySet();
+    /** Last session list adapter seen by the filter, used to force a redraw after a flag flip. */
+    private static volatile WeakReference<Object> adapterRef = new WeakReference<>(null);
 
     /** Number of conversation rows suppressed since the module loaded, shown as the settings hint. */
     public static final AtomicInteger FILTERED_ROWS = new AtomicInteger();
@@ -96,27 +112,64 @@ public final class CloseFriendState {
         return autoHidden;
     }
 
-    /** Manual reveal window requested by long-pressing or multi-tapping the chat title. */
+    /** Sticky reveal: rows stay visible until {@link #hideNow()} or a new auto-hide trigger. */
+    public static void revealPersistent() {
+        revealed = true;
+        unreadAtMs = 0L;
+    }
+
+    /** Manual reveal window requested by long-pressing the chat title. */
     public static void revealFor(long milliseconds) {
+        revealed = true;
         long target = System.currentTimeMillis() + Math.max(0L, milliseconds);
         if (target > revealUntilMs) revealUntilMs = target;
     }
 
+    /** Hides the rows again and drops any reveal window. */
+    public static void hideNow() {
+        revealed = false;
+        revealUntilMs = 0L;
+        autoHidden = true;
+    }
+
     public static void clearReveal() {
+        revealed = false;
         revealUntilMs = 0L;
     }
 
     public static boolean isRevealing() {
-        return revealUntilMs > System.currentTimeMillis();
+        return revealed || revealUntilMs > System.currentTimeMillis();
     }
 
-    /** Hiding is currently in effect when auto-hide kicked in and no manual reveal window is open. */
+    /**
+     * True when the session list must drop close friend rows.
+     *
+     * <p>The auto-hide switch counts even before any lifecycle event fired, otherwise the first
+     * screen after a module load would still list the hidden conversations.
+     */
+    public static boolean isHidingActive(LocalOptions options) {
+        if (isRevealing()) return false;
+        if (autoHidden) return true;
+        return options != null && options.enabled(LocalOptions.CLOSE_FRIEND_AUTO_HIDE, false);
+    }
+
+    /** Legacy no-argument form used by the title decorator when no options snapshot is at hand. */
     public static boolean isHidingActive() {
-        return autoHidden && !isRevealing();
+        return isHidingActive(null);
+    }
+
+    /** Remembers the session list adapter so a flag flip can force one redraw. */
+    public static void rememberAdapter(Object adapter) {
+        if (adapter == null) return;
+        adapterRef = new WeakReference<>(adapter);
+    }
+
+    public static Object adapter() {
+        return adapterRef.get();
     }
 
     public static String summary() {
-        return String.format(Locale.ROOT, "rows=%d pushes=%d autoHidden=%s revealing=%s",
+        return String.format(Locale.ROOT, "rows=%d pushes=%d autoHidden=%s revealed=%s",
                 FILTERED_ROWS.get(), FILTERED_PUSHES.get(), autoHidden, isRevealing());
     }
 }

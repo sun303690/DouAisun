@@ -311,7 +311,7 @@ public final class CloseFriendAlertHook {
             snapshot = new ArrayList<>(bindings);
         }
         boolean bold = options.enabled(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, true);
-        boolean hidden = CloseFriendState.isHidingActive();
+        boolean hidden = CloseFriendState.isHidingActive(options);
         for (TitleBinding binding : snapshot) {
             try {
                 if (bold) binding.applyBold(options, hidden); else binding.clearBold();
@@ -435,7 +435,10 @@ public final class CloseFriendAlertHook {
         CloseFriendState.setAutoHidden(true);
         CloseFriendState.clearReveal();
         CloseFriendAlertHook hook = active;
-        if (hook != null) hook.scheduleSweep();
+        if (hook != null) {
+            hook.scheduleSweep();
+            hook.notifySessionListChanged();
+        }
     }
 
     // -------------------------------------------------------------- title view
@@ -569,10 +572,9 @@ public final class CloseFriendAlertHook {
 
     private void revealFromLongPress() {
         int hold = options.integer(LocalOptions.CLOSE_FRIEND_TITLE_HOLD_MS, 600);
-        long window = Math.max(5000L, hold * 10L);
-        CloseFriendState.revealFor(window);
-        CloseFriendState.setAutoHidden(true);
-        note("close friend reveal window " + window + "ms");
+        // 持久显示：列表适配器会缓存上一次列表，几秒的窗口早就过期了，必须由用户再点一次才隐藏。
+        CloseFriendState.revealPersistent();
+        note("close friend sessions revealed (hold " + hold + "ms)");
         scheduleSweep();
         notifySessionListChanged();
     }
@@ -585,15 +587,20 @@ public final class CloseFriendAlertHook {
         titleTapCount++;
         if (titleTapCount < needed) return;
         titleTapCount = 0;
-        CloseFriendState.clearReveal();
-        CloseFriendState.setAutoHidden(true);
+        CloseFriendState.hideNow();
         note("close friend hidden again after " + needed + " taps");
         scheduleSweep();
         notifySessionListChanged();
     }
 
-    /** Asks the host to redraw the session list after the hide flag flipped. */
+    /**
+     * Asks the host to redraw the session list after the hide flag flipped.
+     *
+     * <p>The broadcast is kept for other module parts; the real redraw is the adapter replay in
+     * {@link CloseFriendHook#refreshSessionList()}, because the host caches the submitted list.
+     */
     private void notifySessionListChanged() {
+        CloseFriendHook.refreshSessionList();
         try {
             Application app = application();
             if (app == null) return;

@@ -741,6 +741,10 @@ public final class ModuleSettingsScreen {
                                 repository.getString(LocalOptions.CLOSE_FRIEND_AUTO_SCOPE, "background,screen"),
                                 false, true, false,
                                 value -> repository.putString(LocalOptions.CLOSE_FRIEND_AUTO_SCOPE, value)));
+                addOption("显示密友会话", closeFriendStateHint(), null, true,
+                        () -> setCloseFriendVisible(true));
+                addOption("隐藏密友会话", "自动隐藏触发时重新收起", null, true,
+                        () -> setCloseFriendVisible(false));
 
                 addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
                         value -> repository.putBoolean("dm_voice_replace", value),
@@ -1347,6 +1351,24 @@ public final class ModuleSettingsScreen {
                     addSwitch("彩色信息条", "", repository.getBoolean(LocalOptions.POST_BAR_COLORFUL, false),
                             true, value -> repository.putBoolean(LocalOptions.POST_BAR_COLORFUL, value));
                 });
+    }
+
+    /** 密友列表的当前可见性，直接读共享状态，避免和过滤 Hook 各自维护标记。 */
+    private String closeFriendStateHint() {
+        if (!repository.getBoolean(LocalOptions.CLOSE_FRIEND_FILTER, false)) return "密友过滤未开启";
+        if (repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, "").trim().isEmpty()) return "密友用户ID为空";
+        return com.douai.module.feature.CloseFriendState.isRevealing() ? "当前：已显示" : "当前：已隐藏";
+    }
+
+    /** 显示/隐藏密友会话，翻转后立刻回灌会话列表，无需重启宿主。 */
+    private void setCloseFriendVisible(boolean visible) {
+        if (visible) {
+            com.douai.module.feature.CloseFriendState.revealPersistent();
+        } else {
+            com.douai.module.feature.CloseFriendState.hideNow();
+        }
+        com.douai.module.feature.CloseFriendHook.refreshSessionList();
+        toast(visible ? "密友会话已显示，返回会话列表即生效" : "密友会话已隐藏，返回会话列表即生效");
     }
 
     private static int parseIntSafe(String raw, int fallback) {
