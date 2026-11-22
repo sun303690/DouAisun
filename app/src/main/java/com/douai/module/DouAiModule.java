@@ -1409,7 +1409,7 @@ public final class DouAiModule extends XposedModule {
         if (closeFriendAlertHook == null) {
             try {
                 closeFriendAlertHook = CloseFriendAlertHook.install(hookFramework(), hostClassLoader, hostScanReport,
-                        localOptions, message -> moduleLog(3, TAG, message));
+                        targetContext, localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Close friend alert hook failed", failure); }
         }
         if (mediaModelHook == null) {

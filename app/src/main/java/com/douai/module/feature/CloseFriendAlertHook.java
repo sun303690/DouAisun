@@ -11,7 +11,6 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.view.HapticFeedbackConstants;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
@@ -56,6 +55,8 @@ public final class CloseFriendAlertHook {
     private final HostScanReport report;
     private final LocalOptions options;
     private final Consumer<String> log;
+    private final java.lang.ref.WeakReference<Context> contextRef;
+    private final java.lang.ref.WeakReference<Application> applicationRef;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<XposedInterface.HookHandle> hooks = new ArrayList<>();
 
@@ -63,25 +64,45 @@ public final class CloseFriendAlertHook {
     private boolean sweepScheduled;
     private int titleTapCount;
     private long lastTitleTapMs;
-    private long titleHoldStartedMs;
-    private boolean titleHoldConsumed;
     private boolean installed;
     private final java.util.concurrent.atomic.AtomicInteger resumed = new java.util.concurrent.atomic.AtomicInteger();
 
     private CloseFriendAlertHook(XposedInterface framework, ClassLoader loader, HostScanReport report,
-                                 LocalOptions options, Consumer<String> log) {
+                                 Context context, LocalOptions options, Consumer<String> log) {
         this.framework = framework;
         this.loader = loader;
         this.report = report;
+        this.contextRef = new java.lang.ref.WeakReference<>(context);
+        this.applicationRef = new java.lang.ref.WeakReference<>(resolveApplication(context));
         this.options = options;
         this.log = log;
     }
 
+    private Context context() {
+        return contextRef.get();
+    }
+
+    private Application application() {
+        return applicationRef.get();
+    }
+
+    private static Application resolveApplication(Context context) {
+        if (context == null) return null;
+        if (context instanceof Application) return (Application) context;
+        try {
+            Context base = context.getApplicationContext();
+            return base instanceof Application ? (Application) base : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    /** The lifecycle and broadcast callbacks need the host Application, not the module context. */
     public static CloseFriendAlertHook install(XposedInterface framework, ClassLoader loader, HostScanReport report,
-                                               LocalOptions options, Consumer<String> log) {
+                                               Context context, LocalOptions options, Consumer<String> log) {
         CloseFriendAlertHook previous = active;
         if (previous != null) previous.close();
-        CloseFriendAlertHook hook = new CloseFriendAlertHook(framework, loader, report, options, log);
+        CloseFriendAlertHook hook = new CloseFriendAlertHook(framework, loader, report, context, options, log);
         active = hook;
         hook.start();
         return hook;
@@ -117,8 +138,7 @@ public final class CloseFriendAlertHook {
                     || CloseFriendState.conversationMatches(current, conversationId);
             if (!hit) return;
             CloseFriendState.markUnread();
-            Application app = currentApplication();
-            boolean vibrated = vibrate(app, current);
+            boolean vibrated = vibrate(context(), current);
             note("close friend message from " + senderUid + " vibrated=" + vibrated);
             scheduleSweep();
             notifySessionListChanged();
@@ -129,7 +149,7 @@ public final class CloseFriendAlertHook {
     /** Screen and background events drive the auto hide scopes. */
     @android.annotation.SuppressLint("UnspecifiedRegisterReceiverFlag")
     private void bindLifecycle() {
-        Application app = currentApplication();
+        Application app = application();
         if (app == null) {
             note("close friend lifecycle not bound: no application");
             return;
@@ -437,9 +457,7 @@ public final class CloseFriendAlertHook {
             this.originalStrokeWidth = view.getPaint().getStrokeWidth();
             String variation = null;
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    variation = view.getFontVariationSettings();
-                }
+                variation = view.getFontVariationSettings();
             } catch (Throwable ignored) {
             }
             this.originalFontVariation = variation;
@@ -463,13 +481,11 @@ public final class CloseFriendAlertHook {
             if (view.getTypeface() != boldFace) view.setTypeface(boldFace);
             int flags = originalPaintFlags | android.graphics.Paint.FAKE_BOLD_TEXT_FLAG;
             if (view.getPaintFlags() != flags) view.setPaintFlags(flags);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                String variation = "'wght' " + weight;
-                if (!variation.equals(view.getFontVariationSettings())) {
-                    try {
-                        view.setFontVariationSettings(variation);
-                    } catch (Throwable ignored) {
-                    }
+            String variation = "'wght' " + weight;
+            if (!variation.equals(view.getFontVariationSettings())) {
+                try {
+                    view.setFontVariationSettings(variation);
+                } catch (Throwable ignored) {
                 }
             }
             float stroke = Math.max(originalStrokeWidth, weight >= 800 ? 1.2f : 0.6f);
@@ -486,7 +502,7 @@ public final class CloseFriendAlertHook {
             try {
                 view.setTypeface(originalTypeface);
                 view.setPaintFlags(originalPaintFlags);
-                if (originalFontVariation != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (originalFontVariation != null) {
                     view.setFontVariationSettings(originalFontVariation);
                 }
                 view.getPaint().setStrokeWidth(originalStrokeWidth);
@@ -502,18 +518,6 @@ public final class CloseFriendAlertHook {
                 v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                 return true;
             });
-            // The title view is reused across rebinds; the touch hook only reports hold duration.
-            view.setOnTouchListener(new android.view.View.OnTouchListener() {
-                @Override public boolean onTouch(android.view.View v, MotionEvent event) {
-                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                        titleHoldStarted();
-                    } else if (event.getActionMasked() == MotionEvent.ACTION_UP
-                            || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
-                        titleHoldEnded();
-                    }
-                    return false;
-                }
-            });
             view.setOnClickListener(v -> onTitleTap());
         }
 
@@ -521,24 +525,6 @@ public final class CloseFriendAlertHook {
             CloseFriendAlertHook hook = active;
             if (hook == null) return;
             hook.revealFromLongPress();
-        }
-
-        private void titleHoldStarted() {
-            CloseFriendAlertHook hook = active;
-            if (hook == null) return;
-            hook.titleHoldStartedMs = System.currentTimeMillis();
-            hook.titleHoldConsumed = false;
-        }
-
-        private void titleHoldEnded() {
-            CloseFriendAlertHook hook = active;
-            if (hook == null || hook.titleHoldConsumed) return;
-            long held = System.currentTimeMillis() - hook.titleHoldStartedMs;
-            int need = hook.options.integer(LocalOptions.CLOSE_FRIEND_TITLE_HOLD_MS, 600);
-            if (held >= need && need > 0) {
-                hook.titleHoldConsumed = true;
-                hook.revealFromLongPress();
-            }
         }
 
         private void onTitleTap() {
@@ -575,22 +561,10 @@ public final class CloseFriendAlertHook {
     /** Asks the host to redraw the session list after the hide flag flipped. */
     private void notifySessionListChanged() {
         try {
-            Application app = currentApplication();
+            Application app = application();
             if (app == null) return;
             app.sendBroadcast(new android.content.Intent("com.douai.action.CLOSE_FRIEND_CHANGED"));
         } catch (Throwable ignored) {
-        }
-    }
-
-    private static Application currentApplication() {
-        try {
-            Class<?> activityThread = Class.forName("android.app.ActivityThread");
-            Method current = activityThread.getDeclaredMethod("currentApplication");
-            current.setAccessible(true);
-            Object value = current.invoke(null);
-            return value instanceof Application ? (Application) value : null;
-        } catch (Throwable ignored) {
-            return null;
         }
     }
 
