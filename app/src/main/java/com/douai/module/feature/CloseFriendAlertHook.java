@@ -11,6 +11,7 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
 import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
@@ -64,6 +65,8 @@ public final class CloseFriendAlertHook {
     private boolean sweepScheduled;
     private int titleTapCount;
     private long lastTitleTapMs;
+    private long titleHoldStartedMs;
+    private boolean titleHoldConsumed;
     private boolean installed;
     private final java.util.concurrent.atomic.AtomicInteger resumed = new java.util.concurrent.atomic.AtomicInteger();
 
@@ -510,6 +513,7 @@ public final class CloseFriendAlertHook {
             }
         }
 
+        @android.annotation.SuppressLint("ClickableViewAccessibility")
         private void attachTouch() {
             if (eventsAttached) return;
             eventsAttached = true;
@@ -518,7 +522,37 @@ public final class CloseFriendAlertHook {
                 v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
                 return true;
             });
+            // Observe only: the host keeps its own touch handling, so accessibility is unchanged.
+            view.setOnTouchListener(new View.OnTouchListener() {
+                @Override public boolean onTouch(View v, MotionEvent event) {
+                    int action = event.getActionMasked();
+                    if (action == MotionEvent.ACTION_DOWN) {
+                        titleHoldStarted();
+                    } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                        titleHoldEnded();
+                    }
+                    return false;
+                }
+            });
             view.setOnClickListener(v -> onTitleTap());
+        }
+
+        private void titleHoldStarted() {
+            CloseFriendAlertHook hook = active;
+            if (hook == null) return;
+            hook.titleHoldStartedMs = System.currentTimeMillis();
+            hook.titleHoldConsumed = false;
+        }
+
+        private void titleHoldEnded() {
+            CloseFriendAlertHook hook = active;
+            if (hook == null || hook.titleHoldConsumed) return;
+            int need = hook.options.integer(LocalOptions.CLOSE_FRIEND_TITLE_HOLD_MS, 600);
+            if (need <= 0) return;
+            if (System.currentTimeMillis() - hook.titleHoldStartedMs >= need) {
+                hook.titleHoldConsumed = true;
+                hook.revealFromLongPress();
+            }
         }
 
         private void onTitleLongPress() {
