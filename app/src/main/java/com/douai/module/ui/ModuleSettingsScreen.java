@@ -753,34 +753,34 @@ public final class ModuleSettingsScreen {
                         () -> setCloseFriendVisible(false));
                 addOption("选择密友会话", closeFriendSelectionHint(), null, true,
                         this::showCloseFriendSelection);
-                addSwitch("密友来信不弹通知", "拦下通知栏推送",
+                addSwitch("密友来信不弹通知", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, value));
-                addSwitch("密友来信不弹横幅", "拦下应用内横幅推送",
+                addSwitch("密友来信不弹横幅", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BANNER, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BANNER, value));
-                addSwitch("密友来电不弹窗", "拦下语音/视频来电推送",
+                addSwitch("密友来电不弹窗", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL, value));
-                addSwitch("密友已读不再推送", "对方已读后不再弹提示",
+                addSwitch("密友已读不再推送", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, value));
-                addSwitch("密友来电横幅隐藏", "拦下通话中/未接来电横幅",
+                addSwitch("密友来电横幅隐藏", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL_BANNER, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL_BANNER, value));
-                addSwitch("密友搜索隐藏", "消息搜索结果里不出现密友",
+                addSwitch("密友搜索隐藏", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SEARCH, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SEARCH, value));
-                addSwitch("密友转发选人隐藏", "转发面板选人列表不出现密友",
+                addSwitch("密友转发选人隐藏", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_FORWARD, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_FORWARD, value));
-                addSwitch("密友底部未读滤除", "底部消息角标不计密友未读",
+                addSwitch("密友底部未读滤除", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BADGE, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BADGE, value));
-                addSwitch("密友顶部头像隐藏", "消息页顶部头像行不出现密友",
+                addSwitch("密友顶部头像隐藏", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SKYLIGHT, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SKYLIGHT, value));
-                addSwitch("密友互动摘要隐藏", "消息页互动摘要不出现密友条目",
+                addSwitch("密友互动摘要隐藏", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_INTERACTION, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_INTERACTION, value));
 
