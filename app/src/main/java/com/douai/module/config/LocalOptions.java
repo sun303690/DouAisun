@@ -245,6 +245,9 @@ public final class LocalOptions {
     public static final String IM_BANNER_BLOCK = "im_banner_block";
     /** Vibrates once when a double tap actually likes the current feed item. */
     public static final String LIKE_HAPTIC = "like_haptic";
+    /** Hides the red-dot badges on the bottom tab bar. */
+    public static final String TAB_DOT_HIDE = "tab_dot_hide";
+
     /** Blocks the horizontal swipe gesture on the home top tab strip. */
     public static final String TOP_TAB_SWIPE_BLOCK = "top_tab_swipe_block";
 

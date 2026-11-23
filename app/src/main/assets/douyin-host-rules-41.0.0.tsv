@@ -272,3 +272,6 @@ adv_search_section_guess	search	method	Lcom/ss/android/ugc/aweme/discover/ui/int
 adv_search_section_tab	search	method	Lcom/ss/android/ugc/aweme/discover/ui/intermediate/SearchMiddleNaTabCard;		onBindData	(Ljava/lang/Object;Lorg/json/JSONObject;)V								
 adv_top_tab_swipe_block	navigation	method	Lcom/ss/android/ugc/aweme/homepage/tab/top/ui/tabstrip/scroll/MainTabStripScrollView;		dispatchTouchEvent	(Landroid/view/MotionEvent;)Z								
 adv_hotfix_patch_block	hotfix	method	Lcom/ss/android/ugc/aweme/legoImp/task/LoadReparoRemotePatchTask;		doWork	()Lcom/ss/android/ugc/nimbleworker/Worker$Result;								
+adv_tab_dot_hide	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabDot	()Landroid/view/View;								
+adv_tab_dot_count	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabCountDot	()Landroid/widget/TextView;								
+adv_tab_dot_image	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabDotImage	()Landroid/widget/ImageView;								

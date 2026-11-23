@@ -581,6 +581,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("隐藏搜索中间页卡片", "", LocalOptions.SEARCH_SECTIONS_HIDE);
                 addLocalSwitch("禁用主页顶栏滑动", "", LocalOptions.TOP_TAB_SWIPE_BLOCK);
                 addLocalSwitch("拦截热更新补丁", "", LocalOptions.HOTFIX_PATCH_BLOCK);
+                addLocalSwitch("隐藏底部角标", "", LocalOptions.TAB_DOT_HIDE);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");

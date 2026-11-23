@@ -54,6 +54,7 @@ import com.douai.module.feature.ImBannerBlockHook;
 import com.douai.module.feature.LikeHapticHook;
 import com.douai.module.feature.HostGuardHook;
 import com.douai.module.feature.NightModeForceHook;
+import com.douai.module.feature.TabDotHideHook;
 import com.douai.module.feature.SearchSectionHideHook;
 import com.douai.module.feature.DanmakuHideHook;
 import com.douai.module.feature.LivePreviewBlockHook;
@@ -233,6 +234,7 @@ public final class DouAiModule extends XposedModule {
     private volatile ImBannerBlockHook imBannerBlockHook;
     private volatile LikeHapticHook likeHapticHook;
     private volatile NightModeForceHook nightModeForceHook;
+    private volatile TabDotHideHook tabDotHideHook;
     private volatile SearchSectionHideHook searchSectionHideHook;
     private volatile HostGuardHook hostGuardHook;
     private volatile DanmakuHideHook danmakuHideHook;
@@ -951,6 +953,8 @@ public final class DouAiModule extends XposedModule {
             if (sections != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) sections.setSettings(extended);
             HostGuardHook guard = hostGuardHook;
             if (guard != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) guard.setSettings(extended);
+            TabDotHideHook dots = tabDotHideHook;
+            if (dots != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) dots.setSettings(extended);
             MistouchDoubleClickHook mistouch = mistouchHook;
             if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
@@ -1259,6 +1263,13 @@ public final class DouAiModule extends XposedModule {
                 DouAiLog.failure("night_mode", "installation", failure);
                 moduleLog(6, TAG, "Night mode force hook installation failed", failure);
             }
+        if (tabDotHideHook == null && targetContext != null) {
+            try {
+                tabDotHideHook = TabDotHideHook.install(hookFramework(), hostScanReport, targetContext, hostClassLoader(), settings);
+            } catch (Throwable failure) {
+                DouAiLog.event("tab_dot_hide", "install_failed", String.valueOf(failure), "");
+            }
+        }
         }
         if (searchSectionHideHook == null && targetContext != null) {
             try {
@@ -1862,6 +1873,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.im_banner_block.installed", imBannerBlockHook != null && imBannerBlockHook.isEnabled());
         snapshot.putBoolean("feature.like_haptic.installed", likeHapticHook != null && likeHapticHook.isEnabled());
         snapshot.putBoolean("feature.night_mode_force.installed",
+        snapshot.putBoolean("feature.tab_dot_hide.installed", tabDotHideHook != null && tabDotHideHook.isEnabled());
                 nightModeForceHook != null && nightModeForceHook.isEnabled());
         snapshot.putBoolean("feature.search_sections_hide.installed",
                 searchSectionHideHook != null && searchSectionHideHook.isEnabled());
