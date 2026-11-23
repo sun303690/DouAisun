@@ -50,6 +50,7 @@ import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.ReadReceiptSuppressHook;
 import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.CommentMenuAdHook;
+import com.douai.module.feature.ImBannerBlockHook;
 import com.douai.module.feature.DanmakuHideHook;
 import com.douai.module.feature.LivePreviewBlockHook;
 import com.douai.module.feature.MistouchDoubleClickHook;
@@ -225,6 +226,7 @@ public final class DouAiModule extends XposedModule {
     private volatile ReadReceiptSuppressHook readReceiptSuppressHook;
     private volatile CommentAdFilterHook commentAdFilterHook;
     private volatile CommentMenuAdHook commentMenuAdHook;
+    private volatile ImBannerBlockHook imBannerBlockHook;
     private volatile DanmakuHideHook danmakuHideHook;
     private volatile MistouchDoubleClickHook mistouchHook;
     private volatile LivePreviewBlockHook livePreviewBlockHook;
@@ -931,6 +933,8 @@ public final class DouAiModule extends XposedModule {
             if (danmaku != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) danmaku.setSettings(extended);
             CommentMenuAdHook menuAd = commentMenuAdHook;
             if (menuAd != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) menuAd.setSettings(extended);
+            ImBannerBlockHook imBanner = imBannerBlockHook;
+            if (imBanner != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) imBanner.setSettings(extended);
             MistouchDoubleClickHook mistouch = mistouchHook;
             if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
@@ -1204,6 +1208,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("comment_ad_filter", "installation", failure);
                 moduleLog(6, TAG, "Comment ad filter hook installation failed", failure);
+            }
+        }
+        if (imBannerBlockHook == null) {
+            try {
+                imBannerBlockHook = ImBannerBlockHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "IM banner block hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.imBannerBlock));
+            } catch (Throwable failure) {
+                DouAiLog.failure("im_banner", "installation", failure);
+                moduleLog(6, TAG, "IM banner block hook installation failed", failure);
             }
         }
         if (commentMenuAdHook == null) {
@@ -1781,6 +1796,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.read_receipt_suppress.installed", readReceiptSuppressHook != null && readReceiptSuppressHook.isEnabled());
         snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
         snapshot.putBoolean("feature.comment_menu_ad.installed", commentMenuAdHook != null && commentMenuAdHook.isEnabled());
+        snapshot.putBoolean("feature.im_banner_block.installed", imBannerBlockHook != null && imBannerBlockHook.isEnabled());
         snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
         snapshot.putBoolean("feature.mistouch_double_click.installed", mistouchHook != null && mistouchHook.isEnabled());
         snapshot.putBoolean("feature.live_preview_block.installed", livePreviewBlockHook != null && livePreviewBlockHook.isEnabled());

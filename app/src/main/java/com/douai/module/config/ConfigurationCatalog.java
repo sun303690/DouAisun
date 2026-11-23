@@ -76,7 +76,7 @@ public final class ConfigurationCatalog {
                 + "hide_camera_plus hide_video_black_edges prevent_insert_video prevent_skip_hidden remove_splash_ads "
                 + "remove_teen_dialog remove_update_dialog skip_ad expand_hidden_comments hide_list_count "
                 + "exact_like_count ghost_mode read_receipt_suppress comment_ad_filter hide_danmaku"
-                + " mistouch_double_click live_preview_block");
+                + " mistouch_double_click live_preview_block im_banner_block");
         add(keys, "boolean", LocalOptions.OFFICIAL_DOWNLOAD_DIRECT);
         add(keys, "boolean", LocalOptions.DEBUG_LOGGING);
         add(keys, "boolean", LocalOptions.HASH_LONG_PRESS_VOICE);
@@ -182,7 +182,7 @@ public final class ConfigurationCatalog {
         depend(Feature.FOLLOW_LISTS, "reply_scope_mode comment_scope_mode reply_private_chats reply_global reply_scope_relations reply_targets reply_group_targets reply_group_members comment_scope_relations comment_scope_users relation_lists_refresh_token", "");
         depend(Feature.AUTOMATION_DISPATCH, "reply_tip comment_tip reply_notice_seconds comment_notice_seconds streak_tip reply_save_history comment_save_history", "");
         depend(Feature.HOST_BEHAVIOR, "skip_ad remove_splash_ads remove_update_dialog remove_teen_dialog hide_video_black_edges hide_camera_plus disable_double_tap_like prevent_skip_hidden prevent_insert_video block_long_press_speed " + LocalOptions.MODULE_ONLY_SPEED + " expand_hidden_comments hide_list_count exact_like_count ghost_mode read_receipt_suppress comment_ad_filter"
-                + " hide_danmaku mistouch_double_click live_preview_block", "");
+                + " hide_danmaku mistouch_double_click live_preview_block im_banner_block", "");
         depend(Feature.DIRECT_MESSAGE_SPEECH, LocalOptions.HASH_LONG_PRESS_VOICE, "dm_ tts_ voice_catalog_");
         depend(Feature.MEDIA_MODEL, "remove_download_limits", "");
         depend(Feature.COMMENT_ENHANCEMENTS, "comment_append_suffix comment_suffix colored_comment colored_comment_type "

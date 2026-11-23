@@ -30,6 +30,7 @@ public final class ExtendedSettings {
     public final boolean hideDanmaku;
     public final boolean mistouchDoubleClick;
     public final boolean livePreviewBlock;
+    public final boolean imBannerBlock;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -63,6 +64,7 @@ public final class ExtendedSettings {
         hideDanmaku = preferences.getBoolean("hide_danmaku", false);
         mistouchDoubleClick = preferences.getBoolean("mistouch_double_click", false);
         this.livePreviewBlock = preferences.getBoolean(LocalOptions.LIVE_PREVIEW_BLOCK, false);
+        this.imBannerBlock = preferences.getBoolean(LocalOptions.IM_BANNER_BLOCK, false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -96,6 +98,8 @@ public final class ExtendedSettings {
         commentAdFilter = false;
         hideDanmaku = false;
         mistouchDoubleClick = false;
+        livePreviewBlock = false;
+        imBannerBlock = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

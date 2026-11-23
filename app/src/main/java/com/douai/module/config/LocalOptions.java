@@ -241,6 +241,8 @@ public final class LocalOptions {
     /** Ignore double-tap gestures on the feed so an accidental tap never likes. */
     public static final String MISTOUCH_DOUBLE_CLICK = "mistouch_double_click";
     public static final String LIVE_PREVIEW_BLOCK = "live_preview_block";
+    /** Skips the in-app IM pull-down banner that previews an incoming private message. */
+    public static final String IM_BANNER_BLOCK = "im_banner_block";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

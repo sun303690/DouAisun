@@ -260,3 +260,5 @@ adv_mistouch_double_click	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/
 adv_live_preview_block	feed_filter	method	LX/13G6;		LIZ	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
 adv_comment_menu_ad_search	comment_tools	method	LX/12Ne;		LIZ	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
 adv_comment_menu_ad_card	comment_tools	method	LX/12Nd;		LIZLLL	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
+adv_im_banner_legacy	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/immessage/view/ImPushNotificationWidget;		showBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
+adv_im_banner_theme	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/immessage/view/ImPushNotificationWidgetNB;		bindBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
