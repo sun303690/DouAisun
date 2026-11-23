@@ -745,6 +745,18 @@ public final class ModuleSettingsScreen {
                         () -> setCloseFriendVisible(true));
                 addOption("隐藏密友会话", "自动隐藏触发时重新收起", null, true,
                         () -> setCloseFriendVisible(false));
+                addSwitch("密友来信不弹通知", "拦下通知栏推送",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, value));
+                addSwitch("密友来信不弹横幅", "拦下应用内横幅推送",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BANNER, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BANNER, value));
+                addSwitch("密友来电不弹窗", "拦下语音/视频来电推送",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL, value));
+                addSwitch("密友已读不再推送", "对方已读后不再弹提示",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, value));
 
                 addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
                         value -> repository.putBoolean("dm_voice_replace", value),

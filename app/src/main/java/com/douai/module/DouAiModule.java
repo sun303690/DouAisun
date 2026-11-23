@@ -55,6 +55,7 @@ import com.douai.module.feature.ProfileSpoofHook;
 import com.douai.module.feature.NativeMessagingHooks;
 import com.douai.module.feature.NativeFollowLists;
 import com.douai.module.feature.CloseFriendHook;
+import com.douai.module.feature.CloseFriendPushHook;
 import com.douai.module.feature.CloseFriendAlertHook;
 import com.douai.module.feature.RecallHighlightHook;
 import com.douai.module.feature.FeedGestureToolsHook;
@@ -143,6 +144,7 @@ public final class DouAiModule extends XposedModule {
     private volatile RecallHighlightHook recallHighlightHook;
     private volatile CloseFriendHook closeFriendHook;
     private volatile CloseFriendAlertHook closeFriendAlertHook;
+    private volatile CloseFriendPushHook closeFriendPushHook;
     private volatile FeedGestureToolsHook feedGestureToolsHook;
     private volatile CommentAiAnalysisHook commentAiAnalysisHook;
     private volatile DouyinSearch manualAiSearch;
@@ -822,6 +824,7 @@ public final class DouAiModule extends XposedModule {
             if (nativeMessagingHooks != null && (replyChanged || messageRecallChanged)) nativeMessagingHooks.setOptions(options);
             if (recallHighlightHook != null && messageRecallChanged) recallHighlightHook.setOptions(options);
             if (closeFriendHook != null && closeFriendChanged) closeFriendHook.setOptions(options);
+            if (closeFriendPushHook != null && closeFriendChanged) closeFriendPushHook.setOptions(options);
             if (directMessageSpeechHook != null && (initial || changes.affects(Feature.DIRECT_MESSAGE_SPEECH))) {
                 directMessageSpeechHook.setOptions(options);
             }
@@ -1411,6 +1414,12 @@ public final class DouAiModule extends XposedModule {
                 closeFriendAlertHook = CloseFriendAlertHook.install(hookFramework(), hostClassLoader, hostScanReport,
                         targetContext, localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Close friend alert hook failed", failure); }
+        }
+        if (closeFriendPushHook == null) {
+            try {
+                closeFriendPushHook = CloseFriendPushHook.install(hookFramework(), hostScanReport, hostClassLoader,
+                        localOptions, message -> moduleLog(3, TAG, message));
+            } catch (Throwable failure) { moduleLog(6, TAG, "Close friend push filter hook failed", failure); }
         }
         if (mediaModelHook == null) {
             try {

@@ -237,7 +237,8 @@ public final class FeatureLogCatalog {
                 {"DouAi.CommentVoice", "comment_voice"}, {"DouAi.CommentSpeech", "comment_tts"},
                 {"DouAi.DirectMessage", "dm_speech"}, {"DouAi.PrivateSpeech", "dm_speech"},
                 {"DouAi.CommentAudio", "comment_voice"}, {"DouAi.MediaModel", "media_model"},
-                {"DouAi.AutoAudio", "native_auto_reply"}, {"DouAi.Host", "settings_entry"}};
+                {"DouAi.AutoAudio", "native_auto_reply"}, {"DouAi.Host", "settings_entry"},
+                {"DouAi.Advanced.close_friend", "close_friend"}};
         for (String[] prefix : prefixes) if (id.startsWith(prefix[0])) return prefix[1];
         return "unmapped_hook";
     }
