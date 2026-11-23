@@ -38,12 +38,12 @@ public final class MistouchDoubleClickHook {
             note(logger, "Mistouch double-click hook skipped: no Xposed framework");
             return hook;
         }
-        Method target = HostTargets.method(report, RULE, loader);
-        if (target == null) {
-            note(logger, "Mistouch double-click hook skipped: rule " + RULE + " not resolved");
-            return hook;
-        }
         try {
+            Method target = HostTargets.method(report, RULE, loader);
+            if (target == null) {
+                note(logger, "Mistouch double-click hook skipped: rule " + RULE + " not resolved");
+                return hook;
+            }
             framework.hook(target)
                     .setId("douai." + RULE)
                     .setExceptionMode(XposedInterface.ExceptionMode.PASSTHROUGH)
