@@ -46,6 +46,7 @@ import com.douai.module.feature.CommentAiAnalysisHook;
 import com.douai.module.feature.DyguardUiHook;
 import com.douai.module.feature.ImmersivePlaybackUi;
 import com.douai.module.feature.ExactLikeCountHook;
+import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
@@ -214,6 +215,7 @@ public final class DouAiModule extends XposedModule {
     private volatile String immersiveHookFailure;
     private volatile SkipAdHook skipAdHook;
     private volatile ExactLikeCountHook exactLikeCountHook;
+    private volatile GhostModeHook ghostModeHook;
     private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
@@ -907,6 +909,8 @@ public final class DouAiModule extends XposedModule {
             if (uiExtras != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) uiExtras.setSettings(extended);
             ExactLikeCountHook exactLike = exactLikeCountHook;
             if (exactLike != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) exactLike.setSettings(extended);
+            GhostModeHook ghost = ghostModeHook;
+            if (ghost != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) ghost.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1145,6 +1149,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("exact_like", "installation", failure);
                 moduleLog(6, TAG, "Exact like count hook installation failed", failure);
+            }
+        }
+        if (ghostModeHook == null) {
+            try {
+                ghostModeHook = GhostModeHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Ghost mode hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.ghostMode));
+            } catch (Throwable failure) {
+                DouAiLog.failure("ghost_mode", "installation", failure);
+                moduleLog(6, TAG, "Ghost mode hook installation failed", failure);
             }
         }
         if (dyguardUiHook == null) {
@@ -1674,6 +1689,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.close_friend_list.installed", closeFriendListHook != null && closeFriendListHook.isActive());
         snapshot.putBoolean("feature.skip_ad.installed", skipAdHook != null && skipAdHook.isEnabled());
         snapshot.putBoolean("feature.exact_like.installed", exactLikeCountHook != null && exactLikeCountHook.isEnabled());
+        snapshot.putBoolean("feature.ghost_mode.installed", ghostModeHook != null && ghostModeHook.isEnabled());
         snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);

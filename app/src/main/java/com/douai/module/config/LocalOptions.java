@@ -230,6 +230,8 @@ public final class LocalOptions {
     public static final String HIDE_LIST_COUNT = "hide_list_count";
     /** Shows the exact digg count on comments instead of the 11万 abbreviated form. */
     public static final String EXACT_LIKE_COUNT = "exact_like_count";
+    /** Keeps the account offline: suppresses the outbound IM active-status report. */
+    public static final String GHOST_MODE = "ghost_mode";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

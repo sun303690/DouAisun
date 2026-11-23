@@ -24,6 +24,7 @@ public final class ExtendedSettings {
     public final boolean expandHiddenComments;
     public final boolean hideListCount;
     public final boolean exactLikeCount;
+    public final boolean ghostMode;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -51,6 +52,7 @@ public final class ExtendedSettings {
         expandHiddenComments = preferences.getBoolean("expand_hidden_comments", false);
         hideListCount = preferences.getBoolean("hide_list_count", false);
         exactLikeCount = preferences.getBoolean("exact_like_count", false);
+        ghostMode = preferences.getBoolean("ghost_mode", false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -79,6 +81,7 @@ public final class ExtendedSettings {
         expandHiddenComments = false;
         hideListCount = false;
         exactLikeCount = false;
+        ghostMode = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

@@ -218,7 +218,6 @@ dm_auto_audio_message_server_id	message_voice	method	Lcom/bytedance/im/core/mode
 dm_auto_audio_local_path	message_voice	method	LX/0uob;		LJFF	(Lcom/bytedance/im/core/model/Message;Ljava/lang/String;)V								
 dm_auto_audio_insert	message_voice	method	LX/0ueX;		LIZ	(Lcom/bytedance/im/core/model/Message;Ljava/lang/Runnable;Lcom/bytedance/im/core/client/callback/IRequestListener;LX/1U0n;)V								
 dm_auto_audio_uploader	message_voice	method	LX/1UPf;		LIZIZ	()Ljava/lang/Object;		LX/1UPf;	LX/1UPf;		3	1	Ljava/lang/Object;	LIZ
-
 comment_reply_notice_fetch	comment_reply	method	LX/12bj;		fetchNotice	(JJIILjava/lang/Integer;ILjava/lang/Integer;Ljava/lang/Integer;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;ILjava/lang/String;IILjava/lang/String;IILjava/lang/Integer;I)Lcom/google/common/util/concurrent/ListenableFuture;								
 comment_reply_notice_provider	comment_reply	class	LX/1Tp1;											b
 comment_reply_notice_response	comment_reply	class	Lcom/ss/android/ugc/aweme/socialnotice/bean/NoticeResponse;											items|hasMore|maxTime|minTime
@@ -253,3 +252,4 @@ comment_reply_publish_root	comment_reply	method	LX/11nv;		LJ	(Lcom/ss/android/ug
 comment_reply_publish_direct	comment_reply	method	LX/11nv;		LJFF	(Lcom/ss/android/ugc/aweme/comment/model/Comment;LX/11tW;)Ljava/lang/String;								
 adv_session_list_render	message	method	Lcom/ss/android/ugc/aweme/im/sdk/module/session/rips/list/BaseSessionListAdapter;		LL	(Ljava/util/List;Z)V								
 adv_exact_like_formatter	comment_tools	method	LX/11vs;		LIZIZ	(J)Ljava/lang/CharSequence;								
+adv_ghost_online_reporter	ghost	method	Lcom/ss/android/ugc/aweme/im/sdk/relations/core/active/internal/UserActiveStatusReporter;		LIZIZ	(LX/1LiV;Lcom/ss/android/quota/BDNetworkTagContextProviderAdapter;)V								

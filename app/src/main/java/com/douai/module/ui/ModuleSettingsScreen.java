@@ -794,6 +794,8 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("自动文本转语音",
                         "", "dm_tts");
                 addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
+                addLocalSwitch("幽灵模式（在线状态不上报）",
+                        "拦截 IM 在线状态上报，好友看到的仍是上次状态", LocalOptions.GHOST_MODE);
                 break;
             case SPOOF:
                 addDependentSwitch("个人资料数量伪装", "", repository.getBoolean("spoof_profile", false),
