@@ -567,6 +567,9 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("去除启动和闪屏广告", "", "remove_splash_ads");
                 addLocalSwitch("去除更新弹窗", "", "remove_update_dialog");
                 addLocalSwitch("去除青少年弹窗", "", "remove_teen_dialog");
+                addLocalSwitch("自动跳过广告", "", LocalOptions.SKIP_AD);
+                addLocalSwitch("展开收起的评论", "", LocalOptions.EXPAND_HIDDEN_COMMENTS);
+                addLocalSwitch("隐藏名单计数", "", LocalOptions.HIDE_LIST_COUNT);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");

@@ -43,7 +43,9 @@ import com.douai.module.config.LocalOptions;
 import com.douai.module.config.AiModelSettings;
 import com.douai.module.config.CommentAiSettings;
 import com.douai.module.feature.CommentAiAnalysisHook;
+import com.douai.module.feature.DyguardUiHook;
 import com.douai.module.feature.ImmersivePlaybackUi;
+import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
 import com.douai.module.feature.VideoProxyHook;
@@ -209,6 +211,8 @@ public final class DouAiModule extends XposedModule {
     private volatile String feedUiHookFailure;
     private volatile ImmersivePlaybackUi immersivePlaybackUi;
     private volatile String immersiveHookFailure;
+    private volatile SkipAdHook skipAdHook;
+    private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
     private volatile String autoFollowHookFailure;
@@ -895,6 +899,10 @@ public final class DouAiModule extends XposedModule {
             if (immersiveHook != null && (initial || changes.affects(Feature.IMMERSIVE))) {
                 immersiveHook.setSettings(extended);
             }
+            SkipAdHook adHook = skipAdHook;
+            if (adHook != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) adHook.setSettings(extended);
+            DyguardUiHook uiExtras = dyguardUiHook;
+            if (uiExtras != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) uiExtras.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1111,6 +1119,29 @@ public final class DouAiModule extends XposedModule {
                         ? failure.getClass().getSimpleName() : failure.getMessage();
                 DouAiLog.failure("immersive_playback", "installation", failure);
                 moduleLog(6, TAG, "Immersive playback hook installation failed", failure);
+            }
+        }
+        if (skipAdHook == null) {
+            try {
+                skipAdHook = SkipAdHook.install(hostClassLoader, targetContext, extendedSettings,
+                        message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Skip ad hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.skipAd));
+            } catch (Throwable failure) {
+                DouAiLog.failure("skip_ad", "installation", failure);
+                moduleLog(6, TAG, "Skip ad hook installation failed", failure);
+            }
+        }
+        if (dyguardUiHook == null) {
+            try {
+                dyguardUiHook = DyguardUiHook.install(hostClassLoader, targetContext, extendedSettings,
+                        message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "dyguard UI hook installed; expand="
+                        + (extendedSettings != null && extendedSettings.expandHiddenComments)
+                        + " hideCount=" + (extendedSettings != null && extendedSettings.hideListCount));
+            } catch (Throwable failure) {
+                DouAiLog.failure("dyguard_ui", "installation", failure);
+                moduleLog(6, TAG, "dyguard UI hook installation failed", failure);
             }
         }
         if (videoProxyHook == null) {
@@ -1626,6 +1657,8 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.recall_background.installed", recallHighlightHook != null && recallHighlightHook.isActive());
         snapshot.putBoolean("feature.close_friend.installed", closeFriendHook != null && closeFriendHook.isActive());
         snapshot.putBoolean("feature.close_friend_list.installed", closeFriendListHook != null && closeFriendListHook.isActive());
+        snapshot.putBoolean("feature.skip_ad.installed", skipAdHook != null && skipAdHook.isEnabled());
+        snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);
         snapshot.putBoolean("feature.hash_long_press_voice.installed", hashLongPressVoiceHook != null);

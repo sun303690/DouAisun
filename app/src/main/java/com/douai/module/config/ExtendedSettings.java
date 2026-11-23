@@ -20,6 +20,9 @@ public final class ExtendedSettings {
     public final boolean confirmRefresh;
     public final boolean spoofVersion;
     public final boolean immersivePlayback;
+    public final boolean skipAd;
+    public final boolean expandHiddenComments;
+    public final boolean hideListCount;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -43,6 +46,9 @@ public final class ExtendedSettings {
         confirmRefresh = preferences.getBoolean("confirm_refresh", false);
         spoofVersion = preferences.getBoolean("spoof_version", false);
         immersivePlayback = preferences.getBoolean("immersive_playback", false);
+        skipAd = preferences.getBoolean("skip_ad", false);
+        expandHiddenComments = preferences.getBoolean("expand_hidden_comments", false);
+        hideListCount = preferences.getBoolean("hide_list_count", false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -67,6 +73,9 @@ public final class ExtendedSettings {
         confirmRefresh = false;
         spoofVersion = false;
         immersivePlayback = false;
+        skipAd = false;
+        expandHiddenComments = false;
+        hideListCount = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

@@ -222,6 +222,12 @@ public final class LocalOptions {
     public static final String CLOSE_FRIEND_HIDE_CALL_BANNER = "close_friend_hide_call_banner";
     /** Hides close friends from the message page top avatar row (skylight). */
     public static final String CLOSE_FRIEND_HIDE_SKYLIGHT = "close_friend_hide_skylight";
+    /** Skips the ad page by tapping the skip/countdown node on the current screen. */
+    public static final String SKIP_AD = "skip_ad";
+    /** Auto taps the collapsed comment entry so long comments are always expanded. */
+    public static final String EXPAND_HIDDEN_COMMENTS = "expand_hidden_comments";
+    /** Hides the follower/following/like counters on profile and list pages. */
+    public static final String HIDE_LIST_COUNT = "hide_list_count";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */
