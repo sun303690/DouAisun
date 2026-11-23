@@ -26,6 +26,8 @@ public final class ImBannerBlockHook {
 
     static final String RULE_LEGACY = "adv_im_banner_legacy";
     static final String RULE_THEME = "adv_im_banner_theme";
+    static final String RULE_LIVE = "adv_im_banner_live";
+    static final String RULE_LIVE_PLATFORM = "adv_im_banner_live_platform";
 
     private final List<XposedInterface.HookHandle> handles = new ArrayList<>();
     private final Consumer<String> log;
@@ -44,12 +46,28 @@ public final class ImBannerBlockHook {
         try {
             hook.bind(framework, HostTargets.method(report, RULE_LEGACY, loader), "DouAi.ImBanner.Legacy");
             hook.bind(framework, HostTargets.method(report, RULE_THEME, loader), "DouAi.ImBanner.Theme");
-            DouAiLog.event("im_banner", "installed", "rules=2", "");
+            hook.bindOptional(framework, report, loader, RULE_LIVE, "DouAi.ImBanner.Live");
+            hook.bindOptional(framework, report, loader, RULE_LIVE_PLATFORM, "DouAi.ImBanner.LivePlatform");
+            DouAiLog.event("im_banner", "installed", "rules=4", "");
             return hook;
         } catch (Throwable failure) {
             hook.unhookAll(failure);
             if (failure instanceof Exception) throw (Exception) failure;
             throw failure;
+        }
+    }
+
+    private void bindOptional(XposedInterface framework, HostScanReport report, ClassLoader loader,
+                              String rule, String id) {
+        try {
+            Method target = HostTargets.method(report, rule, loader);
+            if (target == null) {
+                DouAiLog.event("im_banner", "skip", rule, "rule not resolved");
+                return;
+            }
+            bind(framework, target, id);
+        } catch (Throwable failure) {
+            DouAiLog.event("im_banner", "skip", rule, String.valueOf(failure));
         }
     }
 

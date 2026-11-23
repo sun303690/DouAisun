@@ -32,6 +32,7 @@ public final class ExtendedSettings {
     public final boolean livePreviewBlock;
     public final boolean imBannerBlock;
     public final boolean likeHaptic;
+    public final boolean nightModeForce;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -67,6 +68,7 @@ public final class ExtendedSettings {
         this.livePreviewBlock = preferences.getBoolean(LocalOptions.LIVE_PREVIEW_BLOCK, false);
         this.imBannerBlock = preferences.getBoolean(LocalOptions.IM_BANNER_BLOCK, false);
         this.likeHaptic = preferences.getBoolean(LocalOptions.LIKE_HAPTIC, false);
+        this.nightModeForce = preferences.getBoolean(LocalOptions.NIGHT_MODE_FORCE, false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -103,6 +105,7 @@ public final class ExtendedSettings {
         livePreviewBlock = false;
         imBannerBlock = false;
         likeHaptic = false;
+        nightModeForce = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

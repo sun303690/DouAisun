@@ -52,6 +52,7 @@ import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.CommentMenuAdHook;
 import com.douai.module.feature.ImBannerBlockHook;
 import com.douai.module.feature.LikeHapticHook;
+import com.douai.module.feature.NightModeForceHook;
 import com.douai.module.feature.DanmakuHideHook;
 import com.douai.module.feature.LivePreviewBlockHook;
 import com.douai.module.feature.MistouchDoubleClickHook;
@@ -229,6 +230,7 @@ public final class DouAiModule extends XposedModule {
     private volatile CommentMenuAdHook commentMenuAdHook;
     private volatile ImBannerBlockHook imBannerBlockHook;
     private volatile LikeHapticHook likeHapticHook;
+    private volatile NightModeForceHook nightModeForceHook;
     private volatile DanmakuHideHook danmakuHideHook;
     private volatile MistouchDoubleClickHook mistouchHook;
     private volatile LivePreviewBlockHook livePreviewBlockHook;
@@ -939,6 +941,8 @@ public final class DouAiModule extends XposedModule {
             if (imBanner != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) imBanner.setSettings(extended);
             LikeHapticHook haptic = likeHapticHook;
             if (haptic != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) haptic.setSettings(extended);
+            NightModeForceHook nightMode = nightModeForceHook;
+            if (nightMode != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) nightMode.setSettings(extended);
             MistouchDoubleClickHook mistouch = mistouchHook;
             if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
@@ -1234,6 +1238,18 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("like_haptic", "installation", failure);
                 moduleLog(6, TAG, "Like haptic hook installation failed", failure);
+            }
+        }
+        if (nightModeForceHook == null && targetContext != null) {
+            try {
+                nightModeForceHook = NightModeForceHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, targetContext,
+                        message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Night mode force hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.nightModeForce));
+            } catch (Throwable failure) {
+                DouAiLog.failure("night_mode", "installation", failure);
+                moduleLog(6, TAG, "Night mode force hook installation failed", failure);
             }
         }
         if (commentMenuAdHook == null) {
@@ -1813,6 +1829,8 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.comment_menu_ad.installed", commentMenuAdHook != null && commentMenuAdHook.isEnabled());
         snapshot.putBoolean("feature.im_banner_block.installed", imBannerBlockHook != null && imBannerBlockHook.isEnabled());
         snapshot.putBoolean("feature.like_haptic.installed", likeHapticHook != null && likeHapticHook.isEnabled());
+        snapshot.putBoolean("feature.night_mode_force.installed",
+                nightModeForceHook != null && nightModeForceHook.isEnabled());
         snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
         snapshot.putBoolean("feature.mistouch_double_click.installed", mistouchHook != null && mistouchHook.isEnabled());
         snapshot.putBoolean("feature.live_preview_block.installed", livePreviewBlockHook != null && livePreviewBlockHook.isEnabled());

@@ -33,7 +33,7 @@ public final class HostRuleAssetProfilesTest {
         for (HostAdaptation.Profile profile : HostApkTestProfile.profiles()) {
             HostRuleSet selected = rules(profile);
             assertEquals(profile.versionName, profile.fingerprint, selected.getFingerprint());
-            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 258 : 243;
+            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 261 : 243;
             assertEquals(profile.versionName, expectedCount, selected.getRules().size());
             Set<String> expectedIds = new HashSet<>(olderIds);
             if (profile == HostAdaptation.PROFILE_410) {
@@ -52,6 +52,9 @@ public final class HostRuleAssetProfilesTest {
                 expectedIds.add("adv_im_banner_theme");
                 expectedIds.add("adv_like_haptic_video");
                 expectedIds.add("adv_like_haptic_image");
+                expectedIds.add("adv_im_banner_live");
+                expectedIds.add("adv_im_banner_live_platform");
+                expectedIds.add("adv_night_mode_force");
             }
             assertEquals(profile.versionName, expectedIds, ids(selected));
             assertTrue("Profiles must not share rule assets", assets.add(profile.rulesAsset));

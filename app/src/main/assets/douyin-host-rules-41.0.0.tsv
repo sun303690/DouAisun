@@ -264,3 +264,6 @@ adv_im_banner_legacy	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notificatio
 adv_im_banner_theme	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/immessage/view/ImPushNotificationWidgetNB;		bindBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
 adv_like_haptic_video	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/VideoViewHolder;		handleDoubleClick	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)V								
 adv_like_haptic_image	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/FeedImageViewHolder;		handleDoubleClick	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)V								
+adv_im_banner_live	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/legacy/opt/live/LiveNotificationWidget;		showBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
+adv_im_banner_live_platform	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/legacy/opt/live/platform/LivePlatformNotificationWidget;		bindBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
+adv_night_mode_force	ui	method	Lcom/ss/android/ugc/aweme/setting/TiktokSkinHelper;		isNightMode	()Z								

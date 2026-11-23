@@ -577,6 +577,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("屏蔽直播预览弹窗", "", LocalOptions.LIVE_PREVIEW_BLOCK);
                 addLocalSwitch("屏蔽私信下拉横幅", "", LocalOptions.IM_BANNER_BLOCK);
                 addLocalSwitch("双击点赞震动", "", LocalOptions.LIKE_HAPTIC);
+                addLocalSwitch("跟随系统夜间模式", "", LocalOptions.NIGHT_MODE_FORCE);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");
