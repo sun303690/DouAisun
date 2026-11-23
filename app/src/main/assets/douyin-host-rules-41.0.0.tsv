@@ -262,3 +262,5 @@ adv_comment_menu_ad_search	comment_tools	method	LX/12Ne;		LIZ	(Lcom/ss/android/u
 adv_comment_menu_ad_card	comment_tools	method	LX/12Nd;		LIZLLL	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
 adv_im_banner_legacy	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/immessage/view/ImPushNotificationWidget;		showBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
 adv_im_banner_theme	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/immessage/view/ImPushNotificationWidgetNB;		bindBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
+adv_like_haptic_video	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/VideoViewHolder;		handleDoubleClick	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)V								
+adv_like_haptic_image	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/FeedImageViewHolder;		handleDoubleClick	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)V								

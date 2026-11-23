@@ -44,7 +44,7 @@ public final class ImBannerBlockHook {
         try {
             hook.bind(framework, HostTargets.method(report, RULE_LEGACY, loader), "DouAi.ImBanner.Legacy");
             hook.bind(framework, HostTargets.method(report, RULE_THEME, loader), "DouAi.ImBanner.Theme");
-            DouAiLog.event("im_banner", "installed", "rules=2");
+            DouAiLog.event("im_banner", "installed", "rules=2", "");
             return hook;
         } catch (Throwable failure) {
             hook.unhookAll(failure);
@@ -80,7 +80,7 @@ public final class ImBannerBlockHook {
         if (!enabled) return chain.proceed();
         long total = suppressed.incrementAndGet();
         if (total == 1L) {
-            DouAiLog.event("im_banner", "suppress", id);
+            DouAiLog.event("im_banner", "suppress", "suppressed", "hook_id=" + id);
             log.accept("im banner suppressed");
         }
         return null;

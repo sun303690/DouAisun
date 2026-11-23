@@ -51,6 +51,7 @@ import com.douai.module.feature.ReadReceiptSuppressHook;
 import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.CommentMenuAdHook;
 import com.douai.module.feature.ImBannerBlockHook;
+import com.douai.module.feature.LikeHapticHook;
 import com.douai.module.feature.DanmakuHideHook;
 import com.douai.module.feature.LivePreviewBlockHook;
 import com.douai.module.feature.MistouchDoubleClickHook;
@@ -227,6 +228,7 @@ public final class DouAiModule extends XposedModule {
     private volatile CommentAdFilterHook commentAdFilterHook;
     private volatile CommentMenuAdHook commentMenuAdHook;
     private volatile ImBannerBlockHook imBannerBlockHook;
+    private volatile LikeHapticHook likeHapticHook;
     private volatile DanmakuHideHook danmakuHideHook;
     private volatile MistouchDoubleClickHook mistouchHook;
     private volatile LivePreviewBlockHook livePreviewBlockHook;
@@ -935,6 +937,8 @@ public final class DouAiModule extends XposedModule {
             if (menuAd != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) menuAd.setSettings(extended);
             ImBannerBlockHook imBanner = imBannerBlockHook;
             if (imBanner != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) imBanner.setSettings(extended);
+            LikeHapticHook haptic = likeHapticHook;
+            if (haptic != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) haptic.setSettings(extended);
             MistouchDoubleClickHook mistouch = mistouchHook;
             if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
@@ -1219,6 +1223,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("im_banner", "installation", failure);
                 moduleLog(6, TAG, "IM banner block hook installation failed", failure);
+            }
+        }
+        if (likeHapticHook == null && targetContext != null) {
+            try {
+                likeHapticHook = LikeHapticHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, targetContext, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Like haptic hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.likeHaptic));
+            } catch (Throwable failure) {
+                DouAiLog.failure("like_haptic", "installation", failure);
+                moduleLog(6, TAG, "Like haptic hook installation failed", failure);
             }
         }
         if (commentMenuAdHook == null) {
@@ -1797,6 +1812,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
         snapshot.putBoolean("feature.comment_menu_ad.installed", commentMenuAdHook != null && commentMenuAdHook.isEnabled());
         snapshot.putBoolean("feature.im_banner_block.installed", imBannerBlockHook != null && imBannerBlockHook.isEnabled());
+        snapshot.putBoolean("feature.like_haptic.installed", likeHapticHook != null && likeHapticHook.isEnabled());
         snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
         snapshot.putBoolean("feature.mistouch_double_click.installed", mistouchHook != null && mistouchHook.isEnabled());
         snapshot.putBoolean("feature.live_preview_block.installed", livePreviewBlockHook != null && livePreviewBlockHook.isEnabled());

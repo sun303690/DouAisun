@@ -44,7 +44,7 @@ public final class CommentMenuAdHook {
         try {
             hook.bind(framework, HostTargets.method(report, RULE_SEARCH, loader), "DouAi.Comment.MenuAdSearch");
             hook.bind(framework, HostTargets.method(report, RULE_CARD, loader), "DouAi.Comment.MenuAdCard");
-            DouAiLog.event("comment_menu_ad", "installed", "rules=2");
+            DouAiLog.event("comment_menu_ad", "installed", "rules=2", "");
             return hook;
         } catch (Throwable failure) {
             hook.unhookAll(failure);
@@ -80,7 +80,7 @@ public final class CommentMenuAdHook {
         if (!enabled) return chain.proceed();
         long total = suppressed.incrementAndGet();
         if (total == 1L) {
-            DouAiLog.event("comment_menu_ad", "suppress", id);
+            DouAiLog.event("comment_menu_ad", "suppress", "suppressed", "hook_id=" + id);
             log.accept("comment menu ad entry hidden");
         }
         return Boolean.FALSE;

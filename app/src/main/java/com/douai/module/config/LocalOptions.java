@@ -243,6 +243,8 @@ public final class LocalOptions {
     public static final String LIVE_PREVIEW_BLOCK = "live_preview_block";
     /** Skips the in-app IM pull-down banner that previews an incoming private message. */
     public static final String IM_BANNER_BLOCK = "im_banner_block";
+    /** Vibrates once when a double tap actually likes the current feed item. */
+    public static final String LIKE_HAPTIC = "like_haptic";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

@@ -31,6 +31,7 @@ public final class ExtendedSettings {
     public final boolean mistouchDoubleClick;
     public final boolean livePreviewBlock;
     public final boolean imBannerBlock;
+    public final boolean likeHaptic;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -65,6 +66,7 @@ public final class ExtendedSettings {
         mistouchDoubleClick = preferences.getBoolean("mistouch_double_click", false);
         this.livePreviewBlock = preferences.getBoolean(LocalOptions.LIVE_PREVIEW_BLOCK, false);
         this.imBannerBlock = preferences.getBoolean(LocalOptions.IM_BANNER_BLOCK, false);
+        this.likeHaptic = preferences.getBoolean(LocalOptions.LIKE_HAPTIC, false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -100,6 +102,7 @@ public final class ExtendedSettings {
         mistouchDoubleClick = false;
         livePreviewBlock = false;
         imBannerBlock = false;
+        likeHaptic = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

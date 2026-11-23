@@ -86,8 +86,8 @@ public final class ReadReceiptSuppressHook implements AutoCloseable {
     }
 
     private Object intercept(XposedInterface.Chain chain) throws Throwable {
-        Object[] args = chain.getArgs();
-        Object requestBody = args != null && args.length > 1 ? args[1] : null;
+        java.util.List<Object> args = chain.getArgs();
+        Object requestBody = args != null && args.size() > 1 ? args.get(1) : null;
         if (!enabled || requestBody == null || !isReadReceiptRequest(requestBody)) {
             return chain.proceed();
         }
