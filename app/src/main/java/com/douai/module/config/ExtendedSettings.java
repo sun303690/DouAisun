@@ -25,6 +25,7 @@ public final class ExtendedSettings {
     public final boolean hideListCount;
     public final boolean exactLikeCount;
     public final boolean ghostMode;
+    public final boolean readReceiptSuppress;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -53,6 +54,7 @@ public final class ExtendedSettings {
         hideListCount = preferences.getBoolean("hide_list_count", false);
         exactLikeCount = preferences.getBoolean("exact_like_count", false);
         ghostMode = preferences.getBoolean("ghost_mode", false);
+        readReceiptSuppress = preferences.getBoolean("read_receipt_suppress", false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -82,6 +84,7 @@ public final class ExtendedSettings {
         hideListCount = false;
         exactLikeCount = false;
         ghostMode = false;
+        readReceiptSuppress = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

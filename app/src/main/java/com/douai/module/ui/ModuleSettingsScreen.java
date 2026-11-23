@@ -796,6 +796,8 @@ public final class ModuleSettingsScreen {
                 addOption("文本转语音设置", "", null, true, this::showSpeechSettings);
                 addLocalSwitch("幽灵模式（在线状态不上报）",
                         "拦截 IM 在线状态上报，好友看到的仍是上次状态", LocalOptions.GHOST_MODE);
+                addLocalSwitch("不发送已读回执",
+                        "拦截 IM 已读上报，对方看不到已读", LocalOptions.READ_RECEIPT_SUPPRESS);
                 break;
             case SPOOF:
                 addDependentSwitch("个人资料数量伪装", "", repository.getBoolean("spoof_profile", false),

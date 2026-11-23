@@ -3,6 +3,7 @@ package com.douai.module.feature;
 import com.douai.module.config.ExtendedSettings;
 import com.douai.module.diagnostics.DouAiLog;
 import com.douai.module.scan.HostScanReport;
+import com.douai.module.scan.HostTargets;
 
 import io.github.libxposed.api.XposedInterface;
 
@@ -13,23 +14,19 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
- * Keeps the account offline while the app is in use ("ghost" mode).
+ * 幽灵模式 —— 拦截 IM 在线状态上报，让对方始终看到上一次的在线状态。
  *
- * <p>The IM layer publishes the local active status through a single reporter,
- * {@code UserActiveStatusReporter.LIZIZ(LX/1LiV;Lcom/ss/android/quota/BDNetworkTagContextProviderAdapter;)V}.
- * Skipping that method keeps the outbound online report from ever being enqueued, so peers keep
- * seeing the last state the server knows. Everything else in the reporter (typing indicator,
- * relation refresh) is untouched because only the publish entry is hooked.
+ * <p>锚点 {@code ghost.online.reporter.v2}：
+ * {@code Lcom/ss/android/ugc/aweme/im/sdk/relations/core/active/internal/UserActiveStatusReporter;->LIZIZ(LX/1LiV;Lcom/ss/android/ugc/quota/BDNetworkTagContextProviderAdapter;)V}
+ * 是上报自身活跃状态的唯一出口，直接吞掉即不再上报。
  */
 public final class GhostModeHook implements AutoCloseable {
-    private static final String RULE = "adv_ghost_online_reporter";
-    /** One trace line per minute is enough to prove the hook fires without flooding the log. */
-    private static final long TRACE_INTERVAL_MS = 60_000L;
+    static final String RULE = "adv_ghost_online_reporter";
 
     private final List<XposedInterface.HookHandle> handles = new ArrayList<>();
-    private final Consumer<String> log;
-    private final AtomicLong lastTrace = new AtomicLong(0L);
     private final AtomicLong suppressed = new AtomicLong(0L);
+    private final AtomicLong lastTrace = new AtomicLong(0L);
+    private final Consumer<String> log;
     private volatile boolean enabled;
 
     private GhostModeHook(ExtendedSettings settings, Consumer<String> log) {
@@ -42,9 +39,8 @@ public final class GhostModeHook implements AutoCloseable {
                                         Consumer<String> log) throws Exception {
         Consumer<String> sink = log == null ? ignored -> { } : log;
         Method reporter = HostTargets.method(report, RULE, loader);
-        if (reporter.getParameterCount() != 2
-                || reporter.getReturnType() != void.class) {
-            throw new IllegalStateException("Active status reporter signature changed: "
+        if (reporter.getReturnType() != void.class) {
+            throw new IllegalStateException("Ghost reporter signature changed: "
                     + HostTargets.descriptor(reporter));
         }
         reporter.setAccessible(true);
@@ -57,6 +53,8 @@ public final class GhostModeHook implements AutoCloseable {
                     .intercept(hook::intercept);
             if (handle == null) throw new IllegalStateException("Framework returned an empty hook handle");
             hook.handles.add(handle);
+            DouAiLog.event("ghost_mode", "installed", HostTargets.descriptor(reporter),
+                    "method=" + reporter.getName());
             return hook;
         } catch (Throwable failure) {
             hook.unhookAll(failure);
@@ -81,10 +79,10 @@ public final class GhostModeHook implements AutoCloseable {
         if (!enabled) return chain.proceed();
         long total = suppressed.incrementAndGet();
         long now = System.currentTimeMillis();
-        long previous = lastTrace.get();
-        if (now - previous >= TRACE_INTERVAL_MS && lastTrace.compareAndSet(previous, now)) {
-            DouAiLog.event("ghost_mode", "suppress", "online_report", "count=" + total);
-            if (log != null) log.accept("幽灵模式: 已拦截在线状态上报 #" + total);
+        long last = lastTrace.get();
+        if (now - last > 3000L && lastTrace.compareAndSet(last, now)) {
+            DouAiLog.event("ghost_mode", "suppressed", "online", "total=" + total);
+            if (log != null) log.accept("幽灵模式已拦截在线上报 " + total + " 次");
         }
         return null;
     }

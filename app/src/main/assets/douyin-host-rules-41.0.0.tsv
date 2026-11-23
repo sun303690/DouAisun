@@ -253,3 +253,4 @@ comment_reply_publish_direct	comment_reply	method	LX/11nv;		LJFF	(Lcom/ss/androi
 adv_session_list_render	message	method	Lcom/ss/android/ugc/aweme/im/sdk/module/session/rips/list/BaseSessionListAdapter;		LL	(Ljava/util/List;Z)V								
 adv_exact_like_formatter	comment_tools	method	LX/11vs;		LIZIZ	(J)Ljava/lang/CharSequence;								
 adv_ghost_online_reporter	ghost	method	Lcom/ss/android/ugc/aweme/im/sdk/relations/core/active/internal/UserActiveStatusReporter;		LIZIZ	(LX/1LiV;Lcom/ss/android/quota/BDNetworkTagContextProviderAdapter;)V								
+adv_read_receipt_suppress	chat	method	LX/1T2Q;		i3	(ILcom/bytedance/im/core/proto/RequestBody;[Ljava/lang/Object;)J								
