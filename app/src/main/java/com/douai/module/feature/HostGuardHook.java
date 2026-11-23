@@ -2,7 +2,7 @@ package com.douai.module.feature;
 
 import com.douai.module.config.ExtendedSettings;
 import com.douai.module.scan.HostScanReport;
-import com.douai.module.util.DouAiLog;
+import com.douai.module.diagnostics.DouAiLog;
 
 import io.github.libxposed.api.XposedInterface;
 
