@@ -570,6 +570,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("自动跳过广告", "", LocalOptions.SKIP_AD);
                 addLocalSwitch("展开收起的评论", "", LocalOptions.EXPAND_HIDDEN_COMMENTS);
                 addLocalSwitch("隐藏名单计数", "", LocalOptions.HIDE_LIST_COUNT);
+                addLocalSwitch("显示精确点赞数", "", LocalOptions.EXACT_LIKE_COUNT);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");
