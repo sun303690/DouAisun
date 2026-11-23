@@ -258,3 +258,5 @@ adv_comment_ad_factory	comment_tools	method	LX/12GV;		LIZ	(Lcom/ss/android/ugc/a
 adv_danmaku_visibility	danmaku	method	Lcom/ss/android/ugc/aweme/feed/plato/business/contentconsumption/danmaku/uimodule/FeedDanmakuModule;		visibility	(Lcom/ss/android/ugc/aweme/kiwi/model/QModel;)I								
 adv_mistouch_double_click	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/BaseFeedViewHolder;		handleDoubleClick	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)V								
 adv_live_preview_block	feed_filter	method	LX/13G6;		LIZ	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
+adv_comment_menu_ad_search	comment_tools	method	LX/12Ne;		LIZ	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
+adv_comment_menu_ad_card	comment_tools	method	LX/12Nd;		LIZLLL	(Lcom/ss/android/ugc/aweme/feed/model/Aweme;)Z								
