@@ -53,6 +53,8 @@ import com.douai.module.feature.CommentMenuAdHook;
 import com.douai.module.feature.ImBannerBlockHook;
 import com.douai.module.feature.LikeHapticHook;
 import com.douai.module.feature.HostGuardHook;
+import com.douai.module.feature.ProfileShopTabHideHook;
+import com.douai.module.feature.TabBarExtraHideHook;
 import com.douai.module.feature.NightModeForceHook;
 import com.douai.module.feature.TabDotHideHook;
 import com.douai.module.feature.SearchSectionHideHook;
@@ -237,6 +239,8 @@ public final class DouAiModule extends XposedModule {
     private volatile TabDotHideHook tabDotHideHook;
     private volatile SearchSectionHideHook searchSectionHideHook;
     private volatile HostGuardHook hostGuardHook;
+    private volatile TabBarExtraHideHook tabBarExtraHideHook;
+    private volatile ProfileShopTabHideHook profileShopTabHideHook;
     private volatile DanmakuHideHook danmakuHideHook;
     private volatile MistouchDoubleClickHook mistouchHook;
     private volatile LivePreviewBlockHook livePreviewBlockHook;
@@ -955,6 +959,10 @@ public final class DouAiModule extends XposedModule {
             if (guard != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) guard.setSettings(extended);
             TabDotHideHook dots = tabDotHideHook;
             if (dots != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) dots.setSettings(extended);
+            TabBarExtraHideHook tabBar = tabBarExtraHideHook;
+            if (tabBar != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) tabBar.setSettings(extended);
+            ProfileShopTabHideHook shopTab = profileShopTabHideHook;
+            if (shopTab != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) shopTab.setSettings(extended);
             MistouchDoubleClickHook mistouch = mistouchHook;
             if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
@@ -1262,6 +1270,29 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("night_mode", "installation", failure);
                 moduleLog(6, TAG, "Night mode force hook installation failed", failure);
+            }
+        }
+        if (tabBarExtraHideHook == null && targetContext != null) {
+            try {
+                tabBarExtraHideHook = TabBarExtraHideHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings);
+                moduleLog(3, TAG, "Tab bar extra hide hook installed; enabled="
+                        + (extendedSettings != null
+                        && (extendedSettings.tabTitleHide || extendedSettings.publishButtonHide)));
+            } catch (Throwable failure) {
+                DouAiLog.failure("tab_bar", "installation", failure);
+                moduleLog(6, TAG, "Tab bar extra hide hook installation failed", failure);
+            }
+        }
+        if (profileShopTabHideHook == null && targetContext != null) {
+            try {
+                profileShopTabHideHook = ProfileShopTabHideHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings);
+                moduleLog(3, TAG, "Profile shop tab hide hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.profileShopTabHide));
+            } catch (Throwable failure) {
+                DouAiLog.failure("profile_tabs", "installation", failure);
+                moduleLog(6, TAG, "Profile shop tab hide hook installation failed", failure);
             }
         }
         if (tabDotHideHook == null && targetContext != null) {

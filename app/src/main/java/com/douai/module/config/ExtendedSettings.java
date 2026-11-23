@@ -37,6 +37,9 @@ public final class ExtendedSettings {
     public final boolean topTabSwipeBlock;
     public final boolean hotfixPatchBlock;
     public final boolean tabDotHide;
+    public final boolean tabTitleHide;
+    public final boolean publishButtonHide;
+    public final boolean profileShopTabHide;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -77,6 +80,9 @@ public final class ExtendedSettings {
         this.topTabSwipeBlock = preferences.getBoolean(LocalOptions.TOP_TAB_SWIPE_BLOCK, false);
         this.hotfixPatchBlock = preferences.getBoolean(LocalOptions.HOTFIX_PATCH_BLOCK, false);
         this.tabDotHide = preferences.getBoolean(LocalOptions.TAB_DOT_HIDE, false);
+        this.tabTitleHide = preferences.getBoolean(LocalOptions.TAB_TITLE_HIDE, false);
+        this.publishButtonHide = preferences.getBoolean(LocalOptions.PUBLISH_BUTTON_HIDE, false);
+        this.profileShopTabHide = preferences.getBoolean(LocalOptions.PROFILE_SHOP_TAB_HIDE, false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -118,6 +124,9 @@ public final class ExtendedSettings {
         topTabSwipeBlock = false;
         hotfixPatchBlock = false;
         tabDotHide = false;
+        tabTitleHide = false;
+        publishButtonHide = false;
+        profileShopTabHide = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

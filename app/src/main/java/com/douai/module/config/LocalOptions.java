@@ -259,6 +259,15 @@ public final class LocalOptions {
 
     /** Aligns the host dark theme with the system night mode. */
     public static final String NIGHT_MODE_FORCE = "night_mode_force";
+
+    /** Hides the text labels under the bottom tab icons. */
+    public static final String TAB_TITLE_HIDE = "tab_title_hide";
+
+    /** Hides the centre publish button on the home bottom bar. */
+    public static final String PUBLISH_BUTTON_HIDE = "publish_button_hide";
+
+    /** Drops the shop entry from the profile tab strip. */
+    public static final String PROFILE_SHOP_TAB_HIDE = "profile_shop_tab_hide";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

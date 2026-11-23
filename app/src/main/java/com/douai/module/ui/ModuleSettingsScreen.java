@@ -582,6 +582,9 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("禁用主页顶栏滑动", "", LocalOptions.TOP_TAB_SWIPE_BLOCK);
                 addLocalSwitch("拦截热更新补丁", "", LocalOptions.HOTFIX_PATCH_BLOCK);
                 addLocalSwitch("隐藏底部角标", "", LocalOptions.TAB_DOT_HIDE);
+                addLocalSwitch("隐藏底部文字", "", LocalOptions.TAB_TITLE_HIDE);
+                addLocalSwitch("隐藏发布按钮", "", LocalOptions.PUBLISH_BUTTON_HIDE);
+                addLocalSwitch("隐藏主页商城tab", "", LocalOptions.PROFILE_SHOP_TAB_HIDE);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");

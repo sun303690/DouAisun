@@ -275,3 +275,6 @@ adv_hotfix_patch_block	hotfix	method	Lcom/ss/android/ugc/aweme/legoImp/task/Load
 adv_tab_dot_hide	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabDot	()Landroid/view/View;								
 adv_tab_dot_count	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabCountDot	()Landroid/widget/TextView;								
 adv_tab_dot_image	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabDotImage	()Landroid/widget/ImageView;								
+adv_tab_title_hide	nav	method	Lcom/ss/android/ugc/aweme/homepage/tab/ui/bottom/BottomTab;		getTabTitle	()Landroid/widget/TextView;								
+adv_publish_btn_hide	nav	method	Lcom/ss/android/ugc/aweme/tools/external/hometab/bottom/PublishButton;		getPublishView	()Landroid/view/View;								
+adv_profile_shop_tab_hide	profile	method	LX/1EBE;		LJJJJLL	(Lcom/ss/android/ugc/aweme/profile/model/User;)Ljava/util/List;								
