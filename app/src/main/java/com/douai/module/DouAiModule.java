@@ -50,6 +50,7 @@ import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.ReadReceiptSuppressHook;
 import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.DanmakuHideHook;
+import com.douai.module.feature.MistouchDoubleClickHook;
 import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
@@ -222,6 +223,7 @@ public final class DouAiModule extends XposedModule {
     private volatile ReadReceiptSuppressHook readReceiptSuppressHook;
     private volatile CommentAdFilterHook commentAdFilterHook;
     private volatile DanmakuHideHook danmakuHideHook;
+    private volatile MistouchDoubleClickHook mistouchHook;
     private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
@@ -923,6 +925,8 @@ public final class DouAiModule extends XposedModule {
             if (adFilter != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) adFilter.setSettings(extended);
             DanmakuHideHook danmaku = danmakuHideHook;
             if (danmaku != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) danmaku.setSettings(extended);
+            MistouchDoubleClickHook mistouch = mistouchHook;
+            if (mistouch != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) mistouch.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1205,6 +1209,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("hide_danmaku", "installation", failure);
                 moduleLog(6, TAG, "Danmaku hide hook installation failed", failure);
+            }
+        }
+        if (mistouchHook == null) {
+            try {
+                mistouchHook = MistouchDoubleClickHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Mistouch double-click hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.mistouchDoubleClick));
+            } catch (Throwable failure) {
+                DouAiLog.failure("mistouch_double_click", "installation", failure);
+                moduleLog(6, TAG, "Mistouch double-click hook installation failed", failure);
             }
         }
         if (dyguardUiHook == null) {
@@ -1738,6 +1753,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.read_receipt_suppress.installed", readReceiptSuppressHook != null && readReceiptSuppressHook.isEnabled());
         snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
         snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
+        snapshot.putBoolean("feature.mistouch_double_click.installed", mistouchHook != null && mistouchHook.isEnabled());
         snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);

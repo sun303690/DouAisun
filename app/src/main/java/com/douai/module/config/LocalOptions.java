@@ -238,6 +238,8 @@ public final class LocalOptions {
     public static final String COMMENT_AD_FILTER = "comment_ad_filter";
     /** Hides the feed danmaku layer entirely. */
     public static final String HIDE_DANMAKU = "hide_danmaku";
+    /** Ignore double-tap gestures on the feed so an accidental tap never likes. */
+    public static final String MISTOUCH_DOUBLE_CLICK = "mistouch_double_click";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */
