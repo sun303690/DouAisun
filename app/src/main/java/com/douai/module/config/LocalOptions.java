@@ -234,6 +234,8 @@ public final class LocalOptions {
     public static final String GHOST_MODE = "ghost_mode";
     /** Suppresses the outbound IM read receipt so the peer never sees 已读. */
     public static final String READ_RECEIPT_SUPPRESS = "read_receipt_suppress";
+    /** Removes the commercial comment injected into the comment list. */
+    public static final String COMMENT_AD_FILTER = "comment_ad_filter";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

@@ -117,7 +117,7 @@ public final class ModuleSettingsReferenceTest {
     @Test
     public void referenceSubpagesHaveExactItemOrderAndNoExtraInlineInputRows() {
         String[][] references = {
-                {"BASIC", "去除启动和闪屏广告", "去除更新弹窗", "去除青少年弹窗", "自动跳过广告", "展开收起的评论", "隐藏名单计数", "显示精确点赞数"},
+                {"BASIC", "去除启动和闪屏广告", "去除更新弹窗", "去除青少年弹窗", "自动跳过广告", "展开收起的评论", "隐藏名单计数", "显示精确点赞数", "过滤评论区广告"},
                 {"INTERFACE", "悬浮条", "隐藏拍摄+号图标", "隐藏上下黑边", "禁用双击点赞",
                         "不允许系统跳过已隐藏视频", "不允许中途插入视频", "拦截长按倍数启用场景",
                         "拦截系统长按手势", "长按事件", "双击事件", "沉浸式全屏", "隐藏顶部Tab开关",

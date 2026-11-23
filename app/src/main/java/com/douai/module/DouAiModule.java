@@ -48,6 +48,7 @@ import com.douai.module.feature.ImmersivePlaybackUi;
 import com.douai.module.feature.ExactLikeCountHook;
 import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.ReadReceiptSuppressHook;
+import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
@@ -218,6 +219,7 @@ public final class DouAiModule extends XposedModule {
     private volatile ExactLikeCountHook exactLikeCountHook;
     private volatile GhostModeHook ghostModeHook;
     private volatile ReadReceiptSuppressHook readReceiptSuppressHook;
+    private volatile CommentAdFilterHook commentAdFilterHook;
     private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
@@ -915,6 +917,8 @@ public final class DouAiModule extends XposedModule {
             if (ghost != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) ghost.setSettings(extended);
             ReadReceiptSuppressHook receipt = readReceiptSuppressHook;
             if (receipt != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) receipt.setSettings(extended);
+            CommentAdFilterHook adFilter = commentAdFilterHook;
+            if (adFilter != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) adFilter.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1175,6 +1179,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("read_receipt_suppress", "installation", failure);
                 moduleLog(6, TAG, "Read receipt suppress hook installation failed", failure);
+            }
+        }
+        if (commentAdFilterHook == null) {
+            try {
+                commentAdFilterHook = CommentAdFilterHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Comment ad filter hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.commentAdFilter));
+            } catch (Throwable failure) {
+                DouAiLog.failure("comment_ad_filter", "installation", failure);
+                moduleLog(6, TAG, "Comment ad filter hook installation failed", failure);
             }
         }
         if (dyguardUiHook == null) {
@@ -1706,6 +1721,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.exact_like.installed", exactLikeCountHook != null && exactLikeCountHook.isEnabled());
         snapshot.putBoolean("feature.ghost_mode.installed", ghostModeHook != null && ghostModeHook.isEnabled());
         snapshot.putBoolean("feature.read_receipt_suppress.installed", readReceiptSuppressHook != null && readReceiptSuppressHook.isEnabled());
+        snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
         snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);

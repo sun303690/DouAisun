@@ -571,6 +571,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("展开收起的评论", "", LocalOptions.EXPAND_HIDDEN_COMMENTS);
                 addLocalSwitch("隐藏名单计数", "", LocalOptions.HIDE_LIST_COUNT);
                 addLocalSwitch("显示精确点赞数", "", LocalOptions.EXACT_LIKE_COUNT);
+                addLocalSwitch("过滤评论区广告", "", LocalOptions.COMMENT_AD_FILTER);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");
