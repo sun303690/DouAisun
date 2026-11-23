@@ -55,6 +55,7 @@ import com.douai.module.feature.ProfileSpoofHook;
 import com.douai.module.feature.NativeMessagingHooks;
 import com.douai.module.feature.NativeFollowLists;
 import com.douai.module.feature.CloseFriendHook;
+import com.douai.module.feature.CloseFriendListHook;
 import com.douai.module.feature.CloseFriendPushHook;
 import com.douai.module.feature.CloseFriendAlertHook;
 import com.douai.module.feature.RecallHighlightHook;
@@ -145,6 +146,7 @@ public final class DouAiModule extends XposedModule {
     private volatile CloseFriendHook closeFriendHook;
     private volatile CloseFriendAlertHook closeFriendAlertHook;
     private volatile CloseFriendPushHook closeFriendPushHook;
+    private volatile CloseFriendListHook closeFriendListHook;
     private volatile FeedGestureToolsHook feedGestureToolsHook;
     private volatile CommentAiAnalysisHook commentAiAnalysisHook;
     private volatile DouyinSearch manualAiSearch;
@@ -825,6 +827,7 @@ public final class DouAiModule extends XposedModule {
             if (recallHighlightHook != null && messageRecallChanged) recallHighlightHook.setOptions(options);
             if (closeFriendHook != null && closeFriendChanged) closeFriendHook.setOptions(options);
             if (closeFriendPushHook != null && closeFriendChanged) closeFriendPushHook.setOptions(options);
+            if (closeFriendListHook != null && closeFriendChanged) closeFriendListHook.setOptions(options);
             if (directMessageSpeechHook != null && (initial || changes.affects(Feature.DIRECT_MESSAGE_SPEECH))) {
                 directMessageSpeechHook.setOptions(options);
             }
@@ -1421,6 +1424,12 @@ public final class DouAiModule extends XposedModule {
                         localOptions, message -> moduleLog(3, TAG, message));
             } catch (Throwable failure) { moduleLog(6, TAG, "Close friend push filter hook failed", failure); }
         }
+        if (closeFriendListHook == null) {
+            try {
+                closeFriendListHook = CloseFriendListHook.install(hookFramework(), hostClassLoader,
+                        localOptions, message -> moduleLog(3, TAG, message));
+            } catch (Throwable failure) { moduleLog(6, TAG, "Close friend list hook failed", failure); }
+        }
         if (mediaModelHook == null) {
             try {
                 mediaModelHook = MediaModelHook.install(hookFramework(), hostScanReport, hostClassLoader,
@@ -1616,6 +1625,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putString("feature.comment_tts.failure", nativeCommentSpeechHookFailure);
         snapshot.putBoolean("feature.recall_background.installed", recallHighlightHook != null && recallHighlightHook.isActive());
         snapshot.putBoolean("feature.close_friend.installed", closeFriendHook != null && closeFriendHook.isActive());
+        snapshot.putBoolean("feature.close_friend_list.installed", closeFriendListHook != null && closeFriendListHook.isActive());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);
         snapshot.putBoolean("feature.hash_long_press_voice.installed", hashLongPressVoiceHook != null);

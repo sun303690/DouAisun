@@ -210,6 +210,18 @@ public final class LocalOptions {
     public static final String CLOSE_FRIEND_AUTO_HIDE = "close_friend_auto_hide";
     /** Comma separated lifecycle triggers that hide close friends, e.g. background,screen,chat_leave. */
     public static final String CLOSE_FRIEND_AUTO_SCOPE = "close_friend_auto_scope";
+    /** Hides close friend entries from the message page interaction digest. */
+    public static final String CLOSE_FRIEND_HIDE_INTERACTION = "close_friend_hide_interaction";
+    /** Hides close friends from the in-app message search results. */
+    public static final String CLOSE_FRIEND_HIDE_SEARCH = "close_friend_hide_search";
+    /** Hides close friends from the forward/share contact picker. */
+    public static final String CLOSE_FRIEND_HIDE_FORWARD = "close_friend_hide_forward";
+    /** Hides close friends from the bottom tab unread badge count. */
+    public static final String CLOSE_FRIEND_HIDE_BADGE = "close_friend_hide_badge";
+    /** Hides the incoming call banner and the missed call banner. */
+    public static final String CLOSE_FRIEND_HIDE_CALL_BANNER = "close_friend_hide_call_banner";
+    /** Hides close friends from the message page top avatar row (skylight). */
+    public static final String CLOSE_FRIEND_HIDE_SKYLIGHT = "close_friend_hide_skylight";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

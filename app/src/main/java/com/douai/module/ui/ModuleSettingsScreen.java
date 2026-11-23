@@ -765,6 +765,24 @@ public final class ModuleSettingsScreen {
                 addSwitch("密友已读不再推送", "对方已读后不再弹提示",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_READ, value));
+                addSwitch("密友来电横幅隐藏", "拦下通话中/未接来电横幅",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL_BANNER, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_CALL_BANNER, value));
+                addSwitch("密友搜索隐藏", "消息搜索结果里不出现密友",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SEARCH, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SEARCH, value));
+                addSwitch("密友转发选人隐藏", "转发面板选人列表不出现密友",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_FORWARD, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_FORWARD, value));
+                addSwitch("密友底部未读滤除", "底部消息角标不计密友未读",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BADGE, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_BADGE, value));
+                addSwitch("密友顶部头像隐藏", "消息页顶部头像行不出现密友",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SKYLIGHT, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_SKYLIGHT, value));
+                addSwitch("密友互动摘要隐藏", "消息页互动摘要不出现密友条目",
+                        repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_INTERACTION, false),
+                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_INTERACTION, value));
 
                 addDependentSwitch("替换私聊语音", "", repository.getBoolean("dm_voice_replace", false),
                         value -> repository.putBoolean("dm_voice_replace", value),

@@ -102,6 +102,12 @@ public final class ConfigurationCatalog {
         add(keys, "boolean", LocalOptions.CLOSE_FRIEND_VIBRATE_SKIP_SILENT);
         add(keys, "boolean", LocalOptions.CLOSE_FRIEND_AUTO_HIDE);
         add(keys, "string", LocalOptions.CLOSE_FRIEND_AUTO_SCOPE);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_INTERACTION);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_SEARCH);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_FORWARD);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_BADGE);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_CALL_BANNER);
+        add(keys, "boolean", LocalOptions.CLOSE_FRIEND_HIDE_SKYLIGHT);
         add(keys, "boolean", CommentAiSettings.TAKEOVER + " " + CommentAiSettings.SEARCH);
         add(keys, "boolean", SidebarSettings.ENABLED);
         add(keys, "string", SidebarSettings.ITEMS);
@@ -169,7 +175,7 @@ public final class ConfigurationCatalog {
         depend(Feature.AUTO_PLAY, "auto_play smart_swipe pause_auto_on_comments", "");
         depend(Feature.GESTURE, "playback_speed toolbar_enabled long_press_action double_tap_action intercept_native_long_press remove_watermark download_custom_name download_name_template remove_download_limits download_method download_directory_uri " + LocalOptions.MODULE_ONLY_SPEED, "long_press_ double_tap_ toolbar_ third_party_");
         depend(Feature.MESSAGE_RECALL, "prevent_message_recall recall_self recall_other recall_background", "");
-        depend(Feature.CLOSE_FRIEND, "close_friend_filter close_friend_uids close_friend_title_bold close_friend_vibrate close_friend_vibrate_ms close_friend_hide_banner close_friend_hide_notification close_friend_hide_call close_friend_call_silent close_friend_hide_read close_friend_bold_weight close_friend_title_hold_ms close_friend_title_hide_taps close_friend_vibrate_skip_silent close_friend_auto_hide close_friend_auto_scope", "");
+        depend(Feature.CLOSE_FRIEND, "close_friend_filter close_friend_uids close_friend_title_bold close_friend_vibrate close_friend_vibrate_ms close_friend_hide_banner close_friend_hide_notification close_friend_hide_call close_friend_call_silent close_friend_hide_read close_friend_bold_weight close_friend_title_hold_ms close_friend_title_hide_taps close_friend_vibrate_skip_silent close_friend_auto_hide close_friend_auto_scope close_friend_hide_interaction close_friend_hide_search close_friend_hide_forward close_friend_hide_badge close_friend_hide_call_banner close_friend_hide_skylight", "");
         depend(Feature.SPOOF, "spoof_version fake_version_name fake_version_code spoof_profile profile_like_count profile_following_count profile_follower_count profile_mutual_count", "");
         depend(Feature.FOLLOW_LISTS, "reply_scope_mode comment_scope_mode reply_private_chats reply_global reply_scope_relations reply_targets reply_group_targets reply_group_members comment_scope_relations comment_scope_users relation_lists_refresh_token", "");
         depend(Feature.AUTOMATION_DISPATCH, "reply_tip comment_tip reply_notice_seconds comment_notice_seconds streak_tip reply_save_history comment_save_history", "");
