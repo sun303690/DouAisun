@@ -33,7 +33,7 @@ public final class HostRuleAssetProfilesTest {
         for (HostAdaptation.Profile profile : HostApkTestProfile.profiles()) {
             HostRuleSet selected = rules(profile);
             assertEquals(profile.versionName, profile.fingerprint, selected.getFingerprint());
-            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 251 : 243;
+            int expectedCount = profile == HostAdaptation.PROFILE_410 ? 252 : 243;
             assertEquals(profile.versionName, expectedCount, selected.getRules().size());
             Set<String> expectedIds = new HashSet<>(olderIds);
             if (profile == HostAdaptation.PROFILE_410) {
