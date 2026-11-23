@@ -267,3 +267,6 @@ adv_like_haptic_image	gesture	method	Lcom/ss/android/ugc/aweme/feed/adapter/Feed
 adv_im_banner_live	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/legacy/opt/live/LiveNotificationWidget;		showBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
 adv_im_banner_live_platform	message	method	Lcom/ss/android/ugc/aweme/im/sdk/notification/legacy/opt/live/platform/LivePlatformNotificationWidget;		bindBannerContent	(Lcom/ss/android/ugc/aweme/innerpush/api/banner/BannerInfo;)V								
 adv_night_mode_force	ui	method	Lcom/ss/android/ugc/aweme/setting/TiktokSkinHelper;		isNightMode	()Z								
+adv_search_section_history	search	method	Lcom/ss/android/ugc/aweme/discover/ui/intermediate/history/SearchMidHistoryCard;		onBindData	(Ljava/lang/Object;Lorg/json/JSONObject;)V								
+adv_search_section_guess	search	method	Lcom/ss/android/ugc/aweme/discover/ui/intermediate/SearchMidGuessSearchCard;		onBindData	(Ljava/lang/Object;Lorg/json/JSONObject;)V								
+adv_search_section_tab	search	method	Lcom/ss/android/ugc/aweme/discover/ui/intermediate/SearchMiddleNaTabCard;		onBindData	(Ljava/lang/Object;Lorg/json/JSONObject;)V								

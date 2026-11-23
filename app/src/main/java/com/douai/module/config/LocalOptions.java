@@ -245,6 +245,9 @@ public final class LocalOptions {
     public static final String IM_BANNER_BLOCK = "im_banner_block";
     /** Vibrates once when a double tap actually likes the current feed item. */
     public static final String LIKE_HAPTIC = "like_haptic";
+    /** Hides the injected cards on the search intermediate page. */
+    public static final String SEARCH_SECTIONS_HIDE = "search_sections_hide";
+
     /** Aligns the host dark theme with the system night mode. */
     public static final String NIGHT_MODE_FORCE = "night_mode_force";
     /** Hides advertisement comments. */
