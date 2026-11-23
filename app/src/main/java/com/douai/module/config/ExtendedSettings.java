@@ -27,6 +27,7 @@ public final class ExtendedSettings {
     public final boolean ghostMode;
     public final boolean readReceiptSuppress;
     public final boolean commentAdFilter;
+    public final boolean hideDanmaku;
     public final String hiddenTopTabs;
     public final String fakeVersionName;
     public final String fakeVersionCode;
@@ -57,6 +58,7 @@ public final class ExtendedSettings {
         ghostMode = preferences.getBoolean("ghost_mode", false);
         readReceiptSuppress = preferences.getBoolean("read_receipt_suppress", false);
         commentAdFilter = preferences.getBoolean("comment_ad_filter", false);
+        hideDanmaku = preferences.getBoolean("hide_danmaku", false);
         hiddenTopTabs = safeString(preferences, "hidden_top_tabs");
         fakeVersionName = safeString(preferences, "fake_version_name");
         fakeVersionCode = safeString(preferences, "fake_version_code");
@@ -88,6 +90,7 @@ public final class ExtendedSettings {
         ghostMode = false;
         readReceiptSuppress = false;
         commentAdFilter = false;
+        hideDanmaku = false;
         hiddenTopTabs = "";
         fakeVersionName = "";
         fakeVersionCode = "";

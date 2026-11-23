@@ -572,6 +572,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("隐藏名单计数", "", LocalOptions.HIDE_LIST_COUNT);
                 addLocalSwitch("显示精确点赞数", "", LocalOptions.EXACT_LIKE_COUNT);
                 addLocalSwitch("过滤评论区广告", "", LocalOptions.COMMENT_AD_FILTER);
+                addLocalSwitch("隐藏弹幕", "", LocalOptions.HIDE_DANMAKU);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");

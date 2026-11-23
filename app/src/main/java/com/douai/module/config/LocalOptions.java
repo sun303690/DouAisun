@@ -236,6 +236,8 @@ public final class LocalOptions {
     public static final String READ_RECEIPT_SUPPRESS = "read_receipt_suppress";
     /** Removes the commercial comment injected into the comment list. */
     public static final String COMMENT_AD_FILTER = "comment_ad_filter";
+    /** Hides the feed danmaku layer entirely. */
+    public static final String HIDE_DANMAKU = "hide_danmaku";
     /** Hides advertisement comments. */
     public static final String COMMENT_FILTER_ADS = "comment_view_filter_ads";
     /** Hides comments the host marks as hot or highlighted. */

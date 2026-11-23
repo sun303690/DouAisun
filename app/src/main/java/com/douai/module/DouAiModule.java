@@ -49,6 +49,7 @@ import com.douai.module.feature.ExactLikeCountHook;
 import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.ReadReceiptSuppressHook;
 import com.douai.module.feature.CommentAdFilterHook;
+import com.douai.module.feature.DanmakuHideHook;
 import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
 import com.douai.module.feature.LiveRoomInfoHook;
@@ -220,6 +221,7 @@ public final class DouAiModule extends XposedModule {
     private volatile GhostModeHook ghostModeHook;
     private volatile ReadReceiptSuppressHook readReceiptSuppressHook;
     private volatile CommentAdFilterHook commentAdFilterHook;
+    private volatile DanmakuHideHook danmakuHideHook;
     private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
@@ -919,6 +921,8 @@ public final class DouAiModule extends XposedModule {
             if (receipt != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) receipt.setSettings(extended);
             CommentAdFilterHook adFilter = commentAdFilterHook;
             if (adFilter != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) adFilter.setSettings(extended);
+            DanmakuHideHook danmaku = danmakuHideHook;
+            if (danmaku != null && (initial || changes.affects(Feature.HOST_BEHAVIOR))) danmaku.setSettings(extended);
             RefreshConfirmHook refreshHook = refreshConfirmHook;
             if (refreshHook != null && (initial || changes.affects(Feature.REFRESH))) refreshHook.setSettings(extended);
             moduleLog(3, TAG, "Configuration updated: feedFilter=" + settings.feedFilterEnabled
@@ -1190,6 +1194,17 @@ public final class DouAiModule extends XposedModule {
             } catch (Throwable failure) {
                 DouAiLog.failure("comment_ad_filter", "installation", failure);
                 moduleLog(6, TAG, "Comment ad filter hook installation failed", failure);
+            }
+        }
+        if (danmakuHideHook == null) {
+            try {
+                danmakuHideHook = DanmakuHideHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Danmaku hide hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.hideDanmaku));
+            } catch (Throwable failure) {
+                DouAiLog.failure("hide_danmaku", "installation", failure);
+                moduleLog(6, TAG, "Danmaku hide hook installation failed", failure);
             }
         }
         if (dyguardUiHook == null) {
@@ -1722,6 +1737,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.ghost_mode.installed", ghostModeHook != null && ghostModeHook.isEnabled());
         snapshot.putBoolean("feature.read_receipt_suppress.installed", readReceiptSuppressHook != null && readReceiptSuppressHook.isEnabled());
         snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
+        snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
         snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);
