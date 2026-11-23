@@ -245,6 +245,12 @@ public final class LocalOptions {
     public static final String IM_BANNER_BLOCK = "im_banner_block";
     /** Vibrates once when a double tap actually likes the current feed item. */
     public static final String LIKE_HAPTIC = "like_haptic";
+    /** Blocks the horizontal swipe gesture on the home top tab strip. */
+    public static final String TOP_TAB_SWIPE_BLOCK = "top_tab_swipe_block";
+
+    /** Refuses the Reparo remote patch task so pushed patches cannot replace hooked classes. */
+    public static final String HOTFIX_PATCH_BLOCK = "hotfix_patch_block";
+
     /** Hides the injected cards on the search intermediate page. */
     public static final String SEARCH_SECTIONS_HIDE = "search_sections_hide";
 

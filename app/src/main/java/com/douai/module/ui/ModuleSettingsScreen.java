@@ -579,6 +579,8 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("双击点赞震动", "", LocalOptions.LIKE_HAPTIC);
                 addLocalSwitch("跟随系统夜间模式", "", LocalOptions.NIGHT_MODE_FORCE);
                 addLocalSwitch("隐藏搜索中间页卡片", "", LocalOptions.SEARCH_SECTIONS_HIDE);
+                addLocalSwitch("禁用主页顶栏滑动", "", LocalOptions.TOP_TAB_SWIPE_BLOCK);
+                addLocalSwitch("拦截热更新补丁", "", LocalOptions.HOTFIX_PATCH_BLOCK);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");
