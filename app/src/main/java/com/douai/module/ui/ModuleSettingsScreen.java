@@ -719,13 +719,19 @@ public final class ModuleSettingsScreen {
                 addDependentSwitch("密友过滤", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_FILTER, false),
                         value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_FILTER, value),
-                        () -> addEditableOption("密友用户ID（逗号或换行分隔）", "",
+                        () -> addEditableOption("密友用户ID（逗号或换行分隔）", "也可以直接手填，选择后自动回填",
                                 repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, ""),
                                 false, true, false,
                                 value -> repository.putString(LocalOptions.CLOSE_FRIEND_UIDS, value)));
-                addSwitch("密友会话标题加粗", "",
+                addDependentSwitch("密友会话标题加粗", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, false),
-                        true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, value));
+                        value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_TITLE_BOLD, value),
+                        () -> {
+                            OptionRow[] weight = new OptionRow[1];
+                            weight[0] = addOption("加粗程度", "500 到 900，700 为常规粗体",
+                                    closeFriendWeightLabel(), true,
+                                    () -> showCloseFriendWeight(weight));
+                        });
                 addDependentSwitch("密友来信震动", "",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_VIBRATE, false),
                         value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_VIBRATE, value),
@@ -745,6 +751,8 @@ public final class ModuleSettingsScreen {
                         () -> setCloseFriendVisible(true));
                 addOption("隐藏密友会话", "自动隐藏触发时重新收起", null, true,
                         () -> setCloseFriendVisible(false));
+                addOption("选择密友会话", closeFriendSelectionHint(), null, true,
+                        this::showCloseFriendSelection);
                 addSwitch("密友来信不弹通知", "拦下通知栏推送",
                         repository.getBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, false),
                         true, value -> repository.putBoolean(LocalOptions.CLOSE_FRIEND_HIDE_NOTIFICATION, value));
@@ -1370,6 +1378,52 @@ public final class ModuleSettingsScreen {
         if (!repository.getBoolean(LocalOptions.CLOSE_FRIEND_FILTER, false)) return "密友过滤未开启";
         if (repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, "").trim().isEmpty()) return "密友用户ID为空";
         return com.douai.module.feature.CloseFriendState.isRevealing() ? "当前：已显示" : "当前：已隐藏";
+    }
+
+    /** 与 dyguard 一致的会话勾选入口：直接勾人，不用再手抄 uid。 */
+    private String closeFriendSelectionHint() {
+        int count = closeFriendSelectedUids().size();
+        return count == 0 ? "未选择" : "已选择 " + count + " 人";
+    }
+
+    private java.util.Set<String> closeFriendSelectedUids() {
+        return com.douai.module.feature.ReplyPolicy.targets(
+                repository.getString(LocalOptions.CLOSE_FRIEND_UIDS, ""));
+    }
+
+    private void showCloseFriendSelection() {
+        withNativeContacts(false, this::showCloseFriendSelectionLoaded);
+    }
+
+    private void showCloseFriendSelectionLoaded() {
+        java.util.Map<String, ProfileListEntry> users = new java.util.LinkedHashMap<>(NativeMessagingHooks.availableContactProfiles());
+        for (com.douai.module.feature.FollowListSnapshot.Kind kind : com.douai.module.feature.FollowListSnapshot.Kind.values()) {
+            NativeFollowLists.memberDetails(kind).forEach((uid, profile) ->
+                    users.merge(uid, profile, (existing, incoming) -> incoming.withFallback(existing)));
+        }
+        showProfileSelection("选择密友会话", users, closeFriendSelectedUids(), next -> {
+            repository.putString(LocalOptions.CLOSE_FRIEND_UIDS, String.join(",", next));
+            com.douai.module.feature.CloseFriendHook.refreshSessionList();
+            toast(next.isEmpty() ? "密友列表已清空" : "已选 " + next.size() + " 位密友");
+        });
+    }
+
+    private String closeFriendWeightLabel() {
+        int weight = Math.max(500, Math.min(900,
+                parseIntSafe(repository.getString(LocalOptions.CLOSE_FRIEND_BOLD_WEIGHT, "700"), 700)));
+        return Integer.toString(weight);
+    }
+
+    private void showCloseFriendWeight(OptionRow[] row) {
+        final String[] choices = {"500", "600", "700", "800", "900"};
+        int current = Math.max(500, Math.min(900,
+                parseIntSafe(repository.getString(LocalOptions.CLOSE_FRIEND_BOLD_WEIGHT, "700"), 700)));
+        new MiuixDialogBuilder(context, miuixHome != null).setTitle("加粗程度")
+                .setItems(choices, (dialog, which) -> {
+                    if (which < 0 || which >= choices.length) return;
+                    repository.putString(LocalOptions.CLOSE_FRIEND_BOLD_WEIGHT, choices[which]);
+                    row[0].setValue(choices[which]);
+                }).setNegativeButton("取消", null).show();
     }
 
     /** 显示/隐藏密友会话，翻转后立刻回灌会话列表，无需重启宿主。 */
