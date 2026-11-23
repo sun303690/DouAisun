@@ -4,6 +4,8 @@ import com.douai.module.config.ExtendedSettings;
 import com.douai.module.diagnostics.DouAiLog;
 import com.douai.module.scan.HostScanReport;
 
+import android.view.View;
+
 import io.github.libxposed.api.XposedInterface;
 
 import java.lang.reflect.Method;
@@ -21,7 +23,7 @@ import java.util.function.Consumer;
  * {@code SearchMiddleNaTabCard} -> {@code onBindData(Object, JSONObject)}.
  *
  * <p>The hook proceeds normally, then flips the card root view to
- * {@link android.view.View#GONE} so the section neither renders nor occupies
+ * {@link View#GONE} so the section neither renders nor occupies
  * vertical space.
  */
 public final class SearchSectionHideHook {
@@ -31,7 +33,6 @@ public final class SearchSectionHideHook {
             "adv_search_section_guess",
             "adv_search_section_tab"
     };
-    private static final int GONE = 8;
 
     private final List<XposedInterface.HookHandle> handles = new ArrayList<>();
     private final Consumer<String> log;
@@ -91,8 +92,8 @@ public final class SearchSectionHideHook {
             Object view = HostTargets.invoke(self, "getView");
             if (view instanceof android.view.View) {
                 android.view.View card = (android.view.View) view;
-                if (card.getVisibility() != GONE) {
-                    card.setVisibility(GONE);
+                if (card.getVisibility() != View.GONE) {
+                    card.setVisibility(View.GONE);
                     long total = hidden.incrementAndGet();
                     if (total == 1 || total % 50 == 0) {
                         DouAiLog.event("search_sections", "hide",
