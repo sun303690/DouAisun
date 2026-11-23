@@ -25,8 +25,8 @@ import java.util.function.Consumer;
  */
 public final class HostGuardHook {
 
-    static final String RULE_TOP_TAB_SWIPE = "adv_top_tab_swipe";
-    static final String RULE_HOTFIX_PATCH = "adv_hotfix_patch";
+    static final String RULE_TOP_TAB_SWIPE = "adv_top_tab_swipe_block";
+    static final String RULE_HOTFIX_PATCH = "adv_hotfix_patch_block";
 
     private final XposedInterface framework;
     private final HostScanReport report;
