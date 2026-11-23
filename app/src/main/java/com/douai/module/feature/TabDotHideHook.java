@@ -27,7 +27,7 @@ public final class TabDotHideHook {
     static final String RULE_IMAGE = "adv_tab_dot_image";
 
     private final List<XposedInterface.HookHandle> handles = new ArrayList<>();
-    private final ExtendedSettings settings;
+    private volatile ExtendedSettings settings;
     private volatile boolean enabled;
 
     private TabDotHideHook(ExtendedSettings settings) {
@@ -48,6 +48,11 @@ public final class TabDotHideHook {
     public boolean isEnabled() { return enabled; }
 
     public void setEnabled(boolean value) { enabled = value; }
+
+    public void setSettings(ExtendedSettings next) {
+        this.settings = next;
+        this.enabled = next != null && next.tabDotHide;
+    }
 
     public void unbind() {
         for (XposedInterface.HookHandle handle : handles) {
