@@ -45,6 +45,7 @@ public final class HostRuleAssetProfilesTest {
                 expectedIds.add("adv_comment_ad_factory");
                 expectedIds.add("adv_danmaku_visibility");
                 expectedIds.add("adv_mistouch_double_click");
+                expectedIds.add("adv_live_preview_block");
             }
             assertEquals(profile.versionName, expectedIds, ids(selected));
             assertTrue("Profiles must not share rule assets", assets.add(profile.rulesAsset));

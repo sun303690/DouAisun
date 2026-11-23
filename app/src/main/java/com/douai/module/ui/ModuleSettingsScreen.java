@@ -574,6 +574,7 @@ public final class ModuleSettingsScreen {
                 addLocalSwitch("过滤评论区广告", "", LocalOptions.COMMENT_AD_FILTER);
                 addLocalSwitch("隐藏弹幕", "", LocalOptions.HIDE_DANMAKU);
                 addLocalSwitch("防误触双击点赞", "", LocalOptions.MISTOUCH_DOUBLE_CLICK);
+                addLocalSwitch("屏蔽直播预览弹窗", "", LocalOptions.LIVE_PREVIEW_BLOCK);
                 break;
             case INTERFACE:
                 addLocalSwitch("悬浮条", "", "toolbar_enabled");

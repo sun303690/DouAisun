@@ -50,6 +50,7 @@ import com.douai.module.feature.GhostModeHook;
 import com.douai.module.feature.ReadReceiptSuppressHook;
 import com.douai.module.feature.CommentAdFilterHook;
 import com.douai.module.feature.DanmakuHideHook;
+import com.douai.module.feature.LivePreviewBlockHook;
 import com.douai.module.feature.MistouchDoubleClickHook;
 import com.douai.module.feature.SkipAdHook;
 import com.douai.module.feature.LiveCleanHook;
@@ -224,6 +225,7 @@ public final class DouAiModule extends XposedModule {
     private volatile CommentAdFilterHook commentAdFilterHook;
     private volatile DanmakuHideHook danmakuHideHook;
     private volatile MistouchDoubleClickHook mistouchHook;
+    private volatile LivePreviewBlockHook livePreviewBlockHook;
     private volatile DyguardUiHook dyguardUiHook;
     private volatile String refreshHookFailure;
     private volatile String autoLikeHookFailure;
@@ -1217,9 +1219,22 @@ public final class DouAiModule extends XposedModule {
                         hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
                 moduleLog(3, TAG, "Mistouch double-click hook installed; enabled="
                         + (extendedSettings != null && extendedSettings.mistouchDoubleClick));
+            }
+        }
             } catch (Throwable failure) {
                 DouAiLog.failure("mistouch_double_click", "installation", failure);
                 moduleLog(6, TAG, "Mistouch double-click hook installation failed", failure);
+            }
+        }
+        if (livePreviewBlockHook == null) {
+            try {
+                livePreviewBlockHook = LivePreviewBlockHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings, message -> moduleLog(3, TAG, message));
+                moduleLog(3, TAG, "Live preview block hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.livePreviewBlock));
+            } catch (Throwable failure) {
+                DouAiLog.failure("live_preview_block", "installation", failure);
+                moduleLog(6, TAG, "Live preview block hook installation failed", failure);
             }
         }
         if (dyguardUiHook == null) {
@@ -1754,6 +1769,7 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.comment_ad_filter.installed", commentAdFilterHook != null && commentAdFilterHook.isEnabled());
         snapshot.putBoolean("feature.hide_danmaku.installed", danmakuHideHook != null && danmakuHideHook.isEnabled());
         snapshot.putBoolean("feature.mistouch_double_click.installed", mistouchHook != null && mistouchHook.isEnabled());
+        snapshot.putBoolean("feature.live_preview_block.installed", livePreviewBlockHook != null && livePreviewBlockHook.isEnabled());
         snapshot.putBoolean("feature.dyguard_ui.installed", dyguardUiHook != null && dyguardUiHook.isEnabled());
         snapshot.putBoolean("feature.dm_speech.installed", directMessageSpeechHook != null);
         snapshot.putString("feature.dm_speech.failure", directMessageSpeechHookFailure);
