@@ -117,11 +117,7 @@ public final class LikeHapticHook {
         try {
             Vibrator vibrator = vibrator(context);
             if (vibrator == null || !vibrator.hasVibrator()) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(DURATION_MS, VibrationEffect.DEFAULT_AMPLITUDE));
-            } else {
-                vibrator.vibrate(DURATION_MS);
-            }
+            vibrator.vibrate(VibrationEffect.createOneShot(DURATION_MS, VibrationEffect.DEFAULT_AMPLITUDE));
             long total = vibrated.incrementAndGet();
             if (total == 1L) {
                 DouAiLog.event("like_haptic", "vibrate", "double_click_like", "hook_id=" + id);

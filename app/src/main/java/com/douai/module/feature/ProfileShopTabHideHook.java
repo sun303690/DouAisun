@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 
 import io.github.libxposed.api.XposedInterface;
 
@@ -101,7 +102,7 @@ public final class ProfileShopTabHideHook {
         for (String field : new String[] {"b", "d", "a"}) {
             Object value = read(item, field);
             if (value instanceof String) {
-                String lower = ((String) value).toLowerCase();
+                String lower = ((String) value).toLowerCase(Locale.ROOT);
                 for (String token : SHOP_TOKENS) {
                     if (lower.contains(token)) return true;
                 }
