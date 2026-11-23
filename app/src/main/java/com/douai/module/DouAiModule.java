@@ -1263,13 +1263,17 @@ public final class DouAiModule extends XposedModule {
                 DouAiLog.failure("night_mode", "installation", failure);
                 moduleLog(6, TAG, "Night mode force hook installation failed", failure);
             }
+        }
         if (tabDotHideHook == null && targetContext != null) {
             try {
-                tabDotHideHook = TabDotHideHook.install(hookFramework(), hostScanReport, targetContext, hostClassLoader(), settings);
+                tabDotHideHook = TabDotHideHook.install(hookFramework(), hostScanReport,
+                        hostClassLoader, extendedSettings);
+                moduleLog(3, TAG, "Tab dot hide hook installed; enabled="
+                        + (extendedSettings != null && extendedSettings.tabDotHide));
             } catch (Throwable failure) {
-                DouAiLog.event("tab_dot_hide", "install_failed", String.valueOf(failure), "");
+                DouAiLog.failure("tab_dot", "installation", failure);
+                moduleLog(6, TAG, "Tab dot hide hook installation failed", failure);
             }
-        }
         }
         if (searchSectionHideHook == null && targetContext != null) {
             try {
@@ -1873,8 +1877,8 @@ public final class DouAiModule extends XposedModule {
         snapshot.putBoolean("feature.im_banner_block.installed", imBannerBlockHook != null && imBannerBlockHook.isEnabled());
         snapshot.putBoolean("feature.like_haptic.installed", likeHapticHook != null && likeHapticHook.isEnabled());
         snapshot.putBoolean("feature.night_mode_force.installed",
-        snapshot.putBoolean("feature.tab_dot_hide.installed", tabDotHideHook != null && tabDotHideHook.isEnabled());
                 nightModeForceHook != null && nightModeForceHook.isEnabled());
+        snapshot.putBoolean("feature.tab_dot_hide.installed", tabDotHideHook != null && tabDotHideHook.isEnabled());
         snapshot.putBoolean("feature.search_sections_hide.installed",
                 searchSectionHideHook != null && searchSectionHideHook.isEnabled());
         snapshot.putBoolean("feature.host_guard.installed", hostGuardHook != null && hostGuardHook.isEnabled());
